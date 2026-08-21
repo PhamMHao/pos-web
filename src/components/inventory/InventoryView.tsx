@@ -25,6 +25,8 @@ import {
   Calculator,
   ChevronDown,
   Info,
+  Barcode,
+  QrCode,
 } from 'lucide-react';
 import {
   Product,
@@ -40,6 +42,7 @@ import { formatVND } from '../../utils/vietqr';
 import { COMMON_UNITS, solveUomChain, getUomEquivalentsSummary } from '../../utils/uomConverter';
 import { InboundEInvoiceModal } from '../invoices/InboundEInvoiceModal';
 import { StockReceiptPrintModal } from './StockReceiptPrintModal';
+import { ProductBarcodeLabelModal } from './ProductBarcodeLabelModal';
 import { INITIAL_STORE_SETTINGS } from '../../data/initialData';
 import { productsApi } from '../../features/products/api/productsApi';
 
@@ -90,6 +93,8 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   const [warehouseFilter, setWarehouseFilter] = useState<string>('all');
   const [stockFilter, setStockFilter] = useState<'all' | 'low' | 'out'>('all');
   const [showInboundModal, setShowInboundModal] = useState(false);
+  const [showBarcodeModal, setShowBarcodeModal] = useState(false);
+  const [barcodeModalProduct, setBarcodeModalProduct] = useState<Product | null>(null);
 
   const safeProducts = Array.isArray(products) ? products : [];
   const safeLogs = Array.isArray(inventoryLogs) ? inventoryLogs : [];
@@ -685,8 +690,19 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             )}
           </button>
           <button
+            onClick={() => {
+              setBarcodeModalProduct(null);
+              setShowBarcodeModal(true);
+            }}
+            className="flex items-center space-x-1.5 px-3.5 py-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white text-xs font-bold rounded-xl shadow-md shadow-amber-600/25 border border-amber-400/30 transition-all hover:scale-[1.02] active:scale-98 cursor-pointer"
+            title="In tem nhãn mã vạch Barcode và QR Code theo kích thước máy in nhiệt (30x20mm, 35x22mm, 50x30mm...)"
+          >
+            <Barcode className="w-4 h-4 text-amber-200" />
+            <span>In Tem Mã Vạch / QR</span>
+          </button>
+          <button
             onClick={handleExportCSV}
-            className="flex items-center space-x-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl border border-slate-700 transition-colors"
+            className="flex items-center space-x-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl border border-slate-700 transition-colors cursor-pointer"
           >
             <Download className="w-4 h-4" />
             <span className="hidden sm:inline">Xuất CSV</span>
@@ -960,6 +976,16 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                               title="Nhập / Xuất kho theo đơn vị tính"
                             >
                               Nhập/Xuất
+                            </button>
+                            <button
+                              onClick={() => {
+                                setBarcodeModalProduct(p);
+                                setShowBarcodeModal(true);
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-amber-950/40 rounded-lg transition-colors cursor-pointer"
+                              title="In tem mã vạch / QR cho sản phẩm này"
+                            >
+                              <Barcode className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => openEditModal(p)}
@@ -1844,6 +1870,20 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           settings={settings}
           stockReceipts={stockReceipts}
           setStockReceipts={setStockReceipts}
+        />
+      )}
+
+      {/* Product Barcode & QR Code Printable Label Modal */}
+      {showBarcodeModal && (
+        <ProductBarcodeLabelModal
+          isOpen={showBarcodeModal}
+          onClose={() => {
+            setShowBarcodeModal(false);
+            setBarcodeModalProduct(null);
+          }}
+          products={products}
+          initialSelectedProduct={barcodeModalProduct}
+          settings={settings}
         />
       )}
     </div>
