@@ -21,6 +21,28 @@ export interface UOMOption {
   description?: string; // e.g., '1 Thùng = 10 Cuộn = 1000m = 13kg = 13000g'
 }
 
+export type ProductLifecycleStage = 
+  | 'new_inbound' // Nhập Mới
+  | 'in_storage' // Lưu Kho Chuẩn
+  | 'on_display' // Đang Bày Bán / Trưng Bày
+  | 'reserved' // Đã Đặt / Giữ Hàng Dự Án
+  | 'audited' // Đã Kiểm Kê Đạt Chuẩn
+  | 'under_repair' // Bảo Hành / Sửa Chữa
+  | 'liquidation' // Thanh Lý / Xuất Hủy
+  | 'discontinued'; // Ngừng Kinh Doanh
+
+export interface ProductLifecycleLog {
+  id: string;
+  timestamp: string;
+  stage: ProductLifecycleStage;
+  warehouse: string;
+  storageLocation: string;
+  batchNumber?: string;
+  expiryDate?: string;
+  actionBy: string;
+  note: string;
+}
+
 export interface Product {
   id: string;
   sku: string;
@@ -42,6 +64,11 @@ export interface Product {
   uomTags?: string[]; // e.g., ['5 ĐVT', '3 Quy cách']
   weightOrVolume?: string;
   uomConversions?: UOMOption[]; // Danh sách đơn vị tính quy đổi đa năng
+  lifecycleStage?: ProductLifecycleStage;
+  batchNumber?: string; // Mã Lô sản xuất (Lot / Batch)
+  expiryDate?: string; // Hạn sử dụng (YYYY-MM-DD)
+  manufactureDate?: string; // Ngày sản xuất (YYYY-MM-DD)
+  lifecycleLogs?: ProductLifecycleLog[];
 }
 
 export interface CartItem {
@@ -332,6 +359,25 @@ export interface Employee {
   shiftSchedule: string; // e.g. "Ca Sáng (06:00 - 14:00)"
 }
 
+export type QuoteLifecycleStatus = 
+  | 'draft' // Dự Thảo
+  | 'sent' // Đã Gửi Khách
+  | 'negotiating' // Đang Đàm Phán
+  | 'approved' // Đã Duyệt Chốt
+  | 'converted_to_order' // Đã Chuyển Đơn Hàng POS
+  | 'completed' // ĐÃ HOÀN THÀNH (Nghiệm thu tất toán)
+  | 'rejected'; // Khách Từ Chối
+
+export interface QuoteLifecycleEvent {
+  id: string;
+  timestamp: string;
+  author: string;
+  fromStatus: QuoteLifecycleStatus;
+  toStatus: QuoteLifecycleStatus;
+  note: string;
+  discountAdjustment?: number;
+}
+
 export interface PriceQuote {
   id: string;
   code: string; // BG-2026-001
@@ -342,7 +388,7 @@ export interface PriceQuote {
   discountPercent: number;
   finalTotal: number;
   validUntil: string;
-  status: 'draft' | 'sent' | 'approved' | 'converted_to_order' | 'rejected';
+  status: QuoteLifecycleStatus;
   items: {
     productName: string;
     sku: string;
@@ -353,6 +399,10 @@ export interface PriceQuote {
   }[];
   createdAt: string;
   notes?: string;
+  negotiationNotes?: string;
+  completedAt?: string;
+  orderCode?: string;
+  lifecycleHistory?: QuoteLifecycleEvent[];
 }
 
 export interface ProductCosting {

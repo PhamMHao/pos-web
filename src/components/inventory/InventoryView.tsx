@@ -45,8 +45,20 @@ import { InboundEInvoiceModal } from '../invoices/InboundEInvoiceModal';
 import { StockReceiptPrintModal } from './StockReceiptPrintModal';
 import { ProductBarcodeLabelModal } from './ProductBarcodeLabelModal';
 import { BarcodeLabelPreviewModal, PrintLabelItem } from '../common/BarcodeLabelPreviewModal';
+import { ProductLifecycleModal } from './ProductLifecycleModal';
 import { INITIAL_STORE_SETTINGS } from '../../data/initialData';
 import { productsApi } from '../../features/products/api/productsApi';
+
+const LIFECYCLE_STAGE_BADGES: Record<string, { label: string; badge: string }> = {
+  new_inbound: { label: 'Nhập Mới', badge: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
+  in_storage: { label: 'Lưu Kho Chuẩn', badge: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' },
+  on_display: { label: 'Đang Bày Bán', badge: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' },
+  reserved: { label: 'Đã Giữ Hàng', badge: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
+  audited: { label: 'Kiểm Kê Đạt', badge: 'bg-teal-500/20 text-teal-300 border-teal-500/30' },
+  under_repair: { label: 'Bảo Hành/Sửa', badge: 'bg-purple-500/20 text-purple-300 border-purple-500/30' },
+  liquidation: { label: 'Thanh Lý/Hủy', badge: 'bg-orange-500/20 text-orange-300 border-orange-500/30' },
+  discontinued: { label: 'Ngừng KD', badge: 'bg-rose-500/20 text-rose-300 border-rose-500/30' },
+};
 
 interface InventoryViewProps {
   products: Product[];
@@ -96,11 +108,14 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [warehouseFilter, setWarehouseFilter] = useState<string>('all');
   const [stockFilter, setStockFilter] = useState<'all' | 'low' | 'out'>('all');
+  const [lifecycleStageFilter, setLifecycleStageFilter] = useState<string>('all');
   const [showInboundModal, setShowInboundModal] = useState(false);
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
   const [barcodeModalProduct, setBarcodeModalProduct] = useState<Product | null>(null);
   const [showPrintPreviewModal, setShowPrintPreviewModal] = useState(false);
   const [previewModalItems, setPreviewModalItems] = useState<PrintLabelItem[]>([]);
+  const [showLifecycleModal, setShowLifecycleModal] = useState(false);
+  const [lifecycleModalProduct, setLifecycleModalProduct] = useState<Product | null>(null);
 
   const safeProducts = Array.isArray(products) ? products : [];
   const safeLogs = Array.isArray(inventoryLogs) ? inventoryLogs : [];
@@ -141,6 +156,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       if (!p) return false;
       const matchCat = categoryFilter === 'all' || p.category === categoryFilter;
       const matchWh = warehouseFilter === 'all' || (p.warehouse || 'Kho Chính Gia Phúc Computer') === warehouseFilter;
+      const matchStage = lifecycleStageFilter === 'all' || (p.lifecycleStage || 'in_storage') === lifecycleStageFilter;
       let matchStock = true;
       if (stockFilter === 'low') matchStock = p.stock > 0 && p.stock <= p.minStock;
       if (stockFilter === 'out') matchStock = p.stock <= 0;
@@ -151,12 +167,13 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         (p.name && p.name.toLowerCase().includes(q)) ||
         (p.sku && p.sku.toLowerCase().includes(q)) ||
         (p.barcode && p.barcode.includes(q)) ||
+        (p.batchNumber && p.batchNumber.toLowerCase().includes(q)) ||
         (p.warehouse && p.warehouse.toLowerCase().includes(q)) ||
         (p.storageLocation && p.storageLocation.toLowerCase().includes(q));
 
-      return matchCat && matchWh && matchStock && matchSearch;
+      return matchCat && matchWh && matchStage && matchStock && matchSearch;
     });
-  }, [safeProducts, categoryFilter, warehouseFilter, stockFilter, searchTerm]);
+  }, [safeProducts, categoryFilter, warehouseFilter, lifecycleStageFilter, stockFilter, searchTerm]);
 
   const openAddModal = () => {
     const randomSku = 'SKU-' + Math.floor(1000 + Math.random() * 9000);
@@ -870,6 +887,23 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 <option value="low">Sắp hết hàng (Low)</option>
                 <option value="out">Hết hàng (Out of stock)</option>
               </select>
+
+              {/* Lifecycle Stage filter */}
+              <select
+                value={lifecycleStageFilter}
+                onChange={(e) => setLifecycleStageFilter(e.target.value)}
+                className="bg-slate-800 border border-emerald-500/50 rounded-xl px-3 py-1.5 text-xs text-emerald-300 font-bold focus:outline-none focus:border-emerald-400"
+              >
+                <option value="all">🔄 Tất cả giai đoạn dòng đời</option>
+                <option value="new_inbound">📥 1. Nhập Mới</option>
+                <option value="in_storage">🏬 2. Lưu Kho Chuẩn</option>
+                <option value="on_display">🏪 3. Đang Bày Bán</option>
+                <option value="reserved">🔒 4. Đã Giữ Hàng</option>
+                <option value="audited">📋 5. Kiểm Kê Đạt</option>
+                <option value="under_repair">🔧 6. Bảo Hành/Sửa Chữa</option>
+                <option value="liquidation">🏷️ 7. Thanh Lý/Hủy</option>
+                <option value="discontinued">🚫 8. Ngừng Kinh Doanh</option>
+              </select>
             </div>
           )}
         </div>
@@ -885,6 +919,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                   <th className="py-3.5 px-4">Sản Phẩm</th>
                   <th className="py-3.5 px-4">Danh Mục</th>
                   <th className="py-3.5 px-4">Kho & Vị Trí Kệ</th>
+                  <th className="py-3.5 px-4">Dòng Đời & Lô/HSD</th>
                   <th className="py-3.5 px-4">ĐVT</th>
                   <th className="py-3.5 px-4 text-right">Giá Vốn</th>
                   <th className="py-3.5 px-4 text-right">Giá Bán</th>
@@ -895,7 +930,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               <tbody className="divide-y divide-slate-800">
                 {filteredProducts.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-12 text-center text-slate-500">
+                    <td colSpan={9} className="py-12 text-center text-slate-500">
                       Không tìm thấy sản phẩm nào phù hợp
                     </td>
                   </tr>
@@ -943,6 +978,29 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                               </span>
                             ) : (
                               <span className="text-slate-500 italic text-[10px]">Chưa gán kệ</span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Lifecycle Stage & Lot/Batch */}
+                        <td className="py-3 px-4">
+                          <div className="space-y-1">
+                            <span
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                LIFECYCLE_STAGE_BADGES[p.lifecycleStage || 'in_storage']?.badge || 'bg-slate-800 text-slate-300'
+                              }`}
+                            >
+                              {LIFECYCLE_STAGE_BADGES[p.lifecycleStage || 'in_storage']?.label || 'Lưu Kho Chuẩn'}
+                            </span>
+                            {p.batchNumber && (
+                              <div className="text-[10px] text-slate-400 font-mono">
+                                Lô: <strong className="text-slate-300">{p.batchNumber}</strong>
+                              </div>
+                            )}
+                            {p.expiryDate && (
+                              <div className="text-[10px] text-rose-400 font-mono">
+                                HSD: {p.expiryDate}
+                              </div>
                             )}
                           </div>
                         </td>
@@ -1002,6 +1060,16 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                         {/* Actions */}
                         <td className="py-3 px-4 text-right">
                           <div className="flex items-center justify-end space-x-1">
+                            <button
+                              onClick={() => {
+                                setLifecycleModalProduct(p);
+                                setShowLifecycleModal(true);
+                              }}
+                              className="px-2 py-1 text-[11px] font-bold bg-purple-950/60 hover:bg-purple-900/80 text-purple-300 rounded-lg border border-purple-700/60 transition-colors cursor-pointer"
+                              title="Xem & Cập nhật Dòng Đời Sản Phẩm (8 Giai Đoạn, Lô SX, Hạn Dùng, Chuyển Kệ)"
+                            >
+                              🔄 Dòng Đời
+                            </button>
                             <button
                               onClick={() => {
                                 setAdjustingProduct(p);
@@ -1960,6 +2028,22 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           }
           defaultCodeType={settings?.labelPrintSettings?.product?.codeType || 'barcode'}
           storeName={settings?.brandName || settings?.storeName || 'GIA PHÚC COMPUTER'}
+        />
+      )}
+
+      {/* Product Lifecycle Modal (8 Stages, Batch/Lot, Expiry, Warehouse Audit) */}
+      {showLifecycleModal && lifecycleModalProduct && (
+        <ProductLifecycleModal
+          isOpen={showLifecycleModal}
+          onClose={() => {
+            setShowLifecycleModal(false);
+            setLifecycleModalProduct(null);
+          }}
+          product={lifecycleModalProduct}
+          onSaveProduct={(updatedProduct) => {
+            onSaveProduct(updatedProduct);
+            setLifecycleModalProduct(updatedProduct);
+          }}
         />
       )}
     </div>
