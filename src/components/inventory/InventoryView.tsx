@@ -61,6 +61,7 @@ interface InventoryViewProps {
   stockReceipts?: StockGoodsReceipt[];
   setStockReceipts?: (receipts: StockGoodsReceipt[] | ((prev: StockGoodsReceipt[]) => StockGoodsReceipt[])) => void;
   onRefreshDb?: () => void;
+  onOpenDocOcrScanner?: (mode?: 'stock_in') => void;
 }
 
 const CATEGORIES: ProductCategory[] = [
@@ -88,6 +89,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   stockReceipts = [],
   setStockReceipts = () => {},
   onRefreshDb,
+  onOpenDocOcrScanner,
 }) => {
   const [activeTab, setActiveTab] = useState<'catalog' | 'logs'>('catalog');
   const [searchTerm, setSearchTerm] = useState('');
@@ -662,6 +664,16 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onOpenDocOcrScanner ? onOpenDocOcrScanner('stock_in') : null}
+            className="flex items-center space-x-1.5 px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold rounded-xl shadow-md shadow-emerald-600/25 border border-emerald-400/40 transition-all cursor-pointer active:scale-95"
+            title="Quét phiếu nhập kho bằng camera điện thoại & Import Excel (AI Vision)"
+          >
+            <Sparkles className="w-4 h-4 text-amber-300" />
+            <span>📷 Quét Phiếu Nhập Kho (AI)</span>
+          </button>
+
           {onRefreshDb && (
             <button
               onClick={onRefreshDb}

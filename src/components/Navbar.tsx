@@ -42,6 +42,7 @@ interface NavbarProps {
   onOpenAuthModal?: () => void;
   onRefreshDb?: () => void;
   onOpenScannerPrinterHub?: () => void;
+  onOpenDocOcrScanner?: () => void;
   isSyncingDb?: boolean;
   lastSyncTime?: string;
 }
@@ -66,6 +67,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAuthModal,
   onRefreshDb,
   onOpenScannerPrinterHub,
+  onOpenDocOcrScanner,
   isSyncingDb,
   lastSyncTime,
 }) => {
@@ -231,6 +233,17 @@ export const Navbar: React.FC<NavbarProps> = ({
 
 
 
+
+        {/* AI Document OCR & Excel Button */}
+        <button
+          type="button"
+          onClick={onOpenDocOcrScanner}
+          className="flex items-center space-x-1.5 px-3 h-9 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-blue-500/20 border border-blue-400/40 transition-all cursor-pointer whitespace-nowrap active:scale-95"
+          title="Quét hóa đơn / báo giá bằng camera điện thoại & Import Excel (AI OCR)"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+          <span>Quét Phiếu / Excel (AI)</span>
+        </button>
 
         {/* Digital Clock */}
         <div className="hidden lg:flex items-center space-x-1.5 text-xs text-cyan-300 font-mono bg-slate-800/80 px-2.5 h-9 rounded-xl border border-slate-700/80 whitespace-nowrap">

@@ -27,6 +27,7 @@ import { DatabaseConfigModal } from './components/settings/DatabaseConfigModal';
 import { LoginModal } from './features/auth/components/LoginModal';
 import { ShortcutsModal } from './components/common/ShortcutsModal';
 import { ScannerPrinterHubModal } from './components/common/ScannerPrinterHubModal';
+import { DocumentOcrScannerModal } from './components/common/DocumentOcrScannerModal';
 import { ProductBarcodeLabelModal } from './components/inventory/ProductBarcodeLabelModal';
 import { productsApi } from './features/products/api/productsApi';
 import { customersApi } from './features/customers/api/customersApi';
@@ -193,6 +194,179 @@ export function App() {
   const [barcodeModalProduct, setBarcodeModalProduct] = useState<Product | null>(null);
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
   const [loadedQuoteData, setLoadedQuoteData] = useState<{ items: CartItem[]; customer?: Customer | null } | null>(null);
+  const [showDocOcrModal, setShowDocOcrModal] = useState(false);
+  const [docOcrInitialMode, setDocOcrInitialMode] = useState<'stock_in' | 'supplier_quote' | 'purchase_order' | 'customer_quote'>('stock_in');
+
+  const handleOpenDocOcrScanner = (mode: 'stock_in' | 'supplier_quote' | 'purchase_order' | 'customer_quote' = 'stock_in') => {
+    setDocOcrInitialMode(mode);
+    setShowDocOcrModal(true);
+  };
+
+  const handleApplyOcrStockIn = (data: { supplierName: string; documentCode: string; items: any[] }) => {
+    data.items.forEach((it) => {
+      const existing = products.find((p) => (it.sku && p.sku.toLowerCase() === it.sku.toLowerCase()) || p.name.toLowerCase() === it.productName.toLowerCase());
+      if (existing) {
+        handleUpdateProductStock(existing.id, (existing.stock || 0) + (Number(it.quantity) || 1));
+      } else {
+        const newProd: Product = {
+          id: 'prod-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+          sku: it.sku || ('SP-' + Date.now().toString().slice(-4)),
+          barcode: it.sku || ('893' + Date.now().toString().slice(-9)),
+          name: it.productName,
+          category: 'Camera & An Ninh',
+          unit: it.unit || 'Cái',
+          costPrice: Number(it.unitPrice) || 0,
+          sellingPrice: Math.round((Number(it.unitPrice) || 0) * 1.25),
+          stock: Number(it.quantity) || 1,
+          minStock: 5,
+          image: '',
+          storageLocation: 'Kệ A-01',
+          warehouse: 'Kho Tổng Gia Phúc TP.HCM',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        handleSaveProduct(newProd);
+      }
+    });
+    alert(`🎉 Đã nhập kho thành công ${data.items.length} mặt hàng từ chứng từ ${data.documentCode}!`);
+  };
+
+  const handleApplyOcrSupplierQuote = (data: { supplierName: string; items: any[] }) => {
+    const existingSup = suppliers.find((s) => s.name.toLowerCase().includes(data.supplierName.toLowerCase()) || data.supplierName.toLowerCase().includes(s.name.toLowerCase()));
+    if (existingSup) {
+      const updatedPriceList = [...(existingSup.priceList || [])];
+      data.items.forEach((it) => {
+        const idx = updatedPriceList.findIndex((p) => p.sku.toLowerCase() === it.sku.toLowerCase());
+        if (idx >= 0) {
+          updatedPriceList[idx] = {
+            sku: it.sku,
+            productName: it.productName,
+            costPrice: Number(it.unitPrice) || updatedPriceList[idx].costPrice,
+            warrantyMonths: it.warrantyMonths || 24,
+            moq: 1,
+          };
+        } else {
+          updatedPriceList.push({
+            sku: it.sku,
+            productName: it.productName,
+            costPrice: Number(it.unitPrice) || 0,
+            warrantyMonths: it.warrantyMonths || 24,
+            moq: 1,
+          });
+        }
+      });
+      handleSaveSupplier({ ...existingSup, priceList: updatedPriceList });
+      alert(`🎉 Đã cập nhật bảng giá ${data.items.length} SKU cho Nhà cung ứng: ${existingSup.name}`);
+    } else {
+      const newSup: Supplier = {
+        id: 'sup-' + Date.now(),
+        code: 'NCC-' + Date.now().toString().slice(-4),
+        name: data.supplierName || 'Nhà Cung Ứng Mới',
+        taxCode: '0101234567',
+        tier: 'Tổng Đại Lý',
+        category: 'Camera & An Ninh',
+        contactPerson: 'Đại diện bán hàng',
+        phone: '0901234567',
+        email: 'sales@supplier.com',
+        address: 'Hà Nội / TP.HCM',
+        creditLimit: 100000000,
+        creditDays: 30,
+        currentDebt: 0,
+        ratingQuality: 9.5,
+        ratingPrice: 9.0,
+        ratingOnTime: 9.5,
+        ratingWarranty: 9.2,
+        priceList: data.items.map((it) => ({
+          sku: it.sku,
+          productName: it.productName,
+          costPrice: Number(it.unitPrice) || 0,
+          warrantyMonths: it.warrantyMonths || 24,
+          moq: 1,
+        })),
+        createdAt: new Date().toISOString(),
+      };
+      handleSaveSupplier(newSup);
+      alert(`🎉 Đã tạo mới hồ sơ NCC "${newSup.name}" với ${data.items.length} SKU bảng giá!`);
+    }
+    setActiveTab('suppliers');
+  };
+
+  const handleApplyOcrPurchaseOrder = (data: { supplierName: string; documentCode: string; items: any[] }) => {
+    const subtotal = data.items.reduce((acc, it) => acc + (Number(it.total) || (Number(it.quantity) * Number(it.unitPrice))), 0);
+    const vatAmount = Math.round(subtotal * 0.1);
+    const newPO: PurchaseOrder = {
+      id: 'po-' + Date.now(),
+      code: data.documentCode || ('PO-' + new Date().getFullYear() + '-' + Date.now().toString().slice(-4)),
+      supplierId: suppliers[0]?.id || 'sup-main',
+      supplierName: data.supplierName || 'Nhà Cung Ứng',
+      supplierPhone: '0901234567',
+      supplierAddress: 'Kho Nhà Cung Cấp',
+      warehouseId: 'wh-main',
+      warehouseName: 'Kho Tổng Gia Phúc TP.HCM',
+      orderDate: new Date().toISOString().slice(0, 10),
+      expectedDeliveryDate: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10),
+      status: 'confirmed',
+      items: data.items.map((it) => ({
+        sku: it.sku,
+        productName: it.productName,
+        unit: it.unit || 'Cái',
+        quantity: Number(it.quantity) || 1,
+        unitPrice: Number(it.unitPrice) || 0,
+        total: Number(it.total) || (Number(it.quantity) * Number(it.unitPrice)),
+      })),
+      subtotal,
+      vatRate: 10,
+      vatAmount,
+      shippingFee: 0,
+      discountAmount: 0,
+      totalAmount: subtotal + vatAmount,
+      paidAmount: 0,
+      paymentStatus: 'unpaid',
+      paymentMethod: 'debt_30d',
+      notes: 'Lập tự động từ chức năng Quét Phiếu AI Vision.',
+      createdAt: new Date().toISOString(),
+    };
+    handleSavePurchaseOrder(newPO);
+    setActiveTab('suppliers');
+    alert(`🎉 Đã tạo thành công Đơn Đặt Hàng Mua ${newPO.code}!`);
+  };
+
+  const handleApplyOcrCustomerQuote = (data: { items: any[]; markupPercent: number }) => {
+    const quoteItems: CartItem[] = data.items.map((it) => {
+      const cost = Number(it.unitPrice) || 0;
+      const sell = Math.round(cost * (1 + (data.markupPercent || 25) / 100));
+      return {
+        product: {
+          id: 'ocr-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+          sku: it.sku,
+          barcode: it.sku,
+          name: it.productName,
+          category: 'Camera & An Ninh',
+          unit: it.unit || 'Bộ',
+          costPrice: cost,
+          sellingPrice: sell,
+          stock: 100,
+          minStock: 5,
+          image: '',
+          storageLocation: 'Kho Tổng',
+          warehouse: 'Kho Tổng Gia Phúc TP.HCM',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        quantity: Number(it.quantity) || 1,
+        unitPrice: sell,
+        discountPercent: 0,
+        customPrice: sell,
+      };
+    });
+
+    setLoadedQuoteData({
+      items: quoteItems,
+      customer: customers[0] || null,
+    });
+    setActiveTab('pos');
+    alert(`🎉 Đã chuyển đổi ${data.items.length} mặt hàng (+${data.markupPercent}% lãi gộp) sang giỏ hàng POS / Báo giá!`);
+  };
 
   const currentTheme = settings?.theme || 'light';
   const isLightTheme = currentTheme === 'light';
@@ -1027,6 +1201,7 @@ export function App() {
             setScannerHubInitialTab('lookup');
             setShowScannerPrinterHubModal(true);
           }}
+          onOpenDocOcrScanner={() => handleOpenDocOcrScanner('stock_in')}
         />
 
         {/* View Content */}
@@ -1117,6 +1292,7 @@ export function App() {
               settings={settings}
               onSaveQuote={handleSaveQuote}
               onConvertToOrder={handleConvertQuoteToOrder}
+              onOpenDocOcrScanner={(mode) => handleOpenDocOcrScanner(mode || 'customer_quote')}
             />
           )}
 
@@ -1128,6 +1304,7 @@ export function App() {
               settings={settings}
               onSaveSupplier={handleSaveSupplier}
               onSavePurchaseOrder={handleSavePurchaseOrder}
+              onOpenDocOcrScanner={(mode) => handleOpenDocOcrScanner(mode || 'supplier_quote')}
             />
           )}
 
@@ -1154,6 +1331,7 @@ export function App() {
               stockReceipts={stockReceipts}
               setStockReceipts={setStockReceipts}
               onRefreshDb={fetchFreshDataFromDb}
+              onOpenDocOcrScanner={(mode) => handleOpenDocOcrScanner(mode || 'stock_in')}
             />
           )}
 
@@ -1396,6 +1574,22 @@ export function App() {
           products={products}
           initialSelectedProduct={barcodeModalProduct}
           settings={settings}
+        />
+      )}
+
+      {/* AI Vision Document OCR & Excel/PDF Import Modal */}
+      {showDocOcrModal && (
+        <DocumentOcrScannerModal
+          isOpen={showDocOcrModal}
+          onClose={() => setShowDocOcrModal(false)}
+          products={products}
+          suppliers={suppliers}
+          settings={settings}
+          initialMode={docOcrInitialMode}
+          onApplyStockIn={handleApplyOcrStockIn}
+          onApplySupplierQuote={handleApplyOcrSupplierQuote}
+          onApplyPurchaseOrder={handleApplyOcrPurchaseOrder}
+          onApplyCustomerQuote={handleApplyOcrCustomerQuote}
         />
       )}
     </div>

@@ -32,6 +32,7 @@ interface QuotesViewProps {
   settings?: StoreSettings;
   onSaveQuote?: (quote: PriceQuote) => void;
   onConvertToOrder?: (quote: PriceQuote) => void;
+  onOpenDocOcrScanner?: (mode?: 'customer_quote') => void;
 }
 
 export const QuotesView: React.FC<QuotesViewProps> = ({
@@ -41,6 +42,7 @@ export const QuotesView: React.FC<QuotesViewProps> = ({
   settings,
   onSaveQuote,
   onConvertToOrder,
+  onOpenDocOcrScanner,
 }) => {
   const safeQuotes = Array.isArray(quotes) ? quotes : [];
   const [searchTerm, setSearchTerm] = useState('');
@@ -107,6 +109,16 @@ export const QuotesView: React.FC<QuotesViewProps> = ({
 
         {/* Action Buttons Toolbar */}
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onOpenDocOcrScanner ? onOpenDocOcrScanner('customer_quote') : null}
+            className="px-3.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-blue-500/20 flex items-center space-x-1.5 transition-all cursor-pointer active:scale-95"
+            title="Quét phiếu báo giá bằng camera điện thoại & bóc tách AI"
+          >
+            <Sparkles className="w-4 h-4 text-amber-300" />
+            <span>📷 Quét Phiếu / Excel (AI)</span>
+          </button>
+
           <button
             type="button"
             onClick={() => setShowAnalyticsModal(true)}

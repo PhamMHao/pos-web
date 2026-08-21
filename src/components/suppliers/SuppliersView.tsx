@@ -37,6 +37,7 @@ interface SuppliersViewProps {
   settings?: StoreSettings;
   onSaveSupplier?: (supplier: Supplier) => void;
   onSavePurchaseOrder?: (po: PurchaseOrder) => void;
+  onOpenDocOcrScanner?: (mode?: 'supplier_quote' | 'purchase_order') => void;
 }
 
 const DEFAULT_SUPPLIERS: Supplier[] = [
@@ -134,6 +135,7 @@ export const SuppliersView: React.FC<SuppliersViewProps> = ({
   settings,
   onSaveSupplier,
   onSavePurchaseOrder,
+  onOpenDocOcrScanner,
 }) => {
   const safeSuppliers = suppliers && suppliers.length > 0 ? suppliers : DEFAULT_SUPPLIERS;
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>(safeSuppliers[0]?.id || '');
@@ -195,6 +197,15 @@ export const SuppliersView: React.FC<SuppliersViewProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onOpenDocOcrScanner ? onOpenDocOcrScanner('supplier_quote') : null}
+            className="px-3.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-blue-500/20 flex items-center space-x-1.5 transition-all cursor-pointer active:scale-95"
+          >
+            <Sparkles className="w-4 h-4 text-amber-300" />
+            <span>📷 Quét Báo Giá (AI)</span>
+          </button>
+
           <button
             type="button"
             onClick={() => setShowComparisonModal(true)}

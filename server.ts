@@ -444,6 +444,97 @@ Hãy đưa ra:
     }
   });
 
+  // AI OCR Document & Invoice & Quote Vision Extraction
+  app.post("/api/gemini/ocr-document", async (req, res) => {
+    try {
+      const { imageBase64, mimeType = "image/jpeg", textContent, docType = "auto" } = req.body;
+      const ai = getGeminiClient();
+
+      const systemPrompt = `Bạn là chuyên gia AI trích xuất dữ liệu hóa đơn GTGT, phiếu nhập kho, bảng báo giá nhà cung cấp và đơn đặt hàng PO (Document AI OCR Specialist).
+Nhiệm vụ: Phân tích hình ảnh hoặc văn bản phiếu chứng từ được cung cấp và trích xuất thành đối tượng JSON có cấu trúc sau:
+{
+  "supplierName": "Tên nhà cung cấp / đơn vị phát hành phiếu (hoặc Để trống nếu không rõ)",
+  "supplierTaxCode": "Mã số thuế NCC (nếu có)",
+  "supplierPhone": "Số điện thoại NCC (nếu có)",
+  "supplierAddress": "Địa chỉ NCC (nếu có)",
+  "documentCode": "Số hóa đơn / Mã phiếu / Số PO (VD: HD-00123, PO-2026-01)",
+  "documentDate": "YYYY-MM-DD (Ngày lập phiếu, nếu không rõ lấy ngày hôm nay)",
+  "subtotal": 0,
+  "vatRate": 10,
+  "vatAmount": 0,
+  "shippingFee": 0,
+  "discountAmount": 0,
+  "totalAmount": 0,
+  "notes": "Ghi chú điều khoản / thông tin thêm",
+  "items": [
+    {
+      "sku": "Mã sản phẩm / SKU / Mã hàng (VD: CAM-01, NVR-02, nếu không có tự sinh ngắn gọn)",
+      "productName": "Tên đầy đủ của sản phẩm / linh kiện / quy cách",
+      "unit": "Cái / Bộ / Cuộn / Mét / Hộp...",
+      "quantity": 1,
+      "unitPrice": 100000,
+      "vatRate": 10,
+      "total": 100000,
+      "warrantyMonths": 12
+    }
+  ]
+}
+Yêu cầu QUAN TRỌNG: Chỉ trả về duy nhất chuỗi JSON hợp lệ thuần túy, KHÔNG bọc trong markdown backticks hay giải thích nào khác.`;
+
+      let contents: any[] = [];
+      if (imageBase64) {
+        const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+        contents = [
+          {
+            role: "user",
+            parts: [
+              { text: systemPrompt },
+              {
+                inlineData: {
+                  mimeType,
+                  data: cleanBase64,
+                },
+              },
+            ],
+          },
+        ];
+      } else {
+        contents = [
+          {
+            role: "user",
+            parts: [
+              { text: systemPrompt },
+              { text: `Nội dung tài liệu cần trích xuất:\n${textContent || ""}` },
+            ],
+          },
+        ];
+      }
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents,
+        config: {
+          temperature: 0.1,
+          responseMimeType: "application/json",
+        },
+      });
+
+      const rawJson = response.text || "{}";
+      let parsed: any = {};
+      try {
+        parsed = JSON.parse(rawJson);
+      } catch {
+        const match = rawJson.match(/\{[\s\S]*\}/);
+        if (match) parsed = JSON.parse(match[0]);
+      }
+
+      res.json({ success: true, data: parsed });
+    } catch (error: any) {
+      console.error("Error in /api/gemini/ocr-document:", error);
+      res.status(500).json({ error: error?.message || "Lỗi khi trích xuất tài liệu bằng AI Vision." });
+    }
+  });
+
   // Global Error Handler for API routes
   app.use(errorHandler);
 
