@@ -1,0 +1,6 @@
+{
+  "name": "GP-ERP Enterprise",
+  "description": "Hệ Thống Quản Trị Doanh Nghiệp All-In-One: Trợ Lý AI GP-Copilot (Tìm SP & ĐVT, Báo Giá, CRM, Báo Cáo, FAQ), Bán Hàng POS, In Hóa Đơn Điện Tử (TT78/NĐ123 & Ký Số), Hợp Đồng Lao Động Điện Tử (Ký số & Tra cứu), Kho Hàng & Đơn Vị Tính, Quản Lý Tài Sản, Bảo Hành & Bảo Trì Serial/QR, Kế Toán & Công Nợ, Báo Giá, Tính Giá Thành & Nhân Sự HR",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

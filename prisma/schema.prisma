@@ -1,0 +1,572 @@
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// 1. NGƯỜI DÙNG & PHÂN QUYỀN
+model User {
+  id           String      @id @default(uuid())
+  username     String      @unique
+  passwordHash String
+  fullName     String
+  email        String?
+  phone        String?
+  role         String      // 'Admin' | 'Thu Ngân' | 'Thủ Kho' | 'Kế Toán' | 'Quản Lý' | 'Bán Hàng'
+  status       String      @default("active") // 'active' | 'inactive'
+  avatar       String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  shifts       CashShift[]
+}
+
+// 2. SẢN PHẨM & ĐƠN VỊ TÍNH QUY ĐỔI (MULTI-UOM)
+model Product {
+  id              String                 @id @default(uuid())
+  sku             String                 @unique
+  barcode         String                 @default("")
+  name            String
+  category        String
+  unit            String                 // ĐVT cơ bản (base unit)
+  costPrice       Decimal                @db.Decimal(18, 2)
+  sellingPrice    Decimal                @db.Decimal(18, 2)
+  stock           Decimal                @db.Decimal(18, 2)
+  minStock        Decimal                @default(5) @db.Decimal(18, 2)
+  image           String?
+  warehouse       String                 @default("Kho Chính")
+  storageLocation String?
+  description     String?                @db.NVarChar(Max)
+  isFeatured      Boolean                @default(false)
+  weightOrVolume  String?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  uomConversions  ProductUOMConversion[]
+  orderItems      OrderItem[]
+  receiptItems    StockGoodsReceiptItem[]
+  inventoryLogs   InventoryLog[]
+}
+
+model ProductUOMConversion {
+  id             String   @id @default(uuid())
+  productId      String
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  unit           String   // 'Thùng', 'Cuộn', 'Mét', 'Kg', 'Hộp'...
+  ratioToBase    Decimal  @db.Decimal(18, 4) // Hệ số nhân để quy ra đơn vị cơ bản
+  costPrice      Decimal  @db.Decimal(18, 2)
+  sellingPrice   Decimal  @db.Decimal(18, 2)
+  barcode        String?
+  isBase         Boolean  @default(false)
+  referenceUnit  String?
+  conversionRate Decimal? @db.Decimal(18, 4)
+  description    String?
+}
+
+// 3. KHÁCH HÀNG & CRM
+model Customer {
+  id          String   @id @default(uuid())
+  name        String
+  phone       String   @unique
+  email       String?
+  address     String?
+  tier        String   @default("Đồng") // 'Đồng' | 'Bạc' | 'Vàng' | 'Kim Cương'
+  points      Decimal  @default(0) @db.Decimal(18, 2)
+  totalSpent  Decimal  @default(0) @db.Decimal(18, 2)
+  totalOrders Int      @default(0)
+  debt        Decimal  @default(0) @db.Decimal(18, 2)
+  note        String?  @db.NVarChar(Max)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  orders      Order[]
+}
+
+// 4. BÁN HÀNG POS & ĐƠN HÀNG
+model Order {
+  id              String      @id @default(uuid())
+  code            String      @unique // e.g. DH-10029
+  channel         String      @default("Tại quầy (POS)")
+  status          String      @default("completed") // 'pending'|'confirmed'|'processing'|'shipping'|'completed'|'cancelled'|'refunded'
+  customerId      String?
+  customer        Customer?   @relation(fields: [customerId], references: [id])
+  customerName    String?
+  customerPhone   String?
+  customerAddress String?
+  customerRank    String?
+  subtotal        Decimal     @db.Decimal(18, 2)
+  discountAmount  Decimal     @default(0) @db.Decimal(18, 2)
+  discountCode    String?
+  taxRate         Decimal     @default(0) @db.Decimal(5, 2)
+  taxAmount       Decimal     @default(0) @db.Decimal(18, 2)
+  shippingFee     Decimal     @default(0) @db.Decimal(18, 2)
+  shippingPartner String?
+  trackingCode    String?
+  total           Decimal     @db.Decimal(18, 2)
+  totalCost       Decimal     @default(0) @db.Decimal(18, 2)
+  profit          Decimal     @default(0) @db.Decimal(18, 2)
+  paymentMethod   String      @default("cash") // 'cash'|'transfer'|'card'|'momo'|'debt'
+  paymentStatus   String      @default("paid") // 'paid'|'unpaid'|'partial'
+  paidAmount      Decimal     @db.Decimal(18, 2)
+  changeAmount    Decimal     @default(0) @db.Decimal(18, 2)
+  note            String?     @db.NVarChar(Max)
+  shiftId         String?
+  createdAt       DateTime    @default(now())
+  completedAt     DateTime?
+  items           OrderItem[]
+  eInvoices       EInvoice[]
+}
+
+model OrderItem {
+  id              String   @id @default(uuid())
+  orderId         String
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id])
+  productName     String
+  sku             String
+  unit            String
+  ratioToBase     Decimal  @default(1) @db.Decimal(18, 4)
+  quantity        Decimal  @db.Decimal(18, 2)
+  unitPrice       Decimal  @db.Decimal(18, 2)
+  costPrice       Decimal  @db.Decimal(18, 2)
+  discountPercent Decimal  @default(0) @db.Decimal(5, 2)
+  total           Decimal  @db.Decimal(18, 2)
+}
+
+// 5. CA LÀM VIỆC THU NGÂN
+model CashShift {
+  id                 String    @id @default(uuid())
+  shiftName          String
+  staffId            String?
+  user               User?     @relation(fields: [staffId], references: [id])
+  staffName          String
+  startTime          DateTime  @default(now())
+  endTime            DateTime?
+  initialCash        Decimal   @db.Decimal(18, 2)
+  cashSales          Decimal   @default(0) @db.Decimal(18, 2)
+  transferSales      Decimal   @default(0) @db.Decimal(18, 2)
+  cardSales          Decimal   @default(0) @db.Decimal(18, 2)
+  otherSales         Decimal   @default(0) @db.Decimal(18, 2)
+  totalSales         Decimal   @default(0) @db.Decimal(18, 2)
+  cashWithdrawals    Decimal   @default(0) @db.Decimal(18, 2)
+  expectedEndingCash Decimal   @default(0) @db.Decimal(18, 2)
+  actualEndingCash   Decimal?  @db.Decimal(18, 2)
+  note               String?   @db.NVarChar(Max)
+  status             String    @default("open") // 'open' | 'closed'
+}
+
+// 6. NHẬT KÝ KHO & PHIẾU NHẬP KHO
+model InventoryLog {
+  id             String   @id @default(uuid())
+  productId      String
+  product        Product  @relation(fields: [productId], references: [id])
+  productName    String
+  sku            String
+  type           String   // 'import' | 'export' | 'audit_adjustment' | 'sale_deduct'
+  quantityChange Decimal  @db.Decimal(18, 2)
+  oldStock       Decimal  @db.Decimal(18, 2)
+  newStock       Decimal  @db.Decimal(18, 2)
+  unitPrice      Decimal? @db.Decimal(18, 2)
+  reason         String   @db.NVarChar(Max)
+  performedBy    String
+  timestamp      DateTime @default(now())
+}
+
+model StockGoodsReceipt {
+  id                 String                  @id @default(uuid())
+  code               String                  @unique // e.g. PNK-2026-0816-001
+  date               DateTime                @default(now())
+  inboundInvoiceId   String?
+  inboundInvoiceCode String?
+  supplierName       String
+  supplierTaxCode    String?
+  warehouseName      String                  @default("Kho Chính")
+  creatorName        String
+  receivedBy         String
+  totalItemsCount    Int
+  totalQuantity      Decimal                 @db.Decimal(18, 2)
+  totalCostAmount    Decimal                 @db.Decimal(18, 2)
+  totalTaxAmount     Decimal                 @default(0) @db.Decimal(18, 2)
+  grandTotal         Decimal                 @db.Decimal(18, 2)
+  paymentStatus      String                  @default("paid") // 'paid' | 'debt_pending' | 'partial'
+  notes              String?                 @db.NVarChar(Max)
+  items              StockGoodsReceiptItem[]
+}
+
+model StockGoodsReceiptItem {
+  id              String            @id @default(uuid())
+  receiptId       String
+  receipt         StockGoodsReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  productId       String
+  product         Product           @relation(fields: [productId], references: [id])
+  productName     String
+  sku             String
+  unit            String
+  quantity        Decimal           @db.Decimal(18, 2)
+  oldStock        Decimal           @db.Decimal(18, 2)
+  newStock        Decimal           @db.Decimal(18, 2)
+  oldCostPrice    Decimal           @db.Decimal(18, 2)
+  newCostPrice    Decimal           @db.Decimal(18, 2)
+  unitCost        Decimal           @db.Decimal(18, 2)
+  taxRate         Decimal           @default(0) @db.Decimal(5, 2)
+  totalAmount     Decimal           @db.Decimal(18, 2)
+  storageLocation String?
+  warehouse       String?
+  category        String?
+  notes           String?
+}
+
+// 7. BÁO GIÁ (PRICE QUOTES)
+model PriceQuote {
+  id              String           @id @default(uuid())
+  code            String           @unique // BG-2026-001
+  customerName    String
+  customerPhone   String
+  customerCompany String?
+  totalAmount     Decimal          @db.Decimal(18, 2)
+  discountPercent Decimal          @default(0) @db.Decimal(5, 2)
+  finalTotal      Decimal          @db.Decimal(18, 2)
+  validUntil      DateTime
+  status          String           @default("draft") // 'draft'|'sent'|'approved'|'converted_to_order'|'rejected'
+  createdAt       DateTime         @default(now())
+  notes           String?          @db.NVarChar(Max)
+  items           PriceQuoteItem[]
+}
+
+model PriceQuoteItem {
+  id          String     @id @default(uuid())
+  quoteId     String
+  quote       PriceQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  productName String
+  sku         String
+  unit        String
+  quantity    Decimal    @db.Decimal(18, 2)
+  unitPrice   Decimal    @db.Decimal(18, 2)
+  total       Decimal    @db.Decimal(18, 2)
+}
+
+// 8. ĐỊNH MỨC BOM & TÍNH GIÁ THÀNH
+model ProductCosting {
+  id                       String          @id @default(uuid())
+  productName              String
+  sku                      String          @unique
+  rawMaterialsCost         Decimal         @db.Decimal(18, 2)
+  laborCost                Decimal         @db.Decimal(18, 2)
+  machineryAndOverheadCost Decimal         @db.Decimal(18, 2)
+  totalStandardCost        Decimal         @db.Decimal(18, 2)
+  currentSellingPrice      Decimal         @db.Decimal(18, 2)
+  grossMarginPercent       Decimal         @db.Decimal(5, 2)
+  lastUpdated              DateTime        @default(now())
+  bomItems                 CostingBOMItem[]
+}
+
+model CostingBOMItem {
+  id           String         @id @default(uuid())
+  costingId    String
+  costing      ProductCosting @relation(fields: [costingId], references: [id], onDelete: Cascade)
+  materialName String
+  quantity     Decimal        @db.Decimal(18, 2)
+  unit         String
+  unitCost     Decimal        @db.Decimal(18, 2)
+  totalCost    Decimal        @db.Decimal(18, 2)
+}
+
+// 9. TÀI SẢN DOANH NGHIỆP
+model EnterpriseAsset {
+  id                  String    @id @default(uuid())
+  code                String    @unique // TS-001
+  name                String
+  category            String
+  purchaseDate        DateTime
+  originalValue       Decimal   @db.Decimal(18, 2)
+  depreciationMonths  Int
+  remainingValue      Decimal   @db.Decimal(18, 2)
+  assignedTo          String
+  status              String    @default("good") // 'good'|'maintenance_required'|'broken'|'liquidated'
+  lastMaintenanceDate DateTime?
+}
+
+// 10. BẢO HÀNH & SERIAL/IMEI
+model WarrantyTicket {
+  id                      String                  @id @default(uuid())
+  code                    String                  @unique // BH-2026-001
+  type                    String                  @default("warranty") // 'warranty'|'maintenance'|'repair'
+  priority                String                  @default("normal") // 'low'|'normal'|'high'|'urgent'
+  status                  String                  @default("received") // 'received'|'diagnosing'|'repairing'|'waiting_parts'|'sent_vendor'|'ready_to_return'|'returned'|'replaced_new'|'unrepairable'
+  orderCode               String?
+  productId               String?
+  productName             String
+  model                   String?
+  serialNumber            String
+  qrCodeUrl               String?
+  customerName            String
+  customerPhone           String
+  customerAddress         String?
+  customerEmail           String?
+  accessoriesIncluded     String?
+  cosmeticCondition       String?
+  issueDescription        String                  @db.NVarChar(Max)
+  technicianDiagnosis     String?                 @db.NVarChar(Max)
+  resolution              String?                 @db.NVarChar(Max)
+  technicianName          String
+  receivedDate            DateTime                @default(now())
+  expectedReturnDate      DateTime
+  actualReturnDate        DateTime?
+  laborCost               Decimal                 @default(0) @db.Decimal(18, 2)
+  partsCost               Decimal                 @default(0) @db.Decimal(18, 2)
+  discountAmount          Decimal                 @default(0) @db.Decimal(18, 2)
+  totalFee                Decimal                 @default(0) @db.Decimal(18, 2)
+  paymentStatus           String                  @default("free") // 'free'|'paid'|'unpaid'|'partial'
+  paidAmount              Decimal                 @default(0) @db.Decimal(18, 2)
+  returnedToPerson        String?
+  returnNote              String?                 @db.NVarChar(Max)
+  warrantyExtensionMonths Int                     @default(0)
+  parts                   WarrantyPartItem[]
+  timeline                WarrantyTimelineEvent[]
+}
+
+model WarrantyPartItem {
+  id              String         @id @default(uuid())
+  warrantyId      String
+  warranty        WarrantyTicket @relation(fields: [warrantyId], references: [id], onDelete: Cascade)
+  partName        String
+  sku             String?
+  quantity        Decimal        @db.Decimal(18, 2)
+  unit            String
+  unitPrice       Decimal        @db.Decimal(18, 2)
+  isUnderWarranty Boolean        @default(true)
+  warrantyMonths  Int            @default(0)
+}
+
+model WarrantyTimelineEvent {
+  id         String         @id @default(uuid())
+  warrantyId String
+  warranty   WarrantyTicket @relation(fields: [warrantyId], references: [id], onDelete: Cascade)
+  timestamp  DateTime       @default(now())
+  action     String
+  actor      String
+  notes      String?        @db.NVarChar(Max)
+  status     String
+}
+
+model SerialDeviceRecord {
+  id                     String    @id @default(uuid())
+  serialNumber           String    @unique
+  productName            String
+  sku                    String
+  soldOrderCode          String?
+  soldDate               DateTime?
+  customerName           String?
+  customerPhone          String?
+  warrantyPeriodMonths   Int       @default(12)
+  warrantyExpiryDate     DateTime
+  warrantyStatus         String    @default("valid") // 'valid' | 'expired' | 'voided'
+  totalRepairsCount      Int       @default(0)
+  totalMaintenancesCount Int       @default(0)
+  notes                  String?   @db.NVarChar(Max)
+}
+
+// 11. HÓA ĐƠN ĐIỆN TỬ (TT78) & ĐẦU VÀO XML
+model EInvoice {
+  id               String         @id @default(uuid())
+  invoiceCode      String         @unique // 1C26TGP-00000088
+  invoiceNumber    String
+  invoiceSymbol    String         // 1C26TGP
+  invoiceTemplate  String         // 1/001
+  invoiceType      String         @default("vat") // 'vat' | 'sales'
+  cqtCode          String?
+  lookupCode       String         @unique
+  lookupUrl        String
+  issueDate        DateTime       @default(now())
+  signDate         DateTime?
+  status           String         @default("draft") // 'draft'|'signed'|'sent_cqt'|'cqt_approved'|'cancelled'|'adjusted'
+  orderId          String?
+  order            Order?         @relation(fields: [orderId], references: [id])
+  orderCode        String?
+  sellerData       String         @db.NVarChar(Max) // JSON
+  buyerData        String         @db.NVarChar(Max) // JSON
+  subtotal         Decimal        @db.Decimal(18, 2)
+  discountAmount   Decimal        @default(0) @db.Decimal(18, 2)
+  taxRate          Decimal        @db.Decimal(5, 2)
+  taxAmount        Decimal        @db.Decimal(18, 2)
+  totalAmount      Decimal        @db.Decimal(18, 2)
+  amountInWords    String
+  paymentMethod    String         @default("TM/CK")
+  notes            String?        @db.NVarChar(Max)
+  digitalSignature String?        @db.NVarChar(Max) // JSON
+  cqtStatusMessage String?
+  items            EInvoiceItem[]
+}
+
+model EInvoiceItem {
+  id              String   @id @default(uuid())
+  invoiceId       String
+  invoice         EInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  sku             String
+  productName     String
+  unit            String
+  quantity        Decimal  @db.Decimal(18, 2)
+  unitPrice       Decimal  @db.Decimal(18, 2)
+  subtotal        Decimal  @db.Decimal(18, 2)
+  discountPercent Decimal  @default(0) @db.Decimal(5, 2)
+  discountAmount  Decimal  @default(0) @db.Decimal(18, 2)
+  taxRate         Decimal  @db.Decimal(5, 2)
+  taxAmount       Decimal  @db.Decimal(18, 2)
+  total           Decimal  @db.Decimal(18, 2)
+}
+
+model InboundEInvoice {
+  id                 String               @id @default(uuid())
+  source             String               @default("xml_upload") // 'cqt_portal'|'gmail_sync'|'xml_upload'
+  sourceDetail       String?
+  sourceFile         String?
+  invoiceCode        String               @unique
+  invoiceNumber      String
+  invoiceSymbol      String
+  invoiceTemplate    String
+  issueDate          DateTime
+  receivedDate       DateTime             @default(now())
+  cqtCode            String?
+  lookupCode         String?
+  lookupUrl          String?
+  sellerData         String               @db.NVarChar(Max) // JSON
+  buyerData          String               @db.NVarChar(Max) // JSON
+  subtotal           Decimal              @db.Decimal(18, 2)
+  taxRate            Decimal              @db.Decimal(5, 2)
+  taxAmount          Decimal              @db.Decimal(18, 2)
+  totalAmount        Decimal              @db.Decimal(18, 2)
+  amountInWords      String
+  status             String               @default("pending_review") // 'pending_review'|'matched'|'imported_to_stock'|'rejected'
+  goodsReceiptId     String?
+  importedAt         DateTime?
+  importedBy         String?
+  targetWarehouse    String?
+  accountingRecordId String?
+  notes              String?              @db.NVarChar(Max)
+  rawXmlContent      String?              @db.NVarChar(Max)
+  items              InboundInvoiceItem[]
+}
+
+model InboundInvoiceItem {
+  id                      String          @id @default(uuid())
+  inboundInvoiceId        String
+  inboundInvoice          InboundEInvoice @relation(fields: [inboundInvoiceId], references: [id], onDelete: Cascade)
+  lineNumber              Int
+  productName             String
+  skuOrCode               String?
+  unit                    String
+  quantity                Decimal         @db.Decimal(18, 2)
+  unitPrice               Decimal         @db.Decimal(18, 2)
+  subtotal                Decimal         @db.Decimal(18, 2)
+  taxRate                 Decimal         @db.Decimal(5, 2)
+  taxAmount               Decimal         @db.Decimal(18, 2)
+  total                   Decimal         @db.Decimal(18, 2)
+  matchedProductId        String?
+  matchedProductName      String?
+  matchedProductSku       String?
+  currentStock            Decimal?        @db.Decimal(18, 2)
+  currentCostPrice        Decimal?        @db.Decimal(18, 2)
+  ratioToBaseUnit         Decimal         @default(1) @db.Decimal(18, 4)
+  isNewProduct            Boolean         @default(false)
+  status                  String          @default("unmatched") // 'matched'|'unmatched'|'needs_create'|'ignored'
+  assignedCategory        String?
+  assignedWarehouse       String?
+  assignedStorageLocation String?
+  suggestedSellingPrice   Decimal?        @db.Decimal(18, 2)
+  customSku               String?
+  customBarcode           String?
+}
+
+// 12. HỢP ĐỒNG LAO ĐỘNG & NHÂN SỰ HR
+model LaborContract {
+  id             String   @id @default(uuid())
+  contractNumber String   @unique // HĐLĐ-2026/GP-001
+  employeeId     String
+  employeeCode   String
+  employeeName   String
+  employeeRole   String
+  contractType   String
+  startDate      DateTime
+  endDate        DateTime?
+  signDate       DateTime @default(now())
+  status         String   @default("active") // 'draft'|'sent_for_signature'|'signed'|'active'|'expired'|'terminated'
+  employerData   String   @db.NVarChar(Max) // JSON
+  employeeInfo   String   @db.NVarChar(Max) // JSON
+  termsData      String   @db.NVarChar(Max) // JSON
+  signaturesData String   @db.NVarChar(Max) // JSON
+  notes          String?  @db.NVarChar(Max)
+}
+
+model Employee {
+  id             String   @id @default(uuid())
+  code           String   @unique
+  name           String
+  role           String   // 'Thu Ngân' | 'Thủ Kho' | 'Kế Toán' | 'Quản Lý Cửa Hàng' | 'Nhân Viên Bán Hàng'
+  phone          String
+  email          String
+  baseSalary     Decimal  @db.Decimal(18, 2)
+  salesKpiTarget Decimal  @default(0) @db.Decimal(18, 2)
+  currentSales   Decimal  @default(0) @db.Decimal(18, 2)
+  commissionRate Decimal  @default(0) @db.Decimal(5, 2) // %
+  status         String   @default("active") // 'active' | 'leave' | 'inactive'
+  avatar         String?
+  joinedDate     DateTime @default(now())
+  shiftSchedule  String?
+}
+
+// 13. KẾ TOÁN, KHUYẾN MÃI, CẢNH BÁO FRAUD & CÀI ĐẶT
+model AccountingRecord {
+  id            String   @id @default(uuid())
+  code          String   @unique
+  type          String   // 'income' | 'expense'
+  category      String   // 'Bán hàng'|'Nhập hàng'|'Chi lương nhân viên'|'Thuế VAT'|'Mặt bằng & Điện nước'|'Thu nợ khách'|'Khác'
+  amount        Decimal  @db.Decimal(18, 2)
+  date          DateTime @default(now())
+  party         String   // Đối tác / Khách hàng / NCC
+  paymentMethod String   @default("cash")
+  status        String   @default("completed")
+  note          String?  @db.NVarChar(Max)
+  receiptNumber String?
+}
+
+model Promotion {
+  id            String   @id @default(uuid())
+  code          String   @unique
+  title         String
+  discountType  String   // 'percentage' | 'fixed'
+  discountValue Decimal  @db.Decimal(18, 2)
+  minOrderValue Decimal  @default(0) @db.Decimal(18, 2)
+  maxDiscount   Decimal? @db.Decimal(18, 2)
+  usageLimit    Int      @default(100)
+  usedCount     Int      @default(0)
+  startDate     DateTime
+  endDate       DateTime
+  isActive      Boolean  @default(true)
+}
+
+model FraudAlert {
+  id              String   @id @default(uuid())
+  severity        String   // 'high' | 'medium' | 'low'
+  title           String
+  description     String   @db.NVarChar(Max)
+  timestamp       DateTime @default(now())
+  source          String   // 'POS' | 'CashShift' | 'Inventory' | 'Accounting'
+  status          String   @default("unresolved") // 'unresolved' | 'investigating' | 'resolved'
+  suggestedAction String   @db.NVarChar(Max)
+}
+
+model StoreSettings {
+  id           String   @id @default("default_settings")
+  storeName    String   @default("GP-ERP Enterprise")
+  tagline      String?
+  phone        String?
+  email        String?
+  address      String?
+  taxCode      String?
+  bankName     String?
+  bankAccount  String?
+  bankCode     String?
+  settingsJson String   @db.NVarChar(Max) // Lưu toàn bộ JSON cấu hình mở rộng (in ấn, máy in, scanner, ...)
+  updatedAt    DateTime @updatedAt
+}
