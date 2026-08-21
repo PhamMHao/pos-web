@@ -15,10 +15,20 @@ import {
 import { PriceQuote, Product, Customer, StoreSettings } from '../../types';
 import { formatVND } from '../../utils/vietqr';
 
+export interface InitialQuotePrefill {
+  customerName?: string;
+  customerPhone?: string;
+  customerCompany?: string;
+  discountPercent?: number;
+  notes?: string;
+  items?: QuoteItemInput[];
+}
+
 interface NewQuoteModalProps {
   products: Product[];
   customers: Customer[];
   settings?: StoreSettings;
+  initialQuoteData?: InitialQuotePrefill | null;
   onClose: () => void;
   onSave: (quote: PriceQuote) => void;
 }
@@ -37,29 +47,37 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   products = [],
   customers = [],
   settings,
+  initialQuoteData,
   onClose,
   onSave,
 }) => {
-  const [customerName, setCustomerName] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
-  const [customerCompany, setCustomerCompany] = useState('');
-  const [discountPercent, setDiscountPercent] = useState<number>(0);
+  const [customerName, setCustomerName] = useState(initialQuoteData?.customerName || '');
+  const [customerPhone, setCustomerPhone] = useState(initialQuoteData?.customerPhone || '');
+  const [customerCompany, setCustomerCompany] = useState(initialQuoteData?.customerCompany || '');
+  const [discountPercent, setDiscountPercent] = useState<number>(initialQuoteData?.discountPercent || 0);
   const [validUntil, setValidUntil] = useState<string>(
     new Date(Date.now() + 15 * 24 * 3600 * 1000).toISOString().slice(0, 10)
   );
-  const [notes, setNotes] = useState('Báo giá linh kiện & thiết bị dự án. Giá đã bao gồm hỗ trợ giao hàng tận nơi.');
-  const [items, setItems] = useState<QuoteItemInput[]>([
-    {
-      productName: '',
-      sku: '',
-      unit: 'Cái',
-      quantity: 1,
-      unitPrice: 0,
-      total: 0,
-    },
-  ]);
+  const [notes, setNotes] = useState(
+    initialQuoteData?.notes || 'Báo giá linh kiện & thiết bị dự án. Giá đã bao gồm hỗ trợ giao hàng tận nơi.'
+  );
+  const [items, setItems] = useState<QuoteItemInput[]>(() => {
+    if (initialQuoteData?.items && initialQuoteData.items.length > 0) {
+      return initialQuoteData.items;
+    }
+    return [
+      {
+        productName: '',
+        sku: '',
+        unit: 'Cái',
+        quantity: 1,
+        unitPrice: 0,
+        total: 0,
+      },
+    ];
+  });
 
-  const [selectedCustomerSearch, setSelectedCustomerSearch] = useState('');
+  const [selectedCustomerSearch, setSelectedCustomerSearch] = useState(initialQuoteData?.customerName || '');
   const [showCustDropdown, setShowCustDropdown] = useState(false);
 
   const filteredCustomers = customers.filter(
