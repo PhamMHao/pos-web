@@ -44,7 +44,7 @@ import { COMMON_UNITS, solveUomChain, getUomEquivalentsSummary } from '../../uti
 import { InboundEInvoiceModal } from '../invoices/InboundEInvoiceModal';
 import { StockReceiptPrintModal } from './StockReceiptPrintModal';
 import { ProductBarcodeLabelModal } from './ProductBarcodeLabelModal';
-import { PrintPreviewModal, PrintLabelItem } from '../common/PrintPreviewModal';
+import { BarcodeLabelPreviewModal, PrintLabelItem } from '../common/BarcodeLabelPreviewModal';
 import { INITIAL_STORE_SETTINGS } from '../../data/initialData';
 import { productsApi } from '../../features/products/api/productsApi';
 
@@ -1931,9 +1931,9 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         />
       )}
 
-      {/* PrintPreviewModal - Interactive 30x20, 50x30, Custom Preview & Direct Print */}
+      {/* BarcodeLabelPreviewModal - Interactive 30x20, 50x30, Custom Preview & Direct Print */}
       {showPrintPreviewModal && (
-        <PrintPreviewModal
+        <BarcodeLabelPreviewModal
           isOpen={showPrintPreviewModal}
           onClose={() => {
             setShowPrintPreviewModal(false);
