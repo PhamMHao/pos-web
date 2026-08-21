@@ -18,6 +18,7 @@ import { QuotesView } from './components/quotes/QuotesView';
 import { CostingView } from './components/costing/CostingView';
 import { AssetsView } from './components/assets/AssetsView';
 import { WarrantyView } from './components/warranty/WarrantyView';
+import { SuppliersView } from './components/suppliers/SuppliersView';
 import { FraudModal } from './components/ai/FraudModal';
 import { ShiftModal } from './components/pos/ShiftModal';
 import { QuickStockModal } from './components/common/QuickStockModal';
@@ -63,6 +64,8 @@ import {
   CashShift,
   CartItem,
   PaymentMethod,
+  Supplier,
+  PurchaseOrder,
 } from './types';
 
 export function App() {
@@ -116,6 +119,7 @@ export function App() {
     | 'accounting'
     | 'hr'
     | 'quotes'
+    | 'suppliers'
     | 'costing'
     | 'inventory'
     | 'assets'
@@ -128,6 +132,50 @@ export function App() {
     | 'einvoices'
     | 'contracts'
   >('pos');
+
+  const [suppliers, setSuppliers] = useState<Supplier[]>(() => {
+    try {
+      const raw = localStorage.getItem('gp_erp_suppliers_data');
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return [];
+  });
+
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>(() => {
+    try {
+      const raw = localStorage.getItem('gp_erp_purchase_orders_data');
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return [];
+  });
+
+  useEffect(() => {
+    try {
+      if (suppliers && suppliers.length > 0) {
+        localStorage.setItem('gp_erp_suppliers_data', JSON.stringify(suppliers));
+      }
+    } catch {}
+  }, [suppliers]);
+
+  useEffect(() => {
+    try {
+      if (purchaseOrders && purchaseOrders.length > 0) {
+        localStorage.setItem('gp_erp_purchase_orders_data', JSON.stringify(purchaseOrders));
+      }
+    } catch {}
+  }, [purchaseOrders]);
+
+  const handleSaveSupplier = (supplier: Supplier) => {
+    setSuppliers((prev) => {
+      const exists = prev.some((s) => s.id === supplier.id);
+      if (exists) return prev.map((s) => (s.id === supplier.id ? supplier : s));
+      return [supplier, ...prev];
+    });
+  };
+
+  const handleSavePurchaseOrder = (po: PurchaseOrder) => {
+    setPurchaseOrders((prev) => [po, ...prev.filter((p) => p.id !== po.id)]);
+  };
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [showShiftModal, setShowShiftModal] = useState(false);
@@ -1069,6 +1117,17 @@ export function App() {
               settings={settings}
               onSaveQuote={handleSaveQuote}
               onConvertToOrder={handleConvertQuoteToOrder}
+            />
+          )}
+
+          {activeTab === 'suppliers' && (
+            <SuppliersView
+              suppliers={suppliers}
+              purchaseOrders={purchaseOrders}
+              products={products}
+              settings={settings}
+              onSaveSupplier={handleSaveSupplier}
+              onSavePurchaseOrder={handleSavePurchaseOrder}
             />
           )}
 

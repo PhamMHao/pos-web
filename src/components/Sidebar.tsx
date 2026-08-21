@@ -21,6 +21,7 @@ import {
   Wrench,
   Receipt,
   FileSignature,
+  Truck,
 } from 'lucide-react';
 import { Order, Product } from '../types';
 
@@ -73,6 +74,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'quotes',
       label: 'Quản Lý Báo Giá',
       icon: FileSpreadsheet,
+    },
+    {
+      id: 'suppliers',
+      label: 'Nhà Cung Ứng & Mua Hàng',
+      icon: Truck,
     },
     {
       id: 'costing',

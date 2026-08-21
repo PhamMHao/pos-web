@@ -798,4 +798,71 @@ export interface StockGoodsReceipt {
   notes?: string;
 }
 
+export interface Supplier {
+  id: string;
+  code: string;
+  name: string;
+  taxCode: string;
+  tier: 'Tier 1 Chính Hãng' | 'Tổng Đại Lý' | 'Nhà Phân Phối';
+  category: string;
+  contactPerson: string;
+  phone: string;
+  email: string;
+  address: string;
+  bankName?: string;
+  bankAccount?: string;
+  bankCode?: string;
+  creditLimit: number;
+  creditDays: number;
+  currentDebt: number;
+  ratingQuality: number;
+  ratingPrice: number;
+  ratingOnTime: number;
+  ratingWarranty: number;
+  notes?: string;
+  priceList: {
+    sku: string;
+    productName: string;
+    costPrice: number;
+    warrantyMonths: number;
+    moq: number;
+  }[];
+  createdAt: string;
+}
 
+export interface PurchaseOrderItem {
+  productId?: string;
+  sku: string;
+  productName: string;
+  unit: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
+
+export interface PurchaseOrder {
+  id: string;
+  code: string;
+  supplierId: string;
+  supplierName: string;
+  supplierPhone: string;
+  supplierAddress: string;
+  supplierTaxCode?: string;
+  warehouseId: string;
+  warehouseName: string;
+  orderDate: string;
+  expectedDeliveryDate: string;
+  status: 'draft' | 'sent' | 'confirmed' | 'partially_received' | 'completed' | 'cancelled';
+  items: PurchaseOrderItem[];
+  subtotal: number;
+  vatRate: number;
+  vatAmount: number;
+  shippingFee: number;
+  discountAmount: number;
+  totalAmount: number;
+  paidAmount: number;
+  paymentStatus: 'unpaid' | 'partial' | 'paid';
+  paymentMethod: 'transfer' | 'cash' | 'debt_30d';
+  notes?: string;
+  createdAt: string;
+}
