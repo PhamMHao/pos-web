@@ -1129,6 +1129,7 @@ export function App() {
               onSaveSettings={handleSaveSettings}
               onResetData={resetToInitialData}
               onExportAllData={handleExportAllData}
+              onRefreshData={() => fetchFreshDataFromDb()}
             />
           )}
         </main>

@@ -37,18 +37,25 @@ import {
   Layers,
   Database,
   Lock,
+  Trash2,
+  RefreshCw,
+  FileJson,
+  FolderArchive,
+  X,
 } from 'lucide-react';
 import { StoreSettings, PrintDocType } from '../../types';
 import { generateVietQRUrl, POPULAR_VIETNAMESE_BANKS } from '../../utils/vietqr';
 import { GiaPhucLogo, GIA_PHUC_LOGO_SVG_DATA_URI } from '../common/GiaPhucLogo';
 import { PrintInvoiceModal } from '../common/PrintInvoiceModal';
 import { sounds } from '../../utils/soundEffects';
+import { settingsApi } from '../../features/settings/api/settingsApi';
 
 interface SettingsViewProps {
   settings: StoreSettings;
   onSaveSettings: (settings: StoreSettings) => void;
   onResetData: () => void;
   onExportAllData: () => void;
+  onRefreshData?: () => void;
 }
 
 const DOC_TYPE_LABELS: Record<PrintDocType, { label: string; desc: string; defaultSize: 'A4' | 'A5' | 'K80'; defaultOrientation: 'portrait' | 'landscape' }> = {
@@ -125,6 +132,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onSaveSettings,
   onResetData,
   onExportAllData,
+  onRefreshData,
 }) => {
   const [formData, setFormData] = useState<StoreSettings>({ ...settings });
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -159,6 +167,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [dbTestResult, setDbTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [isSavingDb, setIsSavingDb] = useState(false);
   const [dbSaveResult, setDbSaveResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  // Data Management State (Backup, Restore, Wipe Data)
+  const [isExportingBackup, setIsExportingBackup] = useState(false);
+  const [backupDownloadMsg, setBackupDownloadMsg] = useState<{ success: boolean; message: string } | null>(null);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [restoreFileStats, setRestoreFileStats] = useState<{ name: string; size: string; createdAt?: string; totalRecords?: number } | null>(null);
+  const [restoreResult, setRestoreResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [showWipeModal, setShowWipeModal] = useState(false);
+  const [wipeConfirmInput, setWipeConfirmInput] = useState('');
+  const [isWiping, setIsWiping] = useState(false);
+  const [wipeResult, setWipeResult] = useState<{ success: boolean; message: string } | null>(null);
+  const restoreFileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Load actual active DB config from server on mount
   useEffect(() => {
@@ -386,6 +407,94 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setDbServerVersion(null);
   };
 
+  // Backup Full DB to JSON
+  const handleBackupDownload = async () => {
+    setIsExportingBackup(true);
+    setBackupDownloadMsg(null);
+    try {
+      const backupData = await settingsApi.backupDatabase();
+      const jsonStr = JSON.stringify(backupData, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const now = new Date();
+      const dateTag = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+      a.download = `GP_ERP_Backup_${dateTag}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setBackupDownloadMsg({ success: true, message: 'Đã xuất và tải file sao lưu CSDL thành công!' });
+      setTimeout(() => setBackupDownloadMsg(null), 5000);
+    } catch (err: any) {
+      setBackupDownloadMsg({ success: false, message: `Lỗi sao lưu: ${err.message}` });
+    } finally {
+      setIsExportingBackup(false);
+    }
+  };
+
+  // Restore file selection
+  const handleRestoreFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setRestoreFile(file);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const parsed = JSON.parse(event.target?.result as string);
+        const total = parsed.totalRecords || Object.values(parsed.tables || {}).reduce((acc: number, arr: any) => acc + (Array.isArray(arr) ? arr.length : 0), 0);
+        setRestoreFileStats({
+          name: file.name,
+          size: (file.size / 1024).toFixed(1) + ' KB',
+          createdAt: parsed.createdAt ? new Date(parsed.createdAt).toLocaleString('vi-VN') : 'Không rõ',
+          totalRecords: total,
+        });
+        setRestoreResult(null);
+      } catch {
+        setRestoreResult({ success: false, message: 'File không đúng định dạng JSON sao lưu của GP-ERP.' });
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // Execute restore
+  const handleExecuteRestore = async () => {
+    if (!restoreFile) return;
+    setIsRestoring(true);
+    setRestoreResult(null);
+    try {
+      const text = await restoreFile.text();
+      const parsed = JSON.parse(text);
+      const res = await settingsApi.restoreDatabase(parsed);
+      setRestoreResult({ success: true, message: res.message || 'Khôi phục CSDL thành công!' });
+      if (onRefreshData) onRefreshData();
+    } catch (err: any) {
+      setRestoreResult({ success: false, message: `Lỗi khôi phục: ${err.message}` });
+    } finally {
+      setIsRestoring(false);
+    }
+  };
+
+  // Execute wipe all data
+  const handleExecuteWipeData = async () => {
+    if (wipeConfirmInput.trim() !== 'XOA_DU_LIEU') return;
+    setIsWiping(true);
+    setWipeResult(null);
+    try {
+      const res = await settingsApi.wipeAllData('XOA_DU_LIEU');
+      setWipeResult({ success: true, message: res.message || 'Đã xóa toàn bộ dữ liệu thành công! CSDL đã về trạng thái trống.' });
+      onResetData();
+      if (onRefreshData) onRefreshData();
+      setShowWipeModal(false);
+      setWipeConfirmInput('');
+    } catch (err: any) {
+      setWipeResult({ success: false, message: `Lỗi khi xóa dữ liệu: ${err.message}` });
+    } finally {
+      setIsWiping(false);
+    }
+  };
+
   const previewQrUrl = generateVietQRUrl({
     bankCode: formData.bankCode || 'TCB',
     accountNo: formData.bankAccount || '1903688899901',
@@ -506,7 +615,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           }`}
         >
           <Palette className="w-4 h-4" />
-          <span>7. Giao Diện & Sao Lưu</span>
+          <span>7. Giao Diện & Theme</span>
         </button>
 
         <button
@@ -519,7 +628,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           }`}
         >
           <Database className="w-4 h-4 text-sky-400" />
-          <span>8. Kết Nối SQL Server</span>
+          <span>8. CSDL & Quản Trị Dữ Liệu</span>
         </button>
       </div>
 
@@ -1596,318 +1705,430 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
               </div>
             </div>
-
-            {/* Backup & System Reset */}
-            <div className="bg-slate-900 p-5 md:p-6 rounded-2xl border border-slate-800 space-y-4 shadow-xl">
-              <h3 className="text-sm font-bold text-white flex items-center space-x-2 border-b border-slate-800 pb-3">
-                <Download className="w-4 h-4 text-amber-400" />
-                <span>Sao Lưu & Khôi Phục Dữ Liệu Hệ Thống</span>
-              </h3>
-
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs">
-                <div>
-                  <p className="font-semibold text-slate-200">
-                    Xuất toàn bộ cơ sở dữ liệu (JSON):
-                  </p>
-                  <p className="text-slate-400 mt-0.5">
-                    Bao gồm sản phẩm, đơn hàng, hóa đơn điện tử, hợp đồng lao động, khách hàng, và cài đặt.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={onExportAllData}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl border border-slate-700 flex items-center space-x-1.5 transition-colors shrink-0"
-                >
-                  <Download className="w-4 h-4 text-emerald-400" />
-                  <span>Tải File Backup (.json)</span>
-                </button>
-              </div>
-
-              <div className="pt-4 border-t border-slate-800/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs">
-                <div>
-                  <p className="font-semibold text-rose-400 flex items-center space-x-1">
-                    <AlertTriangle className="w-3.5 h-3.5" />
-                    <span>Khôi phục dữ liệu mẫu gốc:</span>
-                  </p>
-                  <p className="text-slate-400 mt-0.5">
-                    Tải lại danh mục sản phẩm, đơn hàng mẫu Gia Phúc Computer và cài đặt chuẩn.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (
-                      confirm(
-                        'CẢNH BÁO: Bạn có chắc chắn muốn khôi phục về dữ liệu mặc định ban đầu không?'
-                      )
-                    ) {
-                      onResetData();
-                    }
-                  }}
-                  className="px-4 py-2 bg-rose-950/60 hover:bg-rose-900 text-rose-300 font-semibold rounded-xl border border-rose-800 flex items-center space-x-1.5 transition-colors shrink-0"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                  <span>Khôi Phục Dữ Liệu Gốc</span>
-                </button>
-              </div>
-            </div>
           </div>
         )}
 
         {/* =========================================================================
-            TAB 8: KẾT NỐI CƠ SỞ DỮ LIỆU SQL SERVER
+            TAB 8: QUẢN TRỊ CƠ SỞ DỮ LIỆU, SAO LƯU, KHÔI PHỤC & XÓA DỮ LIỆU
             ========================================================================= */}
         {activeTab === 'sqlserver' && (
-          <div className="bg-slate-900 p-5 md:p-6 rounded-2xl border border-slate-800 space-y-6 shadow-xl text-slate-900">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3 text-white">
-              <h3 className="text-sm font-bold flex items-center space-x-2">
-                <Database className="w-4 h-4 text-sky-400" />
-                <span>Cấu Hình Kết Nối Microsoft SQL Server</span>
-              </h3>
-              <span className="text-xs text-slate-400">
-                Tự động tạo 22 bảng dữ liệu và nạp dữ liệu ban đầu
-              </span>
-            </div>
-
-            {/* Exact card layout matching user mockup */}
-            <div className="bg-white p-6 rounded-xl border border-slate-200 space-y-5 max-w-xl mx-auto shadow-sm">
-              {/* Server Name */}
-              <div className="space-y-1.5">
-                <label className="block text-sm font-bold text-slate-800">
-                  Tên máy chủ (Server Name):
-                </label>
-                <input
-                  type="text"
-                  value={dbServerName}
-                  onChange={(e) => setDbServerName(e.target.value)}
-                  placeholder="VD: . hoặc localhost hoặc .\SQLEXPRESS hoặc 103.56.12.89"
-                  className="w-full p-2.5 px-3 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 font-mono"
-                />
-                <p className="text-[11px] text-slate-500">
-                  Dùng dấu <code className="px-1 bg-slate-100 rounded text-sky-700 font-mono">.</code> hoặc <code className="px-1 bg-slate-100 rounded text-sky-700 font-mono">localhost</code> cho máy cục bộ, hoặc IP/Domain cho máy chủ Hosting.
+          <div className="space-y-6">
+            {/* Header banner */}
+            <div className="bg-slate-900 p-5 md:p-6 rounded-2xl border border-slate-800 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-bold text-white flex items-center space-x-2.5">
+                  <Database className="w-5 h-5 text-sky-400" />
+                  <span>Trung Tâm Quản Trị CSDL & Sao Lưu / Khôi Phục</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  Sao lưu toàn diện 22 bảng CSDL, khôi phục từ tệp JSON, xóa sạch dữ liệu để nhập mới hoặc cấu hình kết nối SQL Server.
                 </p>
               </div>
 
-              {/* Authentication Mode Selector (SSMS style) */}
-              <div className="space-y-1.5">
-                <label className="block text-sm font-bold text-slate-800">
-                  Phương thức xác thực (Authentication):
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setDbAuthType('windows')}
-                    className={`py-2 px-3 rounded-lg border text-xs font-semibold flex items-center justify-center space-x-2 transition-all cursor-pointer ${
-                      dbAuthType === 'windows'
-                        ? 'bg-sky-50 border-sky-500 text-sky-700 shadow-xs'
-                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    <UserCheck className="w-4 h-4" />
-                    <span>Windows Authentication</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDbAuthType('sql')}
-                    className={`py-2 px-3 rounded-lg border text-xs font-semibold flex items-center justify-center space-x-2 transition-all cursor-pointer ${
-                      dbAuthType === 'sql'
-                        ? 'bg-sky-50 border-sky-500 text-sky-700 shadow-xs'
-                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    <Lock className="w-4 h-4" />
-                    <span>SQL Server Authentication</span>
-                  </button>
-                </div>
+              <div className="flex items-center space-x-2">
+                <span className="px-3 py-1.5 bg-sky-500/20 text-sky-300 border border-sky-500/30 rounded-xl text-xs font-semibold flex items-center space-x-2">
+                  <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse"></span>
+                  <span>Database Hiện Tại: <strong className="font-mono text-white">{dbName}</strong></span>
+                </span>
               </div>
+            </div>
 
-              {/* Authentication Fields depending on mode */}
-              {dbAuthType === 'windows' ? (
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center space-x-2 text-xs text-slate-600">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>
-                    <strong>Windows Authentication:</strong> Tự động xác thực tài khoản Windows hiện tại (không cần nhập tên đăng nhập và mật khẩu).
-                  </span>
-                </div>
-              ) : (
-                <div className="space-y-1.5 animate-in fade-in">
-                  <label className="block text-sm font-bold text-slate-800">
-                    Thông tin đăng nhập:
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <span className="block text-xs text-slate-600 mb-1 font-medium">Tên đăng nhập:</span>
-                      <input
-                        type="text"
-                        value={dbUsername}
-                        onChange={(e) => setDbUsername(e.target.value)}
-                        placeholder="VD: sa"
-                        className="w-full p-2 px-3 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
-                      />
-                    </div>
-                    <div>
-                      <span className="block text-xs text-slate-600 mb-1 font-medium">Mật khẩu:</span>
-                      <input
-                        type="password"
-                        value={dbPassword}
-                        onChange={(e) => setDbPassword(e.target.value)}
-                        placeholder="Mật khẩu tài khoản sa"
-                        className="w-full p-2 px-3 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
-                      />
-                    </div>
+            {/* Grid 3 Actions: Backup, Restore, Wipe Data */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {/* Card 1: Backup Full DB */}
+              <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-lg flex flex-col justify-between space-y-4 hover:border-slate-700 transition-all">
+                <div className="space-y-2">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                    <Download className="w-5 h-5" />
                   </div>
+                  <h4 className="text-sm font-bold text-white">1. Sao Lưu CSDL (Backup)</h4>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Tải về tệp JSON chứa toàn bộ dữ liệu 22 bảng: Sản phẩm, Đơn hàng, Khách hàng, Bảo hành, Sổ quỹ, Nhân sự...
+                  </p>
                 </div>
-              )}
 
-              {/* Test Button */}
-              <div>
-                <button
-                  type="button"
-                  onClick={handleTestSqlDb}
-                  disabled={isTestingDb}
-                  className="w-full py-2.5 px-4 bg-[#0088cc] hover:bg-[#0077b3] active:bg-[#006699] text-white font-semibold text-sm rounded-md transition-all shadow-sm flex items-center justify-center space-x-2 disabled:opacity-70 cursor-pointer"
-                >
-                  {isTestingDb ? (
-                    <>
-                      <RotateCcw className="w-4 h-4 animate-spin" />
-                      <span>Đang kiểm tra kết nối tới SQL Server...</span>
-                    </>
-                  ) : (
-                    <span>Kiểm tra kết nối</span>
-                  )}
-                </button>
-              </div>
-
-              {/* Test Result Alert */}
-              {dbTestResult && (
-                <div
-                  className={`p-3 rounded-lg border text-xs flex items-start space-x-2.5 animate-in fade-in ${
-                    dbTestResult.success
-                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                      : 'bg-rose-50 border-rose-200 text-rose-800'
-                  }`}
-                >
-                  {dbTestResult.success ? (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                  ) : (
-                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                  )}
-                  <div className="flex-1">
-                    <p className="font-semibold">{dbTestResult.message}</p>
-                    {dbServerVersion && (
-                      <p className="text-[10px] text-slate-500 mt-0.5 line-clamp-1">
-                        {dbServerVersion}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Database Select */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="block text-sm font-bold text-slate-800">
-                    Cơ sở dữ liệu (Database):
-                  </label>
+                <div className="space-y-2 pt-2">
                   <button
                     type="button"
-                    onClick={() => setIsCustomDb(!isCustomDb)}
-                    className="text-xs text-sky-600 hover:text-sky-800 font-medium hover:underline cursor-pointer"
+                    onClick={handleBackupDownload}
+                    disabled={isExportingBackup}
+                    className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all shadow-md shadow-emerald-600/20 flex items-center justify-center space-x-2 disabled:opacity-60 cursor-pointer"
                   >
-                    {isCustomDb ? '← Chọn từ danh sách' : '+ Nhập tên CSDL mới'}
-                  </button>
-                </div>
-
-                {isCustomDb ? (
-                  <input
-                    type="text"
-                    value={dbCustomName}
-                    onChange={(e) => setDbCustomName(e.target.value)}
-                    placeholder="Nhập tên CSDL mới (VD: GPERP_Enterprise hoặc pos_basic_db)"
-                    className="w-full p-2.5 px-3 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 font-mono"
-                  />
-                ) : (
-                  <select
-                    value={dbName}
-                    onChange={(e) => {
-                      if (e.target.value === '__custom__') {
-                        setIsCustomDb(true);
-                        setDbCustomName('');
-                      } else {
-                        setDbName(e.target.value);
-                      }
-                    }}
-                    className="w-full p-2.5 px-3 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 cursor-pointer"
-                  >
-                    {availableDatabases.length > 0 ? (
+                    {isExportingBackup ? (
                       <>
-                        {!availableDatabases.includes(dbName) && dbName && (
-                          <option value={dbName}>{dbName} (Hiện tại)</option>
-                        )}
-                        {availableDatabases.map((db) => (
-                          <option key={db} value={db}>
-                            {db} {db === dbName ? '(Đang chọn)' : ''}
-                          </option>
-                        ))}
+                        <RotateCcw className="w-4 h-4 animate-spin" />
+                        <span>Đang xuất dữ liệu...</span>
                       </>
                     ) : (
                       <>
-                        <option value={dbName}>{dbName} (Hiện tại)</option>
-                        <option value="POS_WEB">POS_WEB</option>
-                        <option value="GPERP_Enterprise">GPERP_Enterprise</option>
+                        <Download className="w-4 h-4" />
+                        <span>Tải File Sao Lưu (.json)</span>
                       </>
                     )}
-                    <option value="__custom__">+ Nhập tên CSDL mới...</option>
-                  </select>
-                )}
+                  </button>
+
+                  {backupDownloadMsg && (
+                    <p className={`text-[11px] font-semibold text-center ${backupDownloadMsg.success ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {backupDownloadMsg.message}
+                    </p>
+                  )}
+                </div>
               </div>
 
-              {/* Save Result Alert */}
-              {dbSaveResult && (
-                <div
-                  className={`p-3 rounded-lg border text-xs flex items-start space-x-2.5 animate-in fade-in ${
-                    dbSaveResult.success
-                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                      : 'bg-rose-50 border-rose-200 text-rose-800'
-                  }`}
-                >
-                  {dbSaveResult.success ? (
-                    <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                  ) : (
-                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                  )}
-                  <p className="font-semibold flex-1">{dbSaveResult.message}</p>
+              {/* Card 2: Restore from Backup */}
+              <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-lg flex flex-col justify-between space-y-4 hover:border-slate-700 transition-all">
+                <div className="space-y-2">
+                  <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+                    <Upload className="w-5 h-5" />
+                  </div>
+                  <h4 className="text-sm font-bold text-white">2. Khôi Phục CSDL (Restore)</h4>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Nạp lại toàn bộ dữ liệu từ tệp sao lưu JSON đã tải về trước đó vào SQL Server.
+                  </p>
                 </div>
-              )}
 
-              {/* Buttons */}
-              <div className="border-t border-slate-200 pt-4 flex items-center justify-center space-x-4">
-                <button
-                  type="button"
-                  onClick={handleSaveSqlDb}
-                  disabled={isSavingDb}
-                  className="px-6 py-2.5 bg-[#0088cc] hover:bg-[#0077b3] active:bg-[#006699] text-white font-bold text-sm rounded-md transition-all shadow-sm flex items-center space-x-2 disabled:opacity-70 cursor-pointer min-w-[140px] justify-center"
-                >
-                  {isSavingDb ? (
-                    <>
-                      <RotateCcw className="w-4 h-4 animate-spin" />
-                      <span>Đang lưu & tạo 22 bảng...</span>
-                    </>
+                <div className="space-y-2 pt-2">
+                  <input
+                    type="file"
+                    ref={restoreFileInputRef}
+                    accept=".json"
+                    onChange={handleRestoreFileSelect}
+                    className="hidden"
+                  />
+
+                  {restoreFileStats ? (
+                    <div className="p-2.5 bg-slate-800/80 border border-slate-700 rounded-xl space-y-1.5 text-[11px]">
+                      <div className="flex items-center justify-between text-slate-200 font-bold truncate">
+                        <span className="truncate">{restoreFileStats.name}</span>
+                        <span className="text-sky-400 shrink-0 ml-1">{restoreFileStats.size}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-slate-400 text-[10px]">
+                        <span>Ngày tạo: {restoreFileStats.createdAt}</span>
+                        <span>{restoreFileStats.totalRecords} bản ghi</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleExecuteRestore}
+                        disabled={isRestoring}
+                        className="w-full mt-2 py-2 px-3 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-bold text-xs rounded-lg transition-all shadow-md flex items-center justify-center space-x-1.5 disabled:opacity-60 cursor-pointer"
+                      >
+                        {isRestoring ? (
+                          <>
+                            <RotateCcw className="w-3.5 h-3.5 animate-spin" />
+                            <span>Đang nạp dữ liệu...</span>
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            <span>Xác Nhận Khôi Phục</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
                   ) : (
-                    <span>Lưu Cấu Hình</span>
+                    <button
+                      type="button"
+                      onClick={() => restoreFileInputRef.current?.click()}
+                      className="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white font-bold text-xs rounded-xl border border-slate-700 transition-all flex items-center justify-center space-x-2 cursor-pointer"
+                    >
+                      <FileJson className="w-4 h-4 text-sky-400" />
+                      <span>Chọn File Backup (.json)</span>
+                    </button>
                   )}
-                </button>
 
-                <button
-                  type="button"
-                  onClick={handleResetSqlDb}
-                  disabled={isSavingDb}
-                  className="px-6 py-2.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold text-sm rounded-md transition-all shadow-sm cursor-pointer min-w-[120px]"
-                >
-                  Làm Lại
-                </button>
+                  {restoreResult && (
+                    <p className={`text-[11px] font-semibold text-center ${restoreResult.success ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {restoreResult.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Card 3: Wipe All Data - Danger Zone */}
+              <div className="bg-slate-900 p-5 rounded-2xl border border-rose-900/40 shadow-lg flex flex-col justify-between space-y-4 hover:border-rose-700/60 transition-all">
+                <div className="space-y-2">
+                  <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
+                    <Trash2 className="w-5 h-5" />
+                  </div>
+                  <h4 className="text-sm font-bold text-rose-300">3. Xóa Dữ Liệu (Wipe Data)</h4>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Xóa sạch toàn bộ dữ liệu đơn hàng, sản phẩm, khách hàng, sổ quỹ... để đưa hệ thống về CSDL trống chuẩn bị nhập mới.
+                  </p>
+                </div>
+
+                <div className="space-y-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWipeConfirmInput('');
+                      setWipeResult(null);
+                      setShowWipeModal(true);
+                    }}
+                    className="w-full py-2.5 px-4 bg-rose-950/60 hover:bg-rose-900 active:bg-rose-800 text-rose-300 hover:text-rose-100 font-bold text-xs rounded-xl border border-rose-800 transition-all shadow-md shadow-rose-950/30 flex items-center justify-center space-x-2 cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4 text-rose-400" />
+                    <span>Xóa Sạch Toàn Bộ Dữ Liệu</span>
+                  </button>
+
+                  {wipeResult && (
+                    <p className={`text-[11px] font-semibold text-center ${wipeResult.success ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {wipeResult.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* SQL Server Connection Settings Box */}
+            <div className="bg-slate-900 p-5 md:p-6 rounded-2xl border border-slate-800 space-y-5 shadow-xl text-slate-900">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3 text-white">
+                <h4 className="text-sm font-bold flex items-center space-x-2">
+                  <HardDrive className="w-4 h-4 text-sky-400" />
+                  <span>4. Cấu Hình Kết Nối Microsoft SQL Server</span>
+                </h4>
+                <span className="text-xs text-slate-400">
+                  Tạo CSDL & 22 bảng Schema sạch sẽ
+                </span>
+              </div>
+
+              {/* Exact card layout matching user mockup */}
+              <div className="bg-white p-6 rounded-xl border border-slate-200 space-y-5 max-w-xl mx-auto shadow-sm">
+                {/* Server Name */}
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-bold text-slate-800">
+                    Tên máy chủ (Server Name):
+                  </label>
+                  <input
+                    type="text"
+                    value={dbServerName}
+                    onChange={(e) => setDbServerName(e.target.value)}
+                    placeholder="VD: . hoặc localhost hoặc .\SQLEXPRESS hoặc 103.56.12.89"
+                    className="w-full p-2.5 px-3 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 font-mono"
+                  />
+                  <p className="text-[11px] text-slate-500">
+                    Dùng dấu <code className="px-1 bg-slate-100 rounded text-sky-700 font-mono">.</code> hoặc <code className="px-1 bg-slate-100 rounded text-sky-700 font-mono">localhost</code> cho máy cục bộ, hoặc IP/Domain cho máy chủ Hosting.
+                  </p>
+                </div>
+
+                {/* Authentication Mode Selector (SSMS style) */}
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-bold text-slate-800">
+                    Phương thức xác thực (Authentication):
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setDbAuthType('windows')}
+                      className={`py-2 px-3 rounded-lg border text-xs font-semibold flex items-center justify-center space-x-2 transition-all cursor-pointer ${
+                        dbAuthType === 'windows'
+                          ? 'bg-sky-50 border-sky-500 text-sky-700 shadow-xs'
+                          : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      <UserCheck className="w-4 h-4" />
+                      <span>Windows Authentication</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDbAuthType('sql')}
+                      className={`py-2 px-3 rounded-lg border text-xs font-semibold flex items-center justify-center space-x-2 transition-all cursor-pointer ${
+                        dbAuthType === 'sql'
+                          ? 'bg-sky-50 border-sky-500 text-sky-700 shadow-xs'
+                          : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      <Lock className="w-4 h-4" />
+                      <span>SQL Server Authentication</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Authentication Fields depending on mode */}
+                {dbAuthType === 'windows' ? (
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center space-x-2 text-xs text-slate-600">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>
+                      <strong>Windows Authentication:</strong> Tự động xác thực tài khoản Windows hiện tại (không cần nhập tên đăng nhập và mật khẩu).
+                    </span>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5 animate-in fade-in">
+                    <label className="block text-sm font-bold text-slate-800">
+                      Thông tin đăng nhập:
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <span className="block text-xs text-slate-600 mb-1 font-medium">Tên đăng nhập:</span>
+                        <input
+                          type="text"
+                          value={dbUsername}
+                          onChange={(e) => setDbUsername(e.target.value)}
+                          placeholder="VD: sa"
+                          className="w-full p-2 px-3 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                        />
+                      </div>
+                      <div>
+                        <span className="block text-xs text-slate-600 mb-1 font-medium">Mật khẩu:</span>
+                        <input
+                          type="password"
+                          value={dbPassword}
+                          onChange={(e) => setDbPassword(e.target.value)}
+                          placeholder="Mật khẩu tài khoản sa"
+                          className="w-full p-2 px-3 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Test Button */}
+                <div>
+                  <button
+                    type="button"
+                    onClick={handleTestSqlDb}
+                    disabled={isTestingDb}
+                    className="w-full py-2.5 px-4 bg-[#0088cc] hover:bg-[#0077b3] active:bg-[#006699] text-white font-semibold text-sm rounded-md transition-all shadow-sm flex items-center justify-center space-x-2 disabled:opacity-70 cursor-pointer"
+                  >
+                    {isTestingDb ? (
+                      <>
+                        <RotateCcw className="w-4 h-4 animate-spin" />
+                        <span>Đang kiểm tra kết nối tới SQL Server...</span>
+                      </>
+                    ) : (
+                      <span>Kiểm tra kết nối</span>
+                    )}
+                  </button>
+                </div>
+
+                {/* Test Result Alert */}
+                {dbTestResult && (
+                  <div
+                    className={`p-3 rounded-lg border text-xs flex items-start space-x-2.5 animate-in fade-in ${
+                      dbTestResult.success
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                        : 'bg-rose-50 border-rose-200 text-rose-800'
+                    }`}
+                  >
+                    {dbTestResult.success ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                    )}
+                    <div className="flex-1">
+                      <p className="font-semibold">{dbTestResult.message}</p>
+                      {dbServerVersion && (
+                        <p className="text-[10px] text-slate-500 mt-0.5 line-clamp-1">
+                          {dbServerVersion}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Database Select */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-bold text-slate-800">
+                      Cơ sở dữ liệu (Database):
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setIsCustomDb(!isCustomDb)}
+                      className="text-xs text-sky-600 hover:text-sky-800 font-medium hover:underline cursor-pointer"
+                    >
+                      {isCustomDb ? '← Chọn từ danh sách' : '+ Nhập tên CSDL mới'}
+                    </button>
+                  </div>
+
+                  {isCustomDb ? (
+                    <input
+                      type="text"
+                      value={dbCustomName}
+                      onChange={(e) => setDbCustomName(e.target.value)}
+                      placeholder="Nhập tên CSDL mới (VD: GPERP_Enterprise hoặc pos_basic_db)"
+                      className="w-full p-2.5 px-3 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 font-mono"
+                    />
+                  ) : (
+                    <select
+                      value={dbName}
+                      onChange={(e) => {
+                        if (e.target.value === '__custom__') {
+                          setIsCustomDb(true);
+                          setDbCustomName('');
+                        } else {
+                          setDbName(e.target.value);
+                        }
+                      }}
+                      className="w-full p-2.5 px-3 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 cursor-pointer"
+                    >
+                      {availableDatabases.length > 0 ? (
+                        <>
+                          {!availableDatabases.includes(dbName) && dbName && (
+                            <option value={dbName}>{dbName} (Hiện tại)</option>
+                          )}
+                          {availableDatabases.map((db) => (
+                            <option key={db} value={db}>
+                              {db} {db === dbName ? '(Đang chọn)' : ''}
+                            </option>
+                          ))}
+                        </>
+                      ) : (
+                        <>
+                          <option value={dbName}>{dbName} (Hiện tại)</option>
+                          <option value="POS_WEB">POS_WEB</option>
+                          <option value="GPERP_Enterprise">GPERP_Enterprise</option>
+                        </>
+                      )}
+                      <option value="__custom__">+ Nhập tên CSDL mới...</option>
+                    </select>
+                  )}
+                </div>
+
+                {/* Save Result Alert */}
+                {dbSaveResult && (
+                  <div
+                    className={`p-3 rounded-lg border text-xs flex items-start space-x-2.5 animate-in fade-in ${
+                      dbSaveResult.success
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                        : 'bg-rose-50 border-rose-200 text-rose-800'
+                    }`}
+                  >
+                    {dbSaveResult.success ? (
+                      <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                    )}
+                    <p className="font-semibold flex-1">{dbSaveResult.message}</p>
+                  </div>
+                )}
+
+                {/* Buttons */}
+                <div className="border-t border-slate-200 pt-4 flex items-center justify-center space-x-4">
+                  <button
+                    type="button"
+                    onClick={handleSaveSqlDb}
+                    disabled={isSavingDb}
+                    className="px-6 py-2.5 bg-[#0088cc] hover:bg-[#0077b3] active:bg-[#006699] text-white font-bold text-sm rounded-md transition-all shadow-sm flex items-center space-x-2 disabled:opacity-70 cursor-pointer min-w-[140px] justify-center"
+                  >
+                    {isSavingDb ? (
+                      <>
+                        <RotateCcw className="w-4 h-4 animate-spin" />
+                        <span>Đang lưu & tạo 22 bảng sạch...</span>
+                      </>
+                    ) : (
+                      <span>Lưu Cấu Hình CSDL</span>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleResetSqlDb}
+                    disabled={isSavingDb}
+                    className="px-6 py-2.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold text-sm rounded-md transition-all shadow-sm cursor-pointer min-w-[120px]"
+                  >
+                    Làm Lại
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1924,6 +2145,81 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </button>
         </div>
       </form>
+
+      {/* Modal Popup Xác Nhận Xóa Sạch Dữ Liệu */}
+      {showWipeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4 animate-in fade-in">
+          <div className="bg-slate-900 border border-rose-800/80 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5 text-slate-100 relative">
+            <button
+              type="button"
+              onClick={() => setShowWipeModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center space-x-3 text-rose-400">
+              <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl">
+                <AlertTriangle className="w-6 h-6 text-rose-500" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Xác Nhận Xóa Sạch Dữ Liệu</h3>
+                <p className="text-xs text-rose-400 font-semibold">Cảnh báo: Hành động không thể hoàn tác!</p>
+              </div>
+            </div>
+
+            <div className="p-3 bg-rose-950/30 border border-rose-900/50 rounded-xl text-xs text-slate-300 space-y-2">
+              <p>
+                Toàn bộ dữ liệu của các phân hệ: <strong>Sản phẩm, Đơn hàng, Khách hàng, Bảo hành, Sổ quỹ kế toán, Nhân sự, Hóa đơn điện tử, Báo giá, Định mức BOM, Nhật ký kho...</strong> sẽ bị xóa sạch hoàn toàn.
+              </p>
+              <p className="text-amber-300 font-medium">
+                💡 Hệ thống sẽ giữ lại tài khoản Quản trị viên (Admin) và thông tin cấu hình cửa hàng.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-300">
+                Để xác nhận, vui lòng nhập chính xác từ khóa <span className="text-rose-400 font-mono bg-rose-950/60 px-1.5 py-0.5 rounded border border-rose-800">XOA_DU_LIEU</span> vào ô bên dưới:
+              </label>
+              <input
+                type="text"
+                value={wipeConfirmInput}
+                onChange={(e) => setWipeConfirmInput(e.target.value)}
+                placeholder="Nhập XOA_DU_LIEU"
+                className="w-full p-2.5 px-3 bg-slate-950 border border-rose-700/60 rounded-xl text-sm font-mono text-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-500 uppercase"
+              />
+            </div>
+
+            <div className="flex items-center justify-end space-x-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowWipeModal(false)}
+                className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl cursor-pointer"
+              >
+                Hủy Bỏ
+              </button>
+              <button
+                type="button"
+                onClick={handleExecuteWipeData}
+                disabled={wipeConfirmInput.trim() !== 'XOA_DU_LIEU' || isWiping}
+                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 active:bg-rose-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs rounded-xl shadow-lg shadow-rose-600/30 flex items-center space-x-2 cursor-pointer"
+              >
+                {isWiping ? (
+                  <>
+                    <RotateCcw className="w-4 h-4 animate-spin" />
+                    <span>Đang xóa sạch dữ liệu...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Xác Nhận Xóa Vĩnh Viễn</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Test Print Modal */}
       {testModalOpen && (

@@ -83,79 +83,64 @@ function setStoredItem<T>(key: string, value: T): void {
 
 export function useStoreState() {
   const [products, setProductsState] = useState<Product[]>(() =>
-    getStoredItem(KEYS.PRODUCTS, INITIAL_PRODUCTS)
+    getStoredItem(KEYS.PRODUCTS, [])
   );
   const [customers, setCustomersState] = useState<Customer[]>(() =>
-    getStoredItem(KEYS.CUSTOMERS, INITIAL_CUSTOMERS)
+    getStoredItem(KEYS.CUSTOMERS, [])
   );
   const [orders, setOrdersState] = useState<Order[]>(() =>
-    getStoredItem(KEYS.ORDERS, INITIAL_ORDERS)
+    getStoredItem(KEYS.ORDERS, [])
   );
   const [promotions, setPromotionsState] = useState<Promotion[]>(() =>
-    getStoredItem(KEYS.PROMOTIONS, INITIAL_PROMOTIONS)
+    getStoredItem(KEYS.PROMOTIONS, [])
   );
   const [currentShift, setCurrentShiftState] = useState<CashShift | null>(() =>
-    getStoredItem(KEYS.SHIFT, INITIAL_CASH_SHIFT)
+    getStoredItem(KEYS.SHIFT, null)
   );
   const [shifts, setShiftsState] = useState<CashShift[]>(() =>
-    getStoredItem(KEYS.SHIFTS_HISTORY, INITIAL_CASH_SHIFT ? [INITIAL_CASH_SHIFT] : [])
+    getStoredItem(KEYS.SHIFTS_HISTORY, [])
   );
   const [settings, setSettingsState] = useState<StoreSettings>(() =>
     getStoredItem(KEYS.SETTINGS, INITIAL_STORE_SETTINGS)
   );
   const [accountingRecords, setAccountingRecordsState] = useState<AccountingRecord[]>(() =>
-    getStoredItem(KEYS.ACCOUNTING, INITIAL_ACCOUNTING_RECORDS as any)
+    getStoredItem(KEYS.ACCOUNTING, [])
   );
   const [employees, setEmployeesState] = useState<Employee[]>(() =>
-    getStoredItem(KEYS.EMPLOYEES, INITIAL_EMPLOYEES as any)
+    getStoredItem(KEYS.EMPLOYEES, [])
   );
   const [quotes, setQuotesState] = useState<PriceQuote[]>(() =>
-    getStoredItem(KEYS.QUOTES, INITIAL_QUOTES as any)
+    getStoredItem(KEYS.QUOTES, [])
   );
   const [costingList, setCostingListState] = useState<ProductCosting[]>(() =>
-    getStoredItem(KEYS.COSTING, INITIAL_COSTING as any)
+    getStoredItem(KEYS.COSTING, [])
   );
   const [assets, setAssetsState] = useState<EnterpriseAsset[]>(() =>
-    getStoredItem(KEYS.ASSETS, INITIAL_ASSETS as any)
+    getStoredItem(KEYS.ASSETS, [])
   );
   const [fraudAlerts, setFraudAlertsState] = useState<FraudAlert[]>(() =>
-    getStoredItem(KEYS.FRAUD_ALERTS, INITIAL_FRAUD_ALERTS as any)
+    getStoredItem(KEYS.FRAUD_ALERTS, [])
   );
   const [warranties, setWarrantiesState] = useState<WarrantyTicket[]>(() =>
-    getStoredItem(KEYS.WARRANTIES, INITIAL_WARRANTY_TICKETS as any)
+    getStoredItem(KEYS.WARRANTIES, [])
   );
   const [serialRecords, setSerialRecordsState] = useState<SerialDeviceRecord[]>(() =>
-    getStoredItem(KEYS.SERIAL_RECORDS, INITIAL_SERIAL_RECORDS as any)
+    getStoredItem(KEYS.SERIAL_RECORDS, [])
   );
   const [eInvoices, setEInvoicesState] = useState<EInvoice[]>(() =>
-    getStoredItem(KEYS.EINVOICES, INITIAL_EINVOICES as any)
+    getStoredItem(KEYS.EINVOICES, [])
   );
   const [laborContracts, setLaborContractsState] = useState<LaborContract[]>(() =>
-    getStoredItem(KEYS.LABOR_CONTRACTS, INITIAL_LABOR_CONTRACTS as any)
+    getStoredItem(KEYS.LABOR_CONTRACTS, [])
   );
   const [inboundInvoices, setInboundInvoicesState] = useState<InboundEInvoice[]>(() =>
-    getStoredItem(KEYS.INBOUND_INVOICES, INITIAL_INBOUND_INVOICES)
+    getStoredItem(KEYS.INBOUND_INVOICES, [])
   );
   const [stockReceipts, setStockReceiptsState] = useState<StockGoodsReceipt[]>(() =>
     getStoredItem(KEYS.STOCK_RECEIPTS, [])
   );
   const [inventoryLogs, setInventoryLogsState] = useState<InventoryLog[]>(() =>
-    getStoredItem(KEYS.INVENTORY_LOGS, [
-      {
-        id: 'log-1',
-        productId: 'prod-1',
-        productName: 'Cáp Điện & Mạng Cadivi 2x1.5mm',
-        sku: 'CAP-DIEN-CADIVI-2X15',
-        type: 'import',
-        quantityChange: 500,
-        oldStock: 4500,
-        newStock: 5000,
-        unitPrice: 2450000,
-        reason: 'Nhập hàng đợt 1 đầu tháng 2/2026 từ Tổng kho Cadivi',
-        performedBy: 'Nguyễn Văn Minh (Thủ Kho)',
-        timestamp: '2026-02-01T08:30:00.000Z',
-      },
-    ])
+    getStoredItem(KEYS.INVENTORY_LOGS, [])
   );
 
   // Sync helpers
@@ -332,47 +317,47 @@ export function useStoreState() {
     });
   };
 
-  // Reset demo data
+  // Reset data to Clean Empty Database State
   const resetToInitialData = () => {
-    setProductsState(INITIAL_PRODUCTS);
-    setCustomersState(INITIAL_CUSTOMERS);
-    setOrdersState(INITIAL_ORDERS);
-    setPromotionsState(INITIAL_PROMOTIONS);
-    setCurrentShiftState(INITIAL_CASH_SHIFT);
-    setShiftsState(INITIAL_CASH_SHIFT ? [INITIAL_CASH_SHIFT] : []);
+    setProductsState([]);
+    setCustomersState([]);
+    setOrdersState([]);
+    setPromotionsState([]);
+    setCurrentShiftState(null);
+    setShiftsState([]);
     setSettingsState(INITIAL_STORE_SETTINGS);
-    setAccountingRecordsState(INITIAL_ACCOUNTING_RECORDS as any);
-    setEmployeesState(INITIAL_EMPLOYEES as any);
-    setQuotesState(INITIAL_QUOTES as any);
-    setCostingListState(INITIAL_COSTING as any);
-    setAssetsState(INITIAL_ASSETS as any);
-    setFraudAlertsState(INITIAL_FRAUD_ALERTS as any);
-    setWarrantiesState(INITIAL_WARRANTY_TICKETS as any);
-    setSerialRecordsState(INITIAL_SERIAL_RECORDS as any);
-    setEInvoicesState(INITIAL_EINVOICES as any);
-    setLaborContractsState(INITIAL_LABOR_CONTRACTS as any);
-    setInboundInvoicesState(INITIAL_INBOUND_INVOICES);
+    setAccountingRecordsState([]);
+    setEmployeesState([]);
+    setQuotesState([]);
+    setCostingListState([]);
+    setAssetsState([]);
+    setFraudAlertsState([]);
+    setWarrantiesState([]);
+    setSerialRecordsState([]);
+    setEInvoicesState([]);
+    setLaborContractsState([]);
+    setInboundInvoicesState([]);
     setStockReceiptsState([]);
     setInventoryLogsState([]);
 
-    setStoredItem(KEYS.PRODUCTS, INITIAL_PRODUCTS);
-    setStoredItem(KEYS.CUSTOMERS, INITIAL_CUSTOMERS);
-    setStoredItem(KEYS.ORDERS, INITIAL_ORDERS);
-    setStoredItem(KEYS.PROMOTIONS, INITIAL_PROMOTIONS);
-    setStoredItem(KEYS.SHIFT, INITIAL_CASH_SHIFT);
-    setStoredItem(KEYS.SHIFTS_HISTORY, INITIAL_CASH_SHIFT ? [INITIAL_CASH_SHIFT] : []);
+    setStoredItem(KEYS.PRODUCTS, []);
+    setStoredItem(KEYS.CUSTOMERS, []);
+    setStoredItem(KEYS.ORDERS, []);
+    setStoredItem(KEYS.PROMOTIONS, []);
+    setStoredItem(KEYS.SHIFT, null);
+    setStoredItem(KEYS.SHIFTS_HISTORY, []);
     setStoredItem(KEYS.SETTINGS, INITIAL_STORE_SETTINGS);
-    setStoredItem(KEYS.ACCOUNTING, INITIAL_ACCOUNTING_RECORDS);
-    setStoredItem(KEYS.EMPLOYEES, INITIAL_EMPLOYEES);
-    setStoredItem(KEYS.QUOTES, INITIAL_QUOTES);
-    setStoredItem(KEYS.COSTING, INITIAL_COSTING);
-    setStoredItem(KEYS.ASSETS, INITIAL_ASSETS);
-    setStoredItem(KEYS.FRAUD_ALERTS, INITIAL_FRAUD_ALERTS);
-    setStoredItem(KEYS.WARRANTIES, INITIAL_WARRANTY_TICKETS);
-    setStoredItem(KEYS.SERIAL_RECORDS, INITIAL_SERIAL_RECORDS);
-    setStoredItem(KEYS.EINVOICES, INITIAL_EINVOICES);
-    setStoredItem(KEYS.LABOR_CONTRACTS, INITIAL_LABOR_CONTRACTS);
-    setStoredItem(KEYS.INBOUND_INVOICES, INITIAL_INBOUND_INVOICES);
+    setStoredItem(KEYS.ACCOUNTING, []);
+    setStoredItem(KEYS.EMPLOYEES, []);
+    setStoredItem(KEYS.QUOTES, []);
+    setStoredItem(KEYS.COSTING, []);
+    setStoredItem(KEYS.ASSETS, []);
+    setStoredItem(KEYS.FRAUD_ALERTS, []);
+    setStoredItem(KEYS.WARRANTIES, []);
+    setStoredItem(KEYS.SERIAL_RECORDS, []);
+    setStoredItem(KEYS.EINVOICES, []);
+    setStoredItem(KEYS.LABOR_CONTRACTS, []);
+    setStoredItem(KEYS.INBOUND_INVOICES, []);
     setStoredItem(KEYS.STOCK_RECEIPTS, []);
     setStoredItem(KEYS.INVENTORY_LOGS, []);
   };

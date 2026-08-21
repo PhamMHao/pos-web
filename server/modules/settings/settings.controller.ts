@@ -20,4 +20,33 @@ export class SettingsController {
       return next(error);
     }
   }
+
+  static async backupDatabase(req: Request, res: Response, next: NextFunction) {
+    try {
+      const backupData = await SettingsService.backupDatabase();
+      return sendSuccess(res, backupData, "Xuất dữ liệu sao lưu CSDL thành công");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async restoreDatabase(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await SettingsService.restoreDatabase(req.body);
+      return sendSuccess(res, result, "Khôi phục dữ liệu CSDL thành công");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async wipeAllData(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { confirmation } = req.body;
+      const result = await SettingsService.wipeAllData(confirmation);
+      return sendSuccess(res, result, "Đã xóa sạch toàn bộ dữ liệu CSDL thành công");
+    } catch (error) {
+      return next(error);
+    }
+  }
 }
+

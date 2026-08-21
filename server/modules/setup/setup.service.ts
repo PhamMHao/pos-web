@@ -280,24 +280,15 @@ export async function saveAndInitializeDatabase(params: DbConnectionParams) {
 
   console.log("Đã lưu DATABASE_URL vào .env:", prismaUrl);
 
-  // Push schema to database
-  console.log("Đang đồng bộ Schema 22 bảng lên SQL Server (prisma db push)...");
-  try {
-    await execAsync("npx prisma db push --accept-data-loss", { cwd: process.cwd() });
-    console.log("Đã tạo bảng Schema thành công!");
-
-    // Run seed script
-    console.log("Đang nạp dữ liệu mẫu ban đầu (prisma db seed)...");
+    // Push schema to database
+    console.log("Đang đồng bộ Schema 22 bảng lên SQL Server (prisma db push)...");
     try {
-      await execAsync("npx prisma db seed", { cwd: process.cwd() });
-      console.log("Đã nạp dữ liệu Seed thành công!");
-    } catch (seedErr: any) {
-      console.warn("Lưu ý khi chạy seed:", seedErr.message);
+      await execAsync("npx prisma db push --accept-data-loss", { cwd: process.cwd() });
+      console.log("Đã tạo cấu trúc 22 bảng Schema sạch sẽ thành công!");
+    } catch (pushErr: any) {
+      console.error("Lỗi khi prisma db push:", pushErr.message);
+      throw new Error(`Đã kết nối được SQL Server nhưng lỗi khi khởi tạo bảng: ${pushErr.message}`);
     }
-  } catch (pushErr: any) {
-    console.error("Lỗi khi prisma db push:", pushErr.message);
-    throw new Error(`Đã kết nối được SQL Server nhưng lỗi khi khởi tạo bảng: ${pushErr.message}`);
-  }
 
   return {
     success: true,
