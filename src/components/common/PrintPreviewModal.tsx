@@ -17,6 +17,7 @@ import {
   Sparkles,
   Info,
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { StoreSettings } from '../../types';
 import { formatVND, generateVietQRUrl } from '../../utils/vietqr';
 import { numberToVietnameseWords } from '../../utils/numberToWords';
@@ -122,8 +123,6 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
 
-  if (!isOpen) return null;
-
   // Determine active CSS class based on paper size and orientation
   const getPaperSizeClass = () => {
     if (paperSize === 'K80') return 'paper-size-K80';
@@ -186,10 +185,31 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-2 md:p-4 animate-in fade-in overflow-hidden">
-      <div className="bg-slate-900 border border-slate-700/90 rounded-2xl max-w-7xl w-full h-[96vh] max-h-[980px] shadow-2xl flex flex-col overflow-hidden text-slate-100">
-        {/* Top Control Toolbar (Hidden when printing via CSS @media print) */}
-        <div className="p-3.5 px-5 bg-slate-950/90 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 shrink-0 no-print">
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          key="print-preview-backdrop"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.25, ease: 'easeOut' }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-2 md:p-4 overflow-hidden"
+        >
+          <motion.div
+            key="print-preview-dialog"
+            initial={{ opacity: 0, scale: 0.97 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.97 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            className="bg-slate-900 border border-slate-700/90 rounded-2xl max-w-7xl w-full h-[96vh] max-h-[980px] shadow-2xl flex flex-col overflow-hidden text-slate-100"
+          >
+            {/* Top Control Toolbar (Slide-Down Animation) */}
+            <motion.div
+              initial={{ opacity: 0, y: -16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: 'easeOut', delay: 0.05 }}
+              className="p-3.5 px-5 bg-slate-950/90 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 shrink-0 no-print"
+            >
           {/* Left: Title & Info */}
           <div className="flex items-center space-x-3">
             <div className="w-9 h-9 rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
@@ -344,11 +364,17 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
               <X className="w-5 h-5" />
             </button>
           </div>
-        </div>
+        </motion.div>
 
         {/* Canvas Display Viewport (Scrollable container) */}
-        <div className="flex-1 bg-slate-950 p-4 md:p-8 overflow-auto flex justify-center items-start">
-          <div style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'top center' }} className="transition-transform duration-75">
+        <div className="flex-1 bg-slate-950 p-4 md:p-8 overflow-auto flex justify-center items-start print:p-0 print:overflow-visible print:bg-white">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96, y: 12 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
+            style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'top center' }}
+            className="transition-transform duration-75 flex flex-col items-center"
+          >
             {/* Printable Document Sheet Container (Uses Existing CSS Paper Sizes) */}
             <div
               id="printable-area"
@@ -508,9 +534,32 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
                 </div>
               )}
             </div>
-          </div>
+          </motion.div>
         </div>
-      </div>
-    </div>
-  );
+
+        {/* Footer Status Elevation */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: 'easeOut', delay: 0.15 }}
+          className="p-2.5 px-5 bg-slate-950 border-t border-slate-800 flex flex-wrap items-center justify-between text-xs text-slate-400 no-print shrink-0"
+        >
+          <div className="flex items-center space-x-3">
+            <span className="flex items-center space-x-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse"></span>
+              <span>Định dạng: <strong className="text-slate-200">{paperSize}</strong> ({orientation === 'landscape' ? 'Ngang' : 'Dọc'})</span>
+            </span>
+            <span>•</span>
+            <span>Tỉ lệ hiển thị: <strong className="text-cyan-400 font-mono">{Math.round(zoomLevel * 100)}%</strong></span>
+          </div>
+
+          <div className="flex items-center space-x-3 text-[11px] text-slate-400">
+            <span className="hidden sm:inline">Phím tắt: <kbd className="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 font-mono text-slate-300">Ctrl+P</kbd> In • <kbd className="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 font-mono text-slate-300">Esc</kbd> Đóng</span>
+          </div>
+        </motion.div>
+      </motion.div>
+    </motion.div>
+  )}
+</AnimatePresence>
+);
 };
