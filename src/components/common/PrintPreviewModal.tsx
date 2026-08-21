@@ -21,6 +21,8 @@ import { StoreSettings } from '../../types';
 import { formatVND, generateVietQRUrl } from '../../utils/vietqr';
 import { numberToVietnameseWords } from '../../utils/numberToWords';
 import { GiaPhucLogo } from './GiaPhucLogo';
+import { PrinterSelectDropdown } from './PrinterSelectDropdown';
+import { PrinterProfile } from '../../utils/printerStorage';
 
 export type PaperSize = 'A4' | 'A5' | 'K80';
 export type PaperOrientation = 'portrait' | 'landscape';
@@ -307,6 +309,18 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
                 {Math.round(zoomLevel * 100)}%
               </button>
             </div>
+
+            {/* Printer Selection Dropdown */}
+            <PrinterSelectDropdown
+              onSelectPrinter={(p) => {
+                if (p.defaultPaperSize && p.defaultPaperSize !== 'custom') {
+                  setPaperSize(p.defaultPaperSize as any);
+                }
+                if (p.defaultOrientation) {
+                  setOrientation(p.defaultOrientation);
+                }
+              }}
+            />
 
             {/* Print Button (Ctrl + P) */}
             <button

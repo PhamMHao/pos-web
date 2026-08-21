@@ -17,6 +17,7 @@ import { formatVND } from '../../utils/vietqr';
 import { numberToVietnameseWords } from '../../utils/numberToWords';
 import { GiaPhucLogo } from '../common/GiaPhucLogo';
 import { PrintInvoiceModal } from '../common/PrintInvoiceModal';
+import { PrinterSelectDropdown } from '../common/PrinterSelectDropdown';
 
 interface StockReceiptPrintModalProps {
   receipt: StockGoodsReceipt;
@@ -36,6 +37,20 @@ export const StockReceiptPrintModal: React.FC<StockReceiptPrintModalProps> = ({
   const handlePrint = () => {
     window.print();
   };
+
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') {
+        e.preventDefault();
+        handlePrint();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const formatDate = (dateStr: string) => {
     try {
@@ -114,6 +129,15 @@ export const StockReceiptPrintModal: React.FC<StockReceiptPrintModalProps> = ({
                 <FileSpreadsheet className="w-4 h-4" />
                 <span className="hidden sm:inline">Mẫu Gia Phúc Computer</span>
               </button>
+
+              {/* Printer Selection Dropdown */}
+              <PrinterSelectDropdown
+                onSelectPrinter={(p) => {
+                  if (p.defaultPaperSize === 'A4' || p.defaultPaperSize === 'A5') {
+                    setPaperSize(p.defaultPaperSize);
+                  }
+                }}
+              />
 
               <button
                 onClick={handlePrint}

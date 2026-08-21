@@ -3,6 +3,7 @@ import { Printer, X, Check, QrCode, FileText } from 'lucide-react';
 import { Order, StoreSettings } from '../../types';
 import { formatVND, generateVietQRUrl } from '../../utils/vietqr';
 import { GiaPhucLogo } from '../common/GiaPhucLogo';
+import { PrinterSelectDropdown } from '../common/PrinterSelectDropdown';
 
 interface ReceiptModalProps {
   order: Order;
@@ -20,6 +21,20 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
   const handlePrint = () => {
     window.print();
   };
+
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') {
+        e.preventDefault();
+        handlePrint();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const qrUrl = generateVietQRUrl({
     bankCode: settings.bankCode,
@@ -39,12 +54,19 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
             <span className="font-bold text-sm">Hóa Đơn Thanh Toán</span>
           </div>
           <div className="flex items-center space-x-2">
+            <PrinterSelectDropdown
+              onSelectPrinter={(p) => {
+                if ((p.defaultPaperSize === 'A4' || p.defaultPaperSize === 'A5') && onSwitchToA4) {
+                  onSwitchToA4();
+                }
+              }}
+            />
             <button
               onClick={handlePrint}
-              className="flex items-center space-x-1.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow"
+              className="flex items-center space-x-1.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow cursor-pointer"
             >
               <Printer className="w-3.5 h-3.5" />
-              <span>In Hóa Đơn (Print)</span>
+              <span>In Hóa Đơn (Ctrl+P)</span>
             </button>
             <button
               onClick={onClose}

@@ -41,6 +41,7 @@ import {
 import { sounds } from '../../utils/soundEffects';
 import { formatVND } from '../../utils/vietqr';
 import { PrintPreviewModal } from './PrintPreviewModal';
+import { PrinterManagerModal } from './PrinterManagerModal';
 
 export interface ScannerPrinterHubModalProps {
   isOpen: boolean;
@@ -115,6 +116,7 @@ export const ScannerPrinterHubModal: React.FC<ScannerPrinterHubModalProps> = ({
   const [autoPrintCheckout, setAutoPrintCheckout] = useState<boolean>(settings?.autoPrintReceipt !== false);
   const [openDrawerOnPay, setOpenDrawerOnPay] = useState<boolean>(settings?.openDrawerOnPayment !== false);
   const [scannerSound, setScannerSound] = useState<boolean>(settings?.scannerBeepSound !== false);
+  const [showPrinterManagerModal, setShowPrinterManagerModal] = useState<boolean>(false);
 
   const lookupInputRef = useRef<HTMLInputElement | null>(null);
   const batchInputRef = useRef<HTMLInputElement | null>(null);
@@ -1191,6 +1193,28 @@ export const ScannerPrinterHubModal: React.FC<ScannerPrinterHubModalProps> = ({
                   </div>
                 </div>
               </div>
+
+              {/* Advanced Printer Management Button */}
+              <div className="p-4 bg-gradient-to-r from-blue-950/60 to-indigo-950/60 rounded-2xl border border-blue-500/40 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400 shrink-0">
+                    <Printer className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-extrabold text-white">Quản Lý Chi Tiết Danh Sách Máy In & Cổng Kết Nối</h4>
+                    <p className="text-xs text-slate-400">Thêm máy in IP mạng LAN, USB, Bluetooth hoặc máy in ảo PDF mặc định</p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowPrinterManagerModal(true)}
+                  className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-blue-600/30 flex items-center space-x-2 cursor-pointer transition-all active:scale-95 shrink-0"
+                >
+                  <Sliders className="w-4 h-4" />
+                  <span>⚙️ Mở Quản Lý Máy In</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -1204,6 +1228,14 @@ export const ScannerPrinterHubModal: React.FC<ScannerPrinterHubModalProps> = ({
           title="Bản Xem Trước Mẫu In Thử Nghiệm"
           initialPaperSize={testDocPaperSize}
           settings={settings}
+        />
+      )}
+
+      {/* Printer Manager Modal */}
+      {showPrinterManagerModal && (
+        <PrinterManagerModal
+          isOpen={showPrinterManagerModal}
+          onClose={() => setShowPrinterManagerModal(false)}
         />
       )}
     </div>

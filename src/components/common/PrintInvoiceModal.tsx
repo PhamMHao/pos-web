@@ -23,6 +23,8 @@ import { Order, StoreSettings, PrintDocType } from '../../types';
 import { formatVND, generateVietQRUrl } from '../../utils/vietqr';
 import { numberToVietnameseWords } from '../../utils/numberToWords';
 import { GiaPhucLogo } from './GiaPhucLogo';
+import { PrinterSelectDropdown } from './PrinterSelectDropdown';
+import { PrinterProfile } from '../../utils/printerStorage';
 
 export interface PrintItem {
   id?: string;
@@ -373,11 +375,25 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
     });
   }, [settings, calculatedGrandTotal, docNumber, brandTitle]);
 
-  if (!isOpen) return null;
-
   const handlePrint = () => {
     window.print();
   };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') {
+        e.preventDefault();
+        handlePrint();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
+
+  if (!isOpen) return null;
 
   const getDocTitle = () => {
     switch (docType) {
@@ -594,6 +610,18 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                 ✓ Đã lưu mặc định!
               </span>
             )}
+            {/* Printer Selection Dropdown */}
+            <PrinterSelectDropdown
+              onSelectPrinter={(p) => {
+                if (p.defaultPaperSize && p.defaultPaperSize !== 'custom') {
+                  setPaperSize(p.defaultPaperSize as any);
+                }
+                if (p.defaultOrientation) {
+                  setOrientation(p.defaultOrientation);
+                }
+              }}
+            />
+
             <button
               type="button"
               id="btn-execute-print"
