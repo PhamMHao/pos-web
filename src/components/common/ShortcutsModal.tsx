@@ -30,6 +30,7 @@ const SHORTCUTS: { category: string; icon: any; items: ShortcutItem[] }[] = [
     icon: Sparkles,
     items: [
       { key: 'F1', description: 'Mở Trợ Lý AI GP-Copilot (Tư vấn doanh thu & gợi ý tồn kho)', category: 'system' },
+      { key: 'F3', description: 'Mở Trung Tâm Máy Quét & Máy In (Tra cứu, Đăng ký nhanh, Quét Serial)', category: 'system' },
       { key: 'F11', description: 'Bật / Tắt chế độ Toàn màn hình bán hàng chuyên nghiệp', category: 'system' },
       { key: 'Space', description: 'Tạm dừng hoặc kích hoạt quét mã vạch Barcode Scanner', category: 'system' },
     ],

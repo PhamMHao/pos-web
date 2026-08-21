@@ -25,6 +25,8 @@ import { DeviceManagerModal } from './components/common/DeviceManagerModal';
 import { DatabaseConfigModal } from './components/settings/DatabaseConfigModal';
 import { LoginModal } from './features/auth/components/LoginModal';
 import { ShortcutsModal } from './components/common/ShortcutsModal';
+import { ScannerPrinterHubModal } from './components/common/ScannerPrinterHubModal';
+import { ProductBarcodeLabelModal } from './components/inventory/ProductBarcodeLabelModal';
 import { productsApi } from './features/products/api/productsApi';
 import { customersApi } from './features/customers/api/customersApi';
 import { posApi } from './features/pos/api/posApi';
@@ -137,6 +139,11 @@ export function App() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showAiDrawer, setShowAiDrawer] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [showScannerPrinterHubModal, setShowScannerPrinterHubModal] = useState(false);
+  const [scannerHubInitialCode, setScannerHubInitialCode] = useState('');
+  const [scannerHubInitialTab, setScannerHubInitialTab] = useState<'lookup' | 'register' | 'batch_serial' | 'printer_hub'>('lookup');
+  const [barcodeModalProduct, setBarcodeModalProduct] = useState<Product | null>(null);
+  const [showBarcodeModal, setShowBarcodeModal] = useState(false);
   const [loadedQuoteData, setLoadedQuoteData] = useState<{ items: CartItem[]; customer?: Customer | null } | null>(null);
 
   const currentTheme = settings?.theme || 'light';
@@ -148,7 +155,7 @@ export function App() {
     enableSound: settings?.scannerBeepSound !== false,
   });
 
-  // Global Keyboard shortcuts: F1 for AI Assistant, F2 for POS
+  // Global Keyboard shortcuts: F1 for AI Assistant, F2 for POS, F3 for Scanner & Printer Hub
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'F1') {
@@ -157,11 +164,33 @@ export function App() {
       } else if (e.key === 'F2') {
         e.preventDefault();
         setActiveTab('pos');
+      } else if (e.key === 'F3') {
+        e.preventDefault();
+        setScannerHubInitialCode('');
+        setScannerHubInitialTab('lookup');
+        setShowScannerPrinterHubModal((prev) => !prev);
       }
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, []);
+
+  // Global barcode listener across all tabs
+  useEffect(() => {
+    const handleGlobalBarcodeScanned = (e: any) => {
+      const code = e.detail?.barcode;
+      if (!code) return;
+      // If outside POS view, automatically open Scanner & Printer Hub for rich lookup!
+      if (activeTab !== 'pos') {
+        setScannerHubInitialCode(code);
+        setScannerHubInitialTab('lookup');
+        setShowScannerPrinterHubModal(true);
+      }
+    };
+
+    window.addEventListener('barcode-scanned', handleGlobalBarcodeScanned);
+    return () => window.removeEventListener('barcode-scanned', handleGlobalBarcodeScanned);
+  }, [activeTab]);
 
   useEffect(() => {
     if (isLightTheme) {
@@ -945,6 +974,11 @@ export function App() {
           onOpenDbConfig={() => setShowDbModal(true)}
           onOpenAuthModal={() => setShowAuthModal(true)}
           onOpenShortcuts={() => setShowShortcutsModal(true)}
+          onOpenScannerPrinterHub={() => {
+            setScannerHubInitialCode('');
+            setScannerHubInitialTab('lookup');
+            setShowScannerPrinterHubModal(true);
+          }}
         />
 
         {/* View Content */}
@@ -1260,6 +1294,51 @@ export function App() {
         isOpen={showShortcutsModal}
         onClose={() => setShowShortcutsModal(false)}
       />
+
+      {/* Unified Barcode Scanner & Physical/Virtual Printer Hub Modal (F3) */}
+      {showScannerPrinterHubModal && (
+        <ScannerPrinterHubModal
+          isOpen={showScannerPrinterHubModal}
+          onClose={() => {
+            setShowScannerPrinterHubModal(false);
+            setScannerHubInitialCode('');
+          }}
+          initialScanCode={scannerHubInitialCode}
+          initialTab={scannerHubInitialTab}
+          products={products}
+          orders={orders}
+          warranties={warranties}
+          serialRecords={serialRecords}
+          assets={assets}
+          settings={settings}
+          onAddToCart={(product) => {
+            setActiveTab('pos');
+          }}
+          onAdjustStock={handleAdjustStock}
+          onSaveProduct={handleSaveProduct}
+          onSaveSerialRecord={(rec) => setSerialRecords((prev) => [rec, ...prev])}
+          onNavigateToPos={() => setActiveTab('pos')}
+          onOpenBarcodeLabelModal={(prod) => {
+            setBarcodeModalProduct(prod);
+            setShowBarcodeModal(true);
+          }}
+          onUpdateSettings={setSettings}
+        />
+      )}
+
+      {/* Product Barcode & QR Code Label Modal */}
+      {showBarcodeModal && (
+        <ProductBarcodeLabelModal
+          isOpen={showBarcodeModal}
+          onClose={() => {
+            setShowBarcodeModal(false);
+            setBarcodeModalProduct(null);
+          }}
+          products={products}
+          initialSelectedProduct={barcodeModalProduct}
+          settings={settings}
+        />
+      )}
     </div>
   );
 }

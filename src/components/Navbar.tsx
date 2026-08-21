@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   User,
   LogOut,
+  Barcode,
 } from 'lucide-react';
 import { StoreSettings, CashShift, Product } from '../types';
 import { useAuth } from '../core/contexts/AuthContext';
@@ -40,6 +41,7 @@ interface NavbarProps {
   onOpenDbConfig?: () => void;
   onOpenAuthModal?: () => void;
   onRefreshDb?: () => void;
+  onOpenScannerPrinterHub?: () => void;
   isSyncingDb?: boolean;
   lastSyncTime?: string;
 }
@@ -63,6 +65,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenDbConfig,
   onOpenAuthModal,
   onRefreshDb,
+  onOpenScannerPrinterHub,
   isSyncingDb,
   lastSyncTime,
 }) => {
@@ -152,6 +155,18 @@ export const Navbar: React.FC<NavbarProps> = ({
           <ShoppingBag className={`w-4 h-4 ${activeTab === 'pos' ? 'text-white' : 'text-blue-400'}`} />
           <span>Bán Hàng (F2)</span>
         </button>
+
+        {/* Scanner & Printer Hub (F3) */}
+        {onOpenScannerPrinterHub && (
+          <button
+            onClick={onOpenScannerPrinterHub}
+            className="flex items-center space-x-1.5 px-3 h-9 rounded-xl text-xs font-extrabold bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white transition-all shadow-md shadow-amber-600/25 whitespace-nowrap cursor-pointer hover:scale-[1.02] active:scale-98"
+            title="Mở Trung Tâm Máy Quét Mã Vạch & Máy In (F3)"
+          >
+            <Barcode className="w-4 h-4 text-amber-200" />
+            <span>Quét & In (F3)</span>
+          </button>
+        )}
 
         {/* Quick Inventory Stock In/Out */}
         <div className="flex items-center bg-slate-800/80 p-0.5 rounded-xl border border-slate-700/80">
