@@ -49,7 +49,7 @@ export const AssetBarcodeLabelModal: React.FC<AssetBarcodeLabelModalProps> = ({
       : '50x30';
 
   const [selectedPreset, setSelectedPreset] = useState<LabelSizePreset>(initialPreset);
-  const [codeType, setCodeType] = useState<'barcode' | 'qrcode'>(assetCfg?.codeType || 'qrcode');
+  const [codeType, setCodeType] = useState<'barcode' | 'qrcode' | 'both'>(assetCfg?.codeType || 'qrcode');
 
   const [showBrand, setShowBrand] = useState(assetCfg ? assetCfg.showBrand : true);
   const [showName, setShowName] = useState(assetCfg ? assetCfg.showName : true);

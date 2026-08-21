@@ -56,7 +56,7 @@ export const ProductBarcodeLabelModal: React.FC<ProductBarcodeLabelModalProps> =
       : '35x22';
 
   const [selectedPreset, setSelectedPreset] = useState<LabelSizePreset>(initialPreset);
-  const [codeType, setCodeType] = useState<'barcode' | 'qrcode'>(prodCfg?.codeType || 'barcode');
+  const [codeType, setCodeType] = useState<'barcode' | 'qrcode' | 'both'>(prodCfg?.codeType || 'barcode');
   
   // Custom display toggles
   const [showStoreName, setShowStoreName] = useState(prodCfg ? prodCfg.showBrand : true);

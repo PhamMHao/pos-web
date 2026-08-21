@@ -27,6 +27,7 @@ import {
   Info,
   Barcode,
   QrCode,
+  Eye,
 } from 'lucide-react';
 import {
   Product,
@@ -43,6 +44,7 @@ import { COMMON_UNITS, solveUomChain, getUomEquivalentsSummary } from '../../uti
 import { InboundEInvoiceModal } from '../invoices/InboundEInvoiceModal';
 import { StockReceiptPrintModal } from './StockReceiptPrintModal';
 import { ProductBarcodeLabelModal } from './ProductBarcodeLabelModal';
+import { PrintPreviewModal, PrintLabelItem } from '../common/PrintPreviewModal';
 import { INITIAL_STORE_SETTINGS } from '../../data/initialData';
 import { productsApi } from '../../features/products/api/productsApi';
 
@@ -95,6 +97,8 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   const [showInboundModal, setShowInboundModal] = useState(false);
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
   const [barcodeModalProduct, setBarcodeModalProduct] = useState<Product | null>(null);
+  const [showPrintPreviewModal, setShowPrintPreviewModal] = useState(false);
+  const [previewModalItems, setPreviewModalItems] = useState<PrintLabelItem[]>([]);
 
   const safeProducts = Array.isArray(products) ? products : [];
   const safeLogs = Array.isArray(inventoryLogs) ? inventoryLogs : [];
@@ -691,6 +695,26 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           </button>
           <button
             onClick={() => {
+              const items: PrintLabelItem[] = filteredProducts.slice(0, 50).map((p) => ({
+                id: p.id,
+                code: p.barcode || p.sku,
+                name: p.name,
+                price: p.sellingPrice,
+                location: p.storageLocation || p.warehouse,
+                unit: p.unit,
+                quantity: Math.max(1, p.stock || 1),
+              }));
+              setPreviewModalItems(items);
+              setShowPrintPreviewModal(true);
+            }}
+            className="flex items-center space-x-1.5 px-3.5 py-2 bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white text-xs font-bold rounded-xl shadow-md shadow-sky-600/25 border border-sky-400/30 transition-all hover:scale-[1.02] active:scale-98 cursor-pointer"
+            title="Mở bản xem trước và in tem mã vạch (30x20mm, 50x30mm, Tùy chỉnh)"
+          >
+            <Eye className="w-4 h-4 text-sky-200" />
+            <span>👁️ Xem Trước Tem (30x20, 50x30, Tùy Chỉnh)</span>
+          </button>
+          <button
+            onClick={() => {
               setBarcodeModalProduct(null);
               setShowBarcodeModal(true);
             }}
@@ -976,6 +1000,26 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                               title="Nhập / Xuất kho theo đơn vị tính"
                             >
                               Nhập/Xuất
+                            </button>
+                            <button
+                              onClick={() => {
+                                setPreviewModalItems([
+                                  {
+                                    id: p.id,
+                                    code: p.barcode || p.sku,
+                                    name: p.name,
+                                    price: p.sellingPrice,
+                                    location: p.storageLocation || p.warehouse,
+                                    unit: p.unit,
+                                    quantity: Math.max(1, p.stock || 1),
+                                  },
+                                ]);
+                                setShowPrintPreviewModal(true);
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-sky-400 hover:bg-sky-950/40 rounded-lg transition-colors cursor-pointer"
+                              title="👁️ Xem trước tem nhãn (30x20, 50x30, tùy chỉnh) cho sản phẩm này"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => {
@@ -1884,6 +1928,26 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           products={products}
           initialSelectedProduct={barcodeModalProduct}
           settings={settings}
+        />
+      )}
+
+      {/* PrintPreviewModal - Interactive 30x20, 50x30, Custom Preview & Direct Print */}
+      {showPrintPreviewModal && (
+        <PrintPreviewModal
+          isOpen={showPrintPreviewModal}
+          onClose={() => {
+            setShowPrintPreviewModal(false);
+            setPreviewModalItems([]);
+          }}
+          title="Bản Xem Trước & In Tem Nhãn Mã Vạch (Print Preview)"
+          items={previewModalItems}
+          defaultPreset={
+            settings?.labelPrintSettings?.product?.templateSize && settings.labelPrintSettings.product.templateSize !== 'custom'
+              ? (settings.labelPrintSettings.product.templateSize as any)
+              : '50x30'
+          }
+          defaultCodeType={settings?.labelPrintSettings?.product?.codeType || 'barcode'}
+          storeName={settings?.brandName || settings?.storeName || 'GIA PHÚC COMPUTER'}
         />
       )}
     </div>

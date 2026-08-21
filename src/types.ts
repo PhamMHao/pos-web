@@ -260,12 +260,12 @@ export interface StoreSettings {
 }
 
 export interface LabelTargetConfig {
-  templateSize: '30x20' | '35x22' | '40x30' | '50x30' | '100x70' | 'custom';
+  templateSize: '30x20' | '35x22' | '40x30' | '50x30' | '60x40' | '75x50' | '100x70' | 'custom';
   customWidthMm?: number;
   customHeightMm?: number;
   columns?: number; // 1, 2, 3
   gapMm?: number;
-  codeType: 'barcode' | 'qrcode';
+  codeType: 'barcode' | 'qrcode' | 'both';
   showBrand: boolean;
   brandText?: string;
   showName: boolean;

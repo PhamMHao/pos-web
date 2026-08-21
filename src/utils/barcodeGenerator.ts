@@ -104,7 +104,7 @@ export function getQRCodeUrl(text: string, size = 150): string {
   return 'https://api.qrserver.com/v1/create-qr-code/?size=' + size + 'x' + size + '&format=svg&data=' + encodedText + '&margin=0';
 }
 
-export type LabelSizePreset = '30x20' | '35x22' | '40x30' | '50x30' | '100x70';
+export type LabelSizePreset = '30x20' | '35x22' | '40x30' | '50x30' | '60x40' | '75x50' | '100x70';
 
 export interface LabelTemplateConfig {
   id: LabelSizePreset;
@@ -126,12 +126,12 @@ export interface LabelTemplateConfig {
 export const LABEL_SIZE_PRESETS: Record<LabelSizePreset, LabelTemplateConfig> = {
   '30x20': {
     id: '30x20',
-    name: '30 x 20 mm (Tem nhỏ / 3 tem 1 hàng)',
+    name: '30 x 20 mm (Mini / 3 tem 1 hàng)',
     widthMm: 30,
     heightMm: 20,
     columns: 3,
     gapMm: 2,
-    description: 'Rất phổ biến cho phụ kiện máy tính, cáp sạc, linh kiện nhỏ, chip, RAM',
+    description: 'Dành cho phụ kiện nhỏ, dây sạc, jack chuyển, chip, dán kệ siêu thị',
     defaultBarHeight: 22,
     fontSize: {
       brand: 6.5,
@@ -142,12 +142,12 @@ export const LABEL_SIZE_PRESETS: Record<LabelSizePreset, LabelTemplateConfig> = 
   },
   '35x22': {
     id: '35x22',
-    name: '35 x 22 mm (Tem chuẩn 3 tem / hàng)',
+    name: '35 x 22 mm (Chuẩn Xprinter 3 tem / hàng)',
     widthMm: 35,
     heightMm: 22,
     columns: 3,
     gapMm: 2,
-    description: 'Kích thước chuẩn cuộn 3 tem máy in Xprinter, Bixolon, Godex',
+    description: 'Khổ phổ biến nhất trên thị trường máy in nhiệt (XP-350B, XP-420B, Gprinter)',
     defaultBarHeight: 26,
     fontSize: {
       brand: 7,
@@ -174,12 +174,12 @@ export const LABEL_SIZE_PRESETS: Record<LabelSizePreset, LabelTemplateConfig> = 
   },
   '50x30': {
     id: '50x30',
-    name: '50 x 30 mm (Tem vừa / Rõ thông tin & Giá)',
+    name: '50 x 30 mm (Siêu Thị / Rõ chữ & Giá)',
     widthMm: 50,
     heightMm: 30,
     columns: 1,
     gapMm: 3,
-    description: 'Hiển thị đầy đủ tên shop, tên sản phẩm 2 dòng, mã vạch to và giá bán nổi bật',
+    description: 'Tối ưu cho hiển thị tên dài, giá bán nổi bật và in song song cả Barcode 1D + QR Code 2D',
     defaultBarHeight: 38,
     fontSize: {
       brand: 8.5,
@@ -188,14 +188,46 @@ export const LABEL_SIZE_PRESETS: Record<LabelSizePreset, LabelTemplateConfig> = 
       code: 8.5,
     },
   },
+  '60x40': {
+    id: '60x40',
+    name: '60 x 40 mm (Tem thùng / Kho vận)',
+    widthMm: 60,
+    heightMm: 40,
+    columns: 1,
+    gapMm: 3,
+    description: 'Tem dán thùng carton nhỏ, linh kiện điện tử, quản lý kho vận',
+    defaultBarHeight: 45,
+    fontSize: {
+      brand: 9,
+      title: 11,
+      price: 13.5,
+      code: 9,
+    },
+  },
+  '75x50': {
+    id: '75x50',
+    name: '75 x 50 mm (Tem giao nhận / Thùng carton)',
+    widthMm: 75,
+    heightMm: 50,
+    columns: 1,
+    gapMm: 3,
+    description: 'Tem dán thùng carton, đóng gói pallet và kiện hàng xuất nhập kho',
+    defaultBarHeight: 55,
+    fontSize: {
+      brand: 10,
+      title: 12,
+      price: 15,
+      code: 10,
+    },
+  },
   '100x70': {
     id: '100x70',
-    name: '100 x 70 mm (Tem thùng / Kiện hàng lớn)',
+    name: '100 x 70 mm (Tem thùng lớn / Pallet)',
     widthMm: 100,
     heightMm: 70,
     columns: 1,
     gapMm: 4,
-    description: 'Dán thùng PC, màn hình, kiện hàng giao nhận vận chuyển',
+    description: 'Dán thùng PC lớn, màn hình, pallet vận chuyển liên tỉnh',
     defaultBarHeight: 70,
     fontSize: {
       brand: 12,
