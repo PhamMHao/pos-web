@@ -1069,6 +1069,7 @@ export function App() {
               assets={assets}
               onSaveAsset={handleSaveAsset}
               onDeleteAsset={handleDeleteAsset}
+              settings={settings}
             />
           )}
 

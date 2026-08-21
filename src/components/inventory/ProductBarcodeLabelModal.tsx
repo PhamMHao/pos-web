@@ -49,16 +49,22 @@ export const ProductBarcodeLabelModal: React.FC<ProductBarcodeLabelModalProps> =
   initialSelectedProduct,
   settings,
 }) => {
-  const [selectedPreset, setSelectedPreset] = useState<LabelSizePreset>('35x22');
-  const [codeType, setCodeType] = useState<'barcode' | 'qrcode'>('barcode');
+  const prodCfg = settings?.labelPrintSettings?.product;
+  const initialPreset: LabelSizePreset =
+    prodCfg?.templateSize && prodCfg.templateSize !== 'custom'
+      ? (prodCfg.templateSize as LabelSizePreset)
+      : '35x22';
+
+  const [selectedPreset, setSelectedPreset] = useState<LabelSizePreset>(initialPreset);
+  const [codeType, setCodeType] = useState<'barcode' | 'qrcode'>(prodCfg?.codeType || 'barcode');
   
   // Custom display toggles
-  const [showStoreName, setShowStoreName] = useState(true);
-  const [showProductName, setShowProductName] = useState(true);
-  const [showPrice, setShowPrice] = useState(true);
-  const [showCodeText, setShowCodeText] = useState(true);
+  const [showStoreName, setShowStoreName] = useState(prodCfg ? prodCfg.showBrand : true);
+  const [showProductName, setShowProductName] = useState(prodCfg ? prodCfg.showName : true);
+  const [showPrice, setShowPrice] = useState(prodCfg ? prodCfg.showPrice : true);
+  const [showCodeText, setShowCodeText] = useState(prodCfg ? prodCfg.showCodeText : true);
   const [storeNameText, setStoreNameText] = useState(
-    settings?.brandName || settings?.storeName || 'GIA PHUC COMPUTER'
+    prodCfg?.brandText || settings?.brandName || settings?.storeName || 'GIA PHUC COMPUTER'
   );
 
   // Selected products for label printing

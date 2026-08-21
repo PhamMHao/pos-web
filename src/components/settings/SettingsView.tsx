@@ -49,6 +49,7 @@ import { GiaPhucLogo, GIA_PHUC_LOGO_SVG_DATA_URI } from '../common/GiaPhucLogo';
 import { PrintInvoiceModal } from '../common/PrintInvoiceModal';
 import { sounds } from '../../utils/soundEffects';
 import { settingsApi } from '../../features/settings/api/settingsApi';
+import { LabelPrintSettingsTab } from './LabelPrintSettingsTab';
 
 interface SettingsViewProps {
   settings: StoreSettings;
@@ -137,7 +138,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [formData, setFormData] = useState<StoreSettings>({ ...settings });
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [activeTab, setActiveTab] = useState<
-    'company' | 'print' | 'hardware' | 'einvoice' | 'contract' | 'bank' | 'theme' | 'sqlserver'
+    'company' | 'print' | 'label_print' | 'hardware' | 'einvoice' | 'contract' | 'bank' | 'theme' | 'sqlserver'
   >('company');
 
   // Test Print Modal State
@@ -555,6 +556,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
         <button
           type="button"
+          onClick={() => setActiveTab('label_print')}
+          className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+            activeTab === 'label_print'
+              ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-600/30'
+              : 'bg-slate-900 text-amber-300 hover:text-amber-200 hover:bg-slate-800 border border-amber-900/50'
+          }`}
+        >
+          <Barcode className="w-4 h-4 text-amber-400" />
+          <span>3. Mẫu In Tem Mã Vạch & QR</span>
+        </button>
+
+        <button
+          type="button"
           onClick={() => setActiveTab('hardware')}
           className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
             activeTab === 'hardware'
@@ -562,8 +576,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               : 'bg-slate-900 text-slate-400 hover:text-slate-200 hover:bg-slate-800 border border-slate-800'
           }`}
         >
-          <Barcode className="w-4 h-4" />
-          <span>3. Máy Quét Mã Vạch & Máy In</span>
+          <Scan className="w-4 h-4" />
+          <span>4. Máy Quét Mã Vạch & Máy In</span>
         </button>
 
         <button
@@ -576,7 +590,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           }`}
         >
           <FileCheck2 className="w-4 h-4" />
-          <span>4. Xuất Hóa Đơn Điện Tử</span>
+          <span>5. Xuất Hóa Đơn Điện Tử</span>
         </button>
 
         <button
@@ -589,7 +603,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           }`}
         >
           <FileText className="w-4 h-4" />
-          <span>5. Hợp Đồng Lao Động</span>
+          <span>6. Hợp Đồng Lao Động</span>
         </button>
 
         <button
@@ -602,7 +616,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           }`}
         >
           <QrCode className="w-4 h-4" />
-          <span>6. Ngân Hàng & VietQR</span>
+          <span>7. Ngân Hàng & VietQR</span>
         </button>
 
         <button
@@ -615,7 +629,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           }`}
         >
           <Palette className="w-4 h-4" />
-          <span>7. Giao Diện & Theme</span>
+          <span>8. Giao Diện & Theme</span>
         </button>
 
         <button
@@ -628,7 +642,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           }`}
         >
           <Database className="w-4 h-4 text-sky-400" />
-          <span>8. CSDL & Quản Trị Dữ Liệu</span>
+          <span>9. CSDL & Quản Trị Dữ Liệu</span>
         </button>
       </div>
 
@@ -1101,7 +1115,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         )}
 
         {/* =========================================================================
-            TAB 3: KẾT NỐI PHẦN CỨNG (MÁY QUÉT MÃ VẠCH & MÁY IN HÓA ĐƠN)
+            TAB 3: CẤU HÌNH MẪU IN TEM NHÃN MÃ VẠCH & QR CODE
+            ========================================================================= */}
+        {activeTab === 'label_print' && (
+          <LabelPrintSettingsTab
+            formData={formData}
+            setFormData={setFormData}
+            onSave={() => onSaveSettings(formData)}
+            savedSuccess={savedSuccess}
+          />
+        )}
+
+        {/* =========================================================================
+            TAB 4: KẾT NỐI PHẦN CỨNG (MÁY QUÉT MÃ VẠCH & MÁY IN HÓA ĐƠN)
             ========================================================================= */}
         {activeTab === 'hardware' && (
           <div className="space-y-6">

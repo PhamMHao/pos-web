@@ -15,24 +15,30 @@ import {
   Trash2,
   Clock,
 } from 'lucide-react';
-import { EnterpriseAsset } from '../../types';
+import { EnterpriseAsset, StoreSettings } from '../../types';
 import { NewAssetModal } from './NewAssetModal';
+import { AssetBarcodeLabelModal } from './AssetBarcodeLabelModal';
+import { Barcode, QrCode } from 'lucide-react';
 
 interface AssetsViewProps {
   assets?: EnterpriseAsset[];
   onSaveAsset?: (asset: EnterpriseAsset) => void;
   onDeleteAsset?: (assetId: string) => void;
+  settings?: StoreSettings;
 }
 
 export const AssetsView: React.FC<AssetsViewProps> = ({
   assets = [],
   onSaveAsset,
   onDeleteAsset,
+  settings,
 }) => {
   const safeAssets = Array.isArray(assets) ? assets : [];
   const [searchTerm, setSearchTerm] = useState('');
   const [showNewModal, setShowNewModal] = useState(false);
   const [editingAsset, setEditingAsset] = useState<EnterpriseAsset | null>(null);
+  const [showLabelModal, setShowLabelModal] = useState(false);
+  const [selectedAssetForLabel, setSelectedAssetForLabel] = useState<EnterpriseAsset | null>(null);
 
   const formatVND = (amt: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amt);
@@ -104,16 +110,31 @@ export const AssetsView: React.FC<AssetsViewProps> = ({
           </div>
         </div>
 
-        <button
-          onClick={() => {
-            setEditingAsset(null);
-            setShowNewModal(true);
-          }}
-          className="px-3.5 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 shadow-lg shadow-cyan-500/20 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          <span>+ Thêm Thiết Bị Mới</span>
-        </button>
+        <div className="flex items-center space-x-2">
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedAssetForLabel(null);
+              setShowLabelModal(true);
+            }}
+            className="px-3.5 py-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 shadow-lg shadow-amber-600/20 transition-all cursor-pointer"
+            title="In tem nhãn QR code và mã định danh cho tài sản doanh nghiệp"
+          >
+            <QrCode className="w-4 h-4" />
+            <span>In Tem QR / Mã Tài Sản</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setEditingAsset(null);
+              setShowNewModal(true);
+            }}
+            className="px-3.5 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 shadow-lg shadow-cyan-500/20 transition-colors cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>+ Thêm Thiết Bị Mới</span>
+          </button>
+        </div>
       </div>
 
       {/* Summary Stat Cards */}
@@ -190,10 +211,20 @@ export const AssetsView: React.FC<AssetsViewProps> = ({
                     <div className="flex items-center justify-center space-x-1.5">
                       <button
                         onClick={() => {
+                          setSelectedAssetForLabel(a);
+                          setShowLabelModal(true);
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-amber-300 hover:bg-amber-500/10 rounded-lg transition cursor-pointer"
+                        title="In tem nhãn QR / Barcode cho thiết bị này"
+                      >
+                        <QrCode className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => {
                           setEditingAsset(a);
                           setShowNewModal(true);
                         }}
-                        className="p-1.5 text-slate-400 hover:text-cyan-300 hover:bg-cyan-500/10 rounded-lg transition"
+                        className="p-1.5 text-slate-400 hover:text-cyan-300 hover:bg-cyan-500/10 rounded-lg transition cursor-pointer"
                         title="Chỉnh sửa tài sản"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
@@ -204,7 +235,7 @@ export const AssetsView: React.FC<AssetsViewProps> = ({
                             if (onDeleteAsset) onDeleteAsset(a.id);
                           }
                         }}
-                        className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition"
+                        className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
                         title="Xóa tài sản"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -229,6 +260,20 @@ export const AssetsView: React.FC<AssetsViewProps> = ({
           onSave={(asset) => {
             if (onSaveAsset) onSaveAsset(asset);
           }}
+        />
+      )}
+
+      {/* Asset Barcode & QR Label Modal */}
+      {showLabelModal && (
+        <AssetBarcodeLabelModal
+          isOpen={showLabelModal}
+          onClose={() => {
+            setShowLabelModal(false);
+            setSelectedAssetForLabel(null);
+          }}
+          assets={safeAssets}
+          initialSelectedAsset={selectedAssetForLabel}
+          settings={settings}
         />
       )}
     </div>

@@ -248,6 +248,8 @@ export interface StoreSettings {
   eInvoiceTemplate?: string; // e.g. '1/001'
   eInvoiceLookupUrl?: string; // e.g. 'https://hoadondientu.gdt.gov.vn'
   certProvider?: string; // e.g. 'VIETTEL-CA'
+  // Barcode & QR Code Label Customization
+  labelPrintSettings?: LabelPrintSettings;
   // Labor Contract specifics
   companyRepresentative?: string; // e.g. 'Phạm Gia Phúc'
   companyRepresentativeRole?: string; // e.g. 'Giám Đốc'
@@ -255,6 +257,34 @@ export interface StoreSettings {
   companyIdCardDate?: string;
   companyIdCardPlace?: string;
   companyNationality?: string;
+}
+
+export interface LabelTargetConfig {
+  templateSize: '30x20' | '35x22' | '40x30' | '50x30' | '100x70' | 'custom';
+  customWidthMm?: number;
+  customHeightMm?: number;
+  columns?: number; // 1, 2, 3
+  gapMm?: number;
+  codeType: 'barcode' | 'qrcode';
+  showBrand: boolean;
+  brandText?: string;
+  showName: boolean;
+  showPrice: boolean; // Giá bán hoặc Nguyên giá
+  showCodeText: boolean; // SKU / Mã tài sản / Barcode
+  showUnit?: boolean; // Đơn vị tính
+  showLocation?: boolean; // Vị trí kho / Phòng ban
+  showDate?: boolean; // Ngày mua / Ngày nhập
+  fontSizeBrand?: number;
+  fontSizeTitle?: number;
+  fontSizePrice?: number;
+  fontSizeCode?: number;
+  barcodeHeight?: number;
+}
+
+export interface LabelPrintSettings {
+  product: LabelTargetConfig;
+  asset: LabelTargetConfig;
+  material: LabelTargetConfig;
 }
 
 export type PrintDocType = 
