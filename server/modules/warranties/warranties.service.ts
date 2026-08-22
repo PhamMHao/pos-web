@@ -22,15 +22,15 @@ export class WarrantiesService {
     const dt = new Date();
 
     await prisma.$executeRaw`
-      INSERT INTO [WarrantyTicket] (id, code, type, priority, status, orderCode, productId, productName, model, serialNumber, qrCodeUrl, customerName, customerPhone, customerAddress, customerEmail, accessoriesIncluded, cosmeticCondition, issueDescription, technicianDiagnosis, resolution, technicianName, receivedDate, expectedReturnDate, actualReturnDate, laborCost, partsCost, discountAmount, totalFee, paymentStatus, paidAmount, returnedToPerson, returnNote, warrantyExtensionMonths, createdAt, updatedAt)
-      VALUES (${id}, ${code}, ${ticketData.type}, ${ticketData.priority}, ${ticketData.status || "received"}, ${ticketData.orderCode || null}, ${ticketData.productId || null}, ${ticketData.productName}, ${ticketData.model || null}, ${ticketData.serialNumber}, ${ticketData.qrCodeUrl || null}, ${ticketData.customerName}, ${ticketData.customerPhone}, ${ticketData.customerAddress || null}, ${ticketData.customerEmail || null}, ${ticketData.accessoriesIncluded || null}, ${ticketData.cosmeticCondition || null}, ${ticketData.issueDescription}, ${ticketData.technicianDiagnosis || null}, ${ticketData.resolution || null}, ${ticketData.technicianName}, ${recDt}, ${expDt}, ${actDt}, ${ticketData.laborCost}, ${ticketData.partsCost}, ${ticketData.discountAmount}, ${ticketData.totalFee}, ${ticketData.paymentStatus}, ${ticketData.paidAmount}, ${ticketData.returnedToPerson || null}, ${ticketData.returnNote || null}, ${ticketData.warrantyExtensionMonths || 0}, ${dt}, ${dt})
+      INSERT INTO [WarrantyTicket] (id, code, type, priority, status, orderCode, productId, productName, model, serialNumber, qrCodeUrl, customerName, customerPhone, customerAddress, customerEmail, accessoriesIncluded, cosmeticCondition, issueDescription, technicianDiagnosis, resolution, technicianName, receivedDate, expectedReturnDate, actualReturnDate, laborCost, partsCost, discountAmount, totalFee, paymentStatus, paidAmount, returnedToPerson, returnNote, warrantyExtensionMonths)
+      VALUES (${id}, ${code}, ${ticketData.type}, ${ticketData.priority}, ${ticketData.status || "received"}, ${ticketData.orderCode || null}, ${ticketData.productId || null}, ${ticketData.productName}, ${ticketData.model || null}, ${ticketData.serialNumber}, ${ticketData.qrCodeUrl || null}, ${ticketData.customerName}, ${ticketData.customerPhone}, ${ticketData.customerAddress || null}, ${ticketData.customerEmail || null}, ${ticketData.accessoriesIncluded || null}, ${ticketData.cosmeticCondition || null}, ${ticketData.issueDescription}, ${ticketData.technicianDiagnosis || null}, ${ticketData.resolution || null}, ${ticketData.technicianName}, ${recDt}, ${expDt}, ${actDt}, ${ticketData.laborCost}, ${ticketData.partsCost}, ${ticketData.discountAmount}, ${ticketData.totalFee}, ${ticketData.paymentStatus}, ${ticketData.paidAmount}, ${ticketData.returnedToPerson || null}, ${ticketData.returnNote || null}, ${ticketData.warrantyExtensionMonths || 0})
     `;
 
     for (let idx = 0; idx < parts.length; idx++) {
       const p = parts[idx];
       const partId = `w-part-${Date.now()}-${idx}`;
       await prisma.$executeRaw`
-        INSERT INTO [WarrantyPart] (id, warrantyId, partName, sku, quantity, unit, unitPrice, isUnderWarranty, warrantyMonths)
+        INSERT INTO [WarrantyPartItem] (id, warrantyId, partName, sku, quantity, unit, unitPrice, isUnderWarranty, warrantyMonths)
         VALUES (${partId}, ${id}, ${p.partName}, ${p.sku || null}, ${p.quantity}, ${p.unit}, ${p.unitPrice}, ${p.isUnderWarranty ? 1 : 0}, ${p.warrantyMonths})
       `;
     }

@@ -60,6 +60,7 @@ import {
 import { inboundInvoicesApi } from '../../features/inbound-invoices/api/inboundInvoicesApi';
 import { warehouseApi } from '../../features/warehouse/api/warehouseApi';
 import { StockReceiptPrintModal } from '../inventory/StockReceiptPrintModal';
+import { BatchBarcodeLabelModal, BatchPrintItem } from '../inventory/BatchBarcodeLabelModal';
 
 interface InboundEInvoiceModalProps {
   isOpen: boolean;
@@ -292,6 +293,18 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
 
   // Print Receipt modal
   const [currentPrintReceipt, setCurrentPrintReceipt] = useState<StockGoodsReceipt | null>(null);
+
+  // Batch Barcode Label Print modal
+  const [batchBarcodePrint, setBatchBarcodePrint] = useState<{
+    isOpen: boolean;
+    title: string;
+    sourceDocCode?: string;
+    items: BatchPrintItem[];
+  }>({
+    isOpen: false,
+    title: '',
+    items: [],
+  });
 
   // Toast Notification
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -1148,6 +1161,33 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
                               >
                                 <Printer className="w-3.5 h-3.5" />
                                 <span>In Phiếu Nhập Kho A4</span>
+                              </button>
+
+                              <button
+                                onClick={() => {
+                                  const printItems: BatchPrintItem[] = selectedInvoice.items.map((it) => {
+                                    const matched = products.find((p) => p.sku === it.matchedProductSku || p.sku === it.skuOrCode);
+                                    return {
+                                      productId: matched?.id,
+                                      sku: it.matchedProductSku || it.skuOrCode || 'SKU',
+                                      productName: it.matchedProductName || it.productName,
+                                      unit: it.unit || 'Cái',
+                                      sellingPrice: matched?.sellingPrice || itemPriceToNumber(it.unitPrice) * 1.25,
+                                      quantity: Math.max(1, it.quantity || 1),
+                                    };
+                                  });
+
+                                  setBatchBarcodePrint({
+                                    isOpen: true,
+                                    title: `In Tem Mã Vạch Theo Hóa Đơn / Phiếu Nhập ${selectedInvoice.goodsReceiptId || selectedInvoice.invoiceNumber}`,
+                                    sourceDocCode: selectedInvoice.goodsReceiptId || selectedInvoice.invoiceNumber,
+                                    items: printItems,
+                                  });
+                                }}
+                                className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                                title="In toàn bộ tem mã vạch cho các mặt hàng vừa nhập kho"
+                              >
+                                <span>🏷️ In Tem Mã Vạch ({selectedInvoice.items.reduce((s, i) => s + (i.quantity || 1), 0)} Tem)</span>
                               </button>
                             </div>
                           ) : (
@@ -2166,6 +2206,24 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
           receipt={currentPrintReceipt}
           settings={settings}
           onClose={() => setCurrentPrintReceipt(null)}
+        />
+      )}
+
+      {/* Batch Barcode Label Print Modal */}
+      {batchBarcodePrint.isOpen && (
+        <BatchBarcodeLabelModal
+          isOpen={batchBarcodePrint.isOpen}
+          onClose={() =>
+            setBatchBarcodePrint({
+              isOpen: false,
+              title: '',
+              items: [],
+            })
+          }
+          title={batchBarcodePrint.title}
+          sourceDocCode={batchBarcodePrint.sourceDocCode}
+          items={batchBarcodePrint.items}
+          settings={settings}
         />
       )}
 

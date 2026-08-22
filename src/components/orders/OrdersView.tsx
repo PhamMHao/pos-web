@@ -43,19 +43,27 @@ import {
   Customer,
   InventoryLog,
   PaymentMethod,
+  ReturnOrder,
+  SerialDeviceRecord,
 } from '../../types';
 import { formatVND } from '../../utils/vietqr';
 import { sounds } from '../../utils/soundEffects';
 import { ReceiptModal } from '../pos/ReceiptModal';
 import { PrintInvoiceModal, PrintItem } from '../common/PrintInvoiceModal';
+import { CreateReturnModal } from './CreateReturnModal';
+import { ReturnsHistoryModal } from './ReturnsHistoryModal';
 
 interface OrdersViewProps {
   orders: Order[];
   products?: Product[];
   customers?: Customer[];
+  returns?: ReturnOrder[];
+  serialRecords?: SerialDeviceRecord[];
   onUpdateOrderStatus: (orderId: string, newStatus: OrderStatus) => void;
   onSaveOrder?: (order: Order) => void;
   onAdjustStock?: (log: Omit<InventoryLog, 'id' | 'timestamp'>) => void;
+  onSaveReturn?: (returnOrder: ReturnOrder) => Promise<void>;
+  onDeleteReturn?: (id: string) => Promise<void>;
   settings: StoreSettings;
 }
 
@@ -130,9 +138,13 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
   orders = [],
   products = [],
   customers = [],
+  returns = [],
+  serialRecords = [],
   onUpdateOrderStatus,
   onSaveOrder,
   onAdjustStock,
+  onSaveReturn,
+  onDeleteReturn,
   settings,
 }) => {
   const [activeTab, setActiveTab] = useState<'all' | 'need_stock_issue' | 'delivery_dispatch' | 'completed'>('all');
@@ -142,6 +154,11 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
   const [printA4Order, setPrintA4Order] = useState<Order | null>(null);
+
+  // Return Orders RMA Modals
+  const [showCreateReturnModal, setShowCreateReturnModal] = useState(false);
+  const [showReturnsHistoryModal, setShowReturnsHistoryModal] = useState(false);
+  const [returnPreSelectedOrder, setReturnPreSelectedOrder] = useState<Order | null>(null);
 
   const [stockIssueOrder, setStockIssueOrder] = useState<Order | null>(null);
   const [stockIssueSerials, setStockIssueSerials] = useState<Record<string, string>>({});
@@ -500,11 +517,32 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setReturnPreSelectedOrder(null);
+              setShowCreateReturnModal(true);
+            }}
+            className="px-3.5 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold rounded-xl flex items-center space-x-1.5 cursor-pointer transition-all active:scale-95"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Trả Hàng / Hoàn Tiền (RMA)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowReturnsHistoryModal(true)}
+            className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-bold rounded-xl flex items-center space-x-1.5 cursor-pointer transition-all"
+          >
+            <FileText className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Lịch Sử Phiếu Trả ({returns.length})</span>
+          </button>
+
           <button
             type="button"
             onClick={() => setShowNewOrderModal(true)}
-            className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-emerald-600/30 flex items-center space-x-2 cursor-pointer transition-all active:scale-95"
+            className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-emerald-600/30 flex items-center space-x-2 cursor-pointer transition-all active:scale-95"
           >
             <Plus className="w-4 h-4" />
             <span>+ Tạo Đơn Hàng Mới</span>
@@ -2017,6 +2055,45 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
           creatorName="Thủ Kho / Điều Phối Viên Gia Phúc"
           warehouseName="Kho Hàng Hóa Gia Phúc Computer"
           settings={settings}
+        />
+      )}
+
+      {/* Modal Lập Phiếu Trả Hàng & Hoàn Tiền (RMA) */}
+      {showCreateReturnModal && onSaveReturn && (
+        <CreateReturnModal
+          isOpen={showCreateReturnModal}
+          onClose={() => {
+            setShowCreateReturnModal(false);
+            setReturnPreSelectedOrder(null);
+          }}
+          orders={orders}
+          products={products}
+          customers={customers}
+          serialRecords={serialRecords}
+          settings={settings}
+          preSelectedOrder={returnPreSelectedOrder}
+          onSaveReturn={async (ret) => {
+            await onSaveReturn(ret);
+            setShowCreateReturnModal(false);
+            setReturnPreSelectedOrder(null);
+            setShowReturnsHistoryModal(true);
+          }}
+        />
+      )}
+
+      {/* Modal Lịch Sử Phiếu Trả Hàng */}
+      {showReturnsHistoryModal && (
+        <ReturnsHistoryModal
+          isOpen={showReturnsHistoryModal}
+          onClose={() => setShowReturnsHistoryModal(false)}
+          returns={returns}
+          settings={settings}
+          onDeleteReturn={onDeleteReturn}
+          onOpenCreateReturn={() => {
+            setShowReturnsHistoryModal(false);
+            setReturnPreSelectedOrder(null);
+            setShowCreateReturnModal(true);
+          }}
         />
       )}
     </div>

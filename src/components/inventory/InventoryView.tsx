@@ -29,6 +29,7 @@ import {
   QrCode,
   Eye,
   Globe,
+  Truck,
 } from 'lucide-react';
 import {
   Product,
@@ -40,6 +41,8 @@ import {
   StoreSettings,
   UOMOption,
   Employee,
+  StockTransfer,
+  StockTransferItem,
 } from '../../types';
 import { formatVND } from '../../utils/vietqr';
 import { COMMON_UNITS, solveUomChain, getUomEquivalentsSummary } from '../../utils/uomConverter';
@@ -53,6 +56,8 @@ import { INITIAL_STORE_SETTINGS } from '../../data/initialData';
 import { productsApi } from '../../features/products/api/productsApi';
 import { QuickAddMasterDataModal, MasterDataType } from '../common/QuickAddMasterDataModal';
 import { WebImagePickerModal } from '../common/WebImagePickerModal';
+import { StockTransferModal } from './StockTransferModal';
+import { BatchBarcodeLabelModal, BatchPrintItem } from './BatchBarcodeLabelModal';
 
 const LIFECYCLE_STAGE_BADGES: Record<string, { label: string; badge: string }> = {
   new_inbound: { label: 'Nhập Mới', badge: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
@@ -77,6 +82,13 @@ interface InventoryViewProps {
   settings?: StoreSettings;
   stockReceipts?: StockGoodsReceipt[];
   setStockReceipts?: (receipts: StockGoodsReceipt[] | ((prev: StockGoodsReceipt[]) => StockGoodsReceipt[])) => void;
+  transfers?: StockTransfer[];
+  onSaveTransfer?: (transfer: StockTransfer) => Promise<void>;
+  onUpdateTransferStatus?: (
+    id: string,
+    payload: { status: string; receiverName?: string; notes?: string }
+  ) => Promise<void>;
+  onDeleteTransfer?: (id: string) => Promise<void>;
   onRefreshDb?: () => void;
   onOpenDocOcrScanner?: (mode?: 'stock_in') => void;
   onSavePartner?: (partner: any) => void | Promise<void>;
@@ -132,6 +144,10 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   settings = INITIAL_STORE_SETTINGS,
   stockReceipts = [],
   setStockReceipts = () => {},
+  transfers = [],
+  onSaveTransfer,
+  onUpdateTransferStatus,
+  onDeleteTransfer,
   onRefreshDb,
   onOpenDocOcrScanner,
   onSavePartner,
@@ -161,6 +177,19 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   const [previewModalItems, setPreviewModalItems] = useState<PrintLabelItem[]>([]);
   const [showLifecycleModal, setShowLifecycleModal] = useState(false);
   const [lifecycleModalProduct, setLifecycleModalProduct] = useState<Product | null>(null);
+
+  // Inter-Branch Transfer & Batch Barcode Modals
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [batchBarcodeData, setBatchBarcodeData] = useState<{
+    isOpen: boolean;
+    title: string;
+    sourceDocCode?: string;
+    items: BatchPrintItem[];
+  }>({
+    isOpen: false,
+    title: '',
+    items: [],
+  });
 
   const safeProducts = Array.isArray(products) ? products : [];
   const safeLogs = Array.isArray(inventoryLogs) ? inventoryLogs : [];
@@ -824,6 +853,15 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 {pendingInboundCount}
               </span>
             )}
+          </button>
+
+          <button
+            onClick={() => setShowTransferModal(true)}
+            className="flex items-center space-x-1.5 px-3.5 py-2 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white text-xs font-bold rounded-xl shadow-md shadow-teal-600/25 border border-teal-400/30 transition-all hover:scale-[1.02] active:scale-98 cursor-pointer"
+            title="Quản lý điều chuyển hàng hóa giữa Kho Tổng và các Cửa hàng chi nhánh"
+          >
+            <Truck className="w-4 h-4 text-teal-200" />
+            <span>🚚 Chuyển Kho Nội Bộ ({transfers.length})</span>
           </button>
           <button
             onClick={() => {
@@ -2424,6 +2462,38 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           onClose={() => setShowWebImagePicker(false)}
           onSelectImage={(imageUrl) => setFormData((prev) => ({ ...prev, image: imageUrl }))}
           currentImageUrl={formData.image}
+        />
+      )}
+
+      {/* Inter-Branch Stock Transfer Modal */}
+      {showTransferModal && onSaveTransfer && onUpdateTransferStatus && (
+        <StockTransferModal
+          isOpen={showTransferModal}
+          onClose={() => setShowTransferModal(false)}
+          transfers={transfers}
+          products={products}
+          settings={settings}
+          onSaveTransfer={onSaveTransfer}
+          onUpdateTransferStatus={onUpdateTransferStatus}
+          onDeleteTransfer={onDeleteTransfer}
+        />
+      )}
+
+      {/* Batch Barcode Label Generator Modal */}
+      {batchBarcodeData.isOpen && (
+        <BatchBarcodeLabelModal
+          isOpen={batchBarcodeData.isOpen}
+          onClose={() =>
+            setBatchBarcodeData({
+              isOpen: false,
+              title: '',
+              items: [],
+            })
+          }
+          title={batchBarcodeData.title}
+          sourceDocCode={batchBarcodeData.sourceDocCode}
+          items={batchBarcodeData.items}
+          settings={settings}
         />
       )}
     </div>

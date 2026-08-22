@@ -939,3 +939,81 @@ export interface PurchaseOrder {
   actualItemsReceived?: Array<{ productId?: string; sku: string; productName: string; quantity: number; serials?: string[] }>;
   createdAt: string;
 }
+
+// 16. Phiếu Trả Hàng & Hoàn Tiền (Customer Return & Supplier RMA)
+export type ReturnReason = 'defective' | 'customer_mind_change' | 'wrong_item' | 'warranty_exchange' | 'other';
+export type ReturnDestination = 'restock' | 'faulty_warehouse' | 'supplier_rma';
+export type RefundMethod = 'cash' | 'transfer' | 'debt_deduct' | 'no_refund';
+
+export interface ReturnOrderItem {
+  id?: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  unit: string;
+  ratioToBase: number;
+  quantity: number;
+  unitPrice: number;
+  refundUnitPrice: number;
+  totalRefund: number;
+  serialNumber?: string | null;
+  condition: 'normal' | 'damaged' | 'unopened';
+}
+
+export interface ReturnOrder {
+  id: string;
+  code: string;
+  type: 'customer_return' | 'supplier_return';
+  originalOrderCode?: string | null;
+  originalOrderId?: string | null;
+  customerId?: string | null;
+  customerName?: string | null;
+  customerPhone?: string | null;
+  supplierId?: string | null;
+  supplierName?: string | null;
+  warehouse: string;
+  refundMethod: RefundMethod;
+  refundAmount: number;
+  totalReturnQuantity: number;
+  reason: ReturnReason | string;
+  destinationType: ReturnDestination;
+  status: 'completed' | 'pending' | 'cancelled';
+  performedBy: string;
+  notes?: string | null;
+  createdAt: string;
+  items: ReturnOrderItem[];
+}
+
+// 17. Chuyển Kho Nội Bộ (Inter-Branch Stock Transfer)
+export type TransferStatus = 'draft' | 'in_transit' | 'completed' | 'cancelled';
+
+export interface StockTransferItem {
+  id?: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  unit: string;
+  quantity: number;
+  unitCost: number;
+  totalCost: number;
+}
+
+export interface StockTransfer {
+  id: string;
+  code: string;
+  fromWarehouse: string;
+  toWarehouse: string;
+  transferDate: string;
+  receivedDate?: string | null;
+  status: TransferStatus;
+  totalItems: number;
+  totalQuantity: number;
+  senderName: string;
+  receiverName?: string | null;
+  transportMethod?: string | null;
+  trackingNumber?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  items: StockTransferItem[];
+}
+

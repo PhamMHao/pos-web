@@ -654,3 +654,79 @@ model PurchaseOrderItem {
   total           Decimal       @db.Decimal(18, 2)
 }
 
+// 16. PHIẾU TRẢ HÀNG & HOÀN TIỀN (CUSTOMER RETURN & SUPPLIER RMA)
+model ReturnOrder {
+  id                  String            @id @default(uuid())
+  code                String            @unique // e.g. TH-2026-0001
+  type                String            @default("customer_return") // 'customer_return' | 'supplier_return'
+  originalOrderCode   String?
+  originalOrderId     String?
+  customerId          String?
+  customerName        String?
+  customerPhone       String?
+  supplierId          String?
+  supplierName        String?
+  warehouse           String            @default("Kho Chính")
+  refundMethod        String            @default("cash") // 'cash' | 'transfer' | 'debt_deduct' | 'no_refund'
+  refundAmount        Decimal           @db.Decimal(18, 2)
+  totalReturnQuantity Decimal           @db.Decimal(18, 2)
+  reason              String            // 'defective' | 'customer_mind_change' | 'wrong_item' | 'warranty_exchange' | 'other'
+  destinationType     String            @default("restock") // 'restock' | 'faulty_warehouse' | 'supplier_rma'
+  status              String            @default("completed") // 'pending' | 'completed' | 'cancelled'
+  performedBy         String
+  notes               String?           @db.NVarChar(Max)
+  createdAt           DateTime          @default(now())
+  items               ReturnOrderItem[]
+}
+
+model ReturnOrderItem {
+  id              String      @id @default(uuid())
+  returnOrderId   String
+  returnOrder     ReturnOrder @relation(fields: [returnOrderId], references: [id], onDelete: Cascade)
+  productId       String
+  productName     String
+  sku             String
+  unit            String
+  ratioToBase     Decimal     @default(1) @db.Decimal(18, 4)
+  quantity        Decimal     @db.Decimal(18, 2)
+  unitPrice       Decimal     @db.Decimal(18, 2)
+  refundUnitPrice Decimal     @db.Decimal(18, 2)
+  totalRefund     Decimal     @db.Decimal(18, 2)
+  serialNumber    String?
+  condition       String      @default("normal") // 'normal' | 'damaged' | 'unopened'
+}
+
+// 17. CHUYỂN KHO NỘI BỘ (INTER-BRANCH STOCK TRANSFERS)
+model StockTransfer {
+  id              String              @id @default(uuid())
+  code            String              @unique // e.g. CK-2026-0001
+  fromWarehouse   String
+  toWarehouse     String
+  transferDate    DateTime            @default(now())
+  receivedDate    DateTime?
+  status          String              @default("in_transit") // 'draft' | 'in_transit' | 'completed' | 'cancelled'
+  totalItems      Int
+  totalQuantity   Decimal             @db.Decimal(18, 2)
+  senderName      String
+  receiverName    String?
+  transportMethod String?
+  trackingNumber  String?
+  notes           String?             @db.NVarChar(Max)
+  createdAt       DateTime            @default(now())
+  items           StockTransferItem[]
+}
+
+model StockTransferItem {
+  id            String        @id @default(uuid())
+  transferId    String
+  transfer      StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  productId     String
+  productName   String
+  sku           String
+  unit          String
+  quantity      Decimal       @db.Decimal(18, 2)
+  unitCost      Decimal       @db.Decimal(18, 2)
+  totalCost     Decimal       @db.Decimal(18, 2)
+}
+
+

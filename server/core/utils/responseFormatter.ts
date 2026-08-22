@@ -39,6 +39,25 @@ export function sendCreated<T = any>(res: Response, data: T, message: string = "
   return sendSuccess(res, data, message, 201);
 }
 
+export function sendPaginated<T = any>(
+  res: Response,
+  data: T,
+  total: number,
+  page: number,
+  limit: number,
+  message?: string
+) {
+  const totalPages = Math.ceil(total / (limit || 1));
+  return sendSuccess(res, data, message, 200, {
+    page,
+    limit,
+    total,
+    totalPages,
+    hasNext: page < totalPages,
+    hasPrev: page > 1,
+  });
+}
+
 export function sendError(
   res: Response,
   message: string = "Đã xảy ra lỗi",

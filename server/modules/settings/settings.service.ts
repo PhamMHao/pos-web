@@ -110,29 +110,29 @@ export class SettingsService {
     const finalBankAccount = bankAccount !== undefined ? bankAccount : (current.bankAccount || "9988776655");
     const finalBankCode = bankCode !== undefined ? bankCode : (current.bankCode || "MB");
 
-    await prisma.$executeRaw`
+    await prisma.$executeRawUnsafe(`
       IF EXISTS (SELECT 1 FROM [StoreSettings] WHERE id = 'default_settings')
       BEGIN
         UPDATE [StoreSettings]
-        SET storeName = ${finalStoreName},
-            tagline = ${finalTagline},
-            phone = ${finalPhone},
-            email = ${finalEmail},
-            address = ${finalAddress},
-            taxCode = ${finalTaxCode},
-            bankName = ${finalBankName},
-            bankAccount = ${finalBankAccount},
-            bankCode = ${finalBankCode},
-            settingsJson = ${settingsJson},
+        SET storeName = ${escapeSqlStr(finalStoreName)},
+            tagline = ${escapeSqlStr(finalTagline)},
+            phone = ${escapeSqlStr(finalPhone)},
+            email = ${escapeSqlStr(finalEmail)},
+            address = ${escapeSqlStr(finalAddress)},
+            taxCode = ${escapeSqlStr(finalTaxCode)},
+            bankName = ${escapeSqlStr(finalBankName)},
+            bankAccount = ${escapeSqlStr(finalBankAccount)},
+            bankCode = ${escapeSqlStr(finalBankCode)},
+            settingsJson = ${escapeSqlStr(settingsJson)},
             updatedAt = GETDATE()
         WHERE id = 'default_settings'
       END
       ELSE
       BEGIN
         INSERT INTO [StoreSettings] (id, storeName, tagline, phone, email, address, taxCode, bankName, bankAccount, bankCode, settingsJson, updatedAt)
-        VALUES ('default_settings', ${finalStoreName}, ${finalTagline}, ${finalPhone}, ${finalEmail}, ${finalAddress}, ${finalTaxCode}, ${finalBankName}, ${finalBankAccount}, ${finalBankCode}, ${settingsJson}, GETDATE())
+        VALUES ('default_settings', ${escapeSqlStr(finalStoreName)}, ${escapeSqlStr(finalTagline)}, ${escapeSqlStr(finalPhone)}, ${escapeSqlStr(finalEmail)}, ${escapeSqlStr(finalAddress)}, ${escapeSqlStr(finalTaxCode)}, ${escapeSqlStr(finalBankName)}, ${escapeSqlStr(finalBankAccount)}, ${escapeSqlStr(finalBankCode)}, ${escapeSqlStr(settingsJson)}, GETDATE())
       END
-    `;
+    `);
 
     return this.getSettings();
   }
@@ -172,6 +172,10 @@ export class SettingsService {
       supplierPriceItems,
       purchaseOrders,
       purchaseOrderItems,
+      returnOrders,
+      returnOrderItems,
+      stockTransfers,
+      stockTransferItems,
     ] = await Promise.all([
       prisma.user.findMany(),
       prisma.storeSettings.findMany(),
@@ -206,6 +210,10 @@ export class SettingsService {
       prisma.supplierPriceItem.findMany(),
       prisma.purchaseOrder.findMany(),
       prisma.purchaseOrderItem.findMany(),
+      prisma.returnOrder.findMany(),
+      prisma.returnOrderItem.findMany(),
+      prisma.stockTransfer.findMany(),
+      prisma.stockTransferItem.findMany(),
     ]);
 
     const backupPayload = {
@@ -246,6 +254,10 @@ export class SettingsService {
         supplierPriceItems,
         purchaseOrders,
         purchaseOrderItems,
+        returnOrders,
+        returnOrderItems,
+        stockTransfers,
+        stockTransferItems,
       },
     };
 
@@ -258,6 +270,10 @@ export class SettingsService {
       throw new Error("Mã xác nhận xóa dữ liệu không chính xác. Vui lòng nhập XOA_DU_LIEU.");
     }
 
+    await prisma.$executeRaw`DELETE FROM [ReturnOrderItem]`;
+    await prisma.$executeRaw`DELETE FROM [ReturnOrder]`;
+    await prisma.$executeRaw`DELETE FROM [StockTransferItem]`;
+    await prisma.$executeRaw`DELETE FROM [StockTransfer]`;
     await prisma.$executeRaw`DELETE FROM [PurchaseOrderItem]`;
     await prisma.$executeRaw`DELETE FROM [PurchaseOrder]`;
     await prisma.$executeRaw`DELETE FROM [SupplierPriceItem]`;
@@ -307,6 +323,10 @@ export class SettingsService {
     const { tables } = backupPayload;
 
     // Step 1: Wipe all existing data in correct FK order
+    await prisma.$executeRaw`DELETE FROM [ReturnOrderItem]`;
+    await prisma.$executeRaw`DELETE FROM [ReturnOrder]`;
+    await prisma.$executeRaw`DELETE FROM [StockTransferItem]`;
+    await prisma.$executeRaw`DELETE FROM [StockTransfer]`;
     await prisma.$executeRaw`DELETE FROM [PurchaseOrderItem]`;
     await prisma.$executeRaw`DELETE FROM [PurchaseOrder]`;
     await prisma.$executeRaw`DELETE FROM [SupplierPriceItem]`;
@@ -688,6 +708,46 @@ export class SettingsService {
           `);
         }
         restoredStats["purchaseOrderItems"] = tables.purchaseOrderItems.length;
+      }
+    }
+
+    if (Array.isArray(tables.returnOrders) && tables.returnOrders.length > 0) {
+      for (const ret of tables.returnOrders) {
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO [ReturnOrder] (id, code, type, originalOrderCode, originalOrderId, customerId, customerName, customerPhone, supplierId, supplierName, warehouse, refundMethod, refundAmount, totalReturnQuantity, reason, destinationType, status, performedBy, notes, createdAt)
+          VALUES (${escapeSqlStr(ret.id)}, ${escapeSqlStr(ret.code)}, ${escapeSqlStr(ret.type || "customer_return")}, ${escapeSqlStr(ret.originalOrderCode)}, ${escapeSqlStr(ret.originalOrderId)}, ${escapeSqlStr(ret.customerId)}, ${escapeSqlStr(ret.customerName)}, ${escapeSqlStr(ret.customerPhone)}, ${escapeSqlStr(ret.supplierId)}, ${escapeSqlStr(ret.supplierName)}, ${escapeSqlStr(ret.warehouse || "Kho Chính")}, ${escapeSqlStr(ret.refundMethod || "cash")}, ${escapeSqlNum(ret.refundAmount)}, ${escapeSqlNum(ret.totalReturnQuantity)}, ${escapeSqlStr(ret.reason)}, ${escapeSqlStr(ret.destinationType || "restock")}, ${escapeSqlStr(ret.status || "completed")}, ${escapeSqlStr(ret.performedBy || "Thu ngân")}, ${escapeSqlStr(ret.notes)}, ${escapeSqlDateRequired(ret.createdAt)})
+        `);
+      }
+      restoredStats["returnOrders"] = tables.returnOrders.length;
+
+      if (Array.isArray(tables.returnOrderItems) && tables.returnOrderItems.length > 0) {
+        for (const roi of tables.returnOrderItems) {
+          await prisma.$executeRawUnsafe(`
+            INSERT INTO [ReturnOrderItem] (id, returnOrderId, productId, productName, sku, unit, ratioToBase, quantity, unitPrice, refundUnitPrice, totalRefund, serialNumber, condition)
+            VALUES (${escapeSqlStr(roi.id)}, ${escapeSqlStr(roi.returnOrderId)}, ${escapeSqlStr(roi.productId)}, ${escapeSqlStr(roi.productName)}, ${escapeSqlStr(roi.sku)}, ${escapeSqlStr(roi.unit || "Cái")}, ${escapeSqlNum(roi.ratioToBase || 1)}, ${escapeSqlNum(roi.quantity || 1)}, ${escapeSqlNum(roi.unitPrice)}, ${escapeSqlNum(roi.refundUnitPrice)}, ${escapeSqlNum(roi.totalRefund)}, ${escapeSqlStr(roi.serialNumber)}, ${escapeSqlStr(roi.condition || "normal")})
+          `);
+        }
+        restoredStats["returnOrderItems"] = tables.returnOrderItems.length;
+      }
+    }
+
+    if (Array.isArray(tables.stockTransfers) && tables.stockTransfers.length > 0) {
+      for (const st of tables.stockTransfers) {
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO [StockTransfer] (id, code, fromWarehouse, toWarehouse, transferDate, receivedDate, status, totalItems, totalQuantity, senderName, receiverName, transportMethod, trackingNumber, notes, createdAt)
+          VALUES (${escapeSqlStr(st.id)}, ${escapeSqlStr(st.code)}, ${escapeSqlStr(st.fromWarehouse)}, ${escapeSqlStr(st.toWarehouse)}, ${escapeSqlDateRequired(st.transferDate)}, ${escapeSqlDate(st.receivedDate)}, ${escapeSqlStr(st.status || "in_transit")}, ${escapeSqlNum(st.totalItems || 1)}, ${escapeSqlNum(st.totalQuantity || 1)}, ${escapeSqlStr(st.senderName || "Thủ kho")}, ${escapeSqlStr(st.receiverName)}, ${escapeSqlStr(st.transportMethod)}, ${escapeSqlStr(st.trackingNumber)}, ${escapeSqlStr(st.notes)}, ${escapeSqlDateRequired(st.createdAt)})
+        `);
+      }
+      restoredStats["stockTransfers"] = tables.stockTransfers.length;
+
+      if (Array.isArray(tables.stockTransferItems) && tables.stockTransferItems.length > 0) {
+        for (const sti of tables.stockTransferItems) {
+          await prisma.$executeRawUnsafe(`
+            INSERT INTO [StockTransferItem] (id, transferId, productId, productName, sku, unit, quantity, unitCost, totalCost)
+            VALUES (${escapeSqlStr(sti.id)}, ${escapeSqlStr(sti.transferId)}, ${escapeSqlStr(sti.productId)}, ${escapeSqlStr(sti.productName)}, ${escapeSqlStr(sti.sku)}, ${escapeSqlStr(sti.unit || "Cái")}, ${escapeSqlNum(sti.quantity || 1)}, ${escapeSqlNum(sti.unitCost)}, ${escapeSqlNum(sti.totalCost)})
+          `);
+        }
+        restoredStats["stockTransferItems"] = tables.stockTransferItems.length;
       }
     }
 

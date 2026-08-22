@@ -18,8 +18,8 @@ export class WarehouseService {
     const dt = receiptData.date ? new Date(receiptData.date) : new Date();
 
     await prisma.$executeRaw`
-      INSERT INTO [StockGoodsReceipt] (id, code, date, inboundInvoiceId, inboundInvoiceCode, supplierName, supplierTaxCode, warehouseName, creatorName, receivedBy, totalItemsCount, totalQuantity, totalCostAmount, totalTaxAmount, grandTotal, paymentStatus, notes, createdAt, updatedAt)
-      VALUES (${id}, ${code}, ${dt}, ${receiptData.inboundInvoiceId || null}, ${receiptData.inboundInvoiceCode || null}, ${receiptData.supplierName}, ${receiptData.supplierTaxCode || null}, ${receiptData.warehouseName || "Kho Chính"}, ${receiptData.creatorName}, ${receiptData.receivedBy}, ${receiptData.totalItemsCount}, ${receiptData.totalQuantity}, ${receiptData.totalCostAmount}, ${receiptData.totalTaxAmount}, ${receiptData.grandTotal}, ${receiptData.paymentStatus}, ${receiptData.notes || null}, ${new Date()}, ${new Date()})
+      INSERT INTO [StockGoodsReceipt] (id, code, date, inboundInvoiceId, inboundInvoiceCode, supplierName, supplierTaxCode, warehouseName, creatorName, receivedBy, totalItemsCount, totalQuantity, totalCostAmount, totalTaxAmount, grandTotal, paymentStatus, notes)
+      VALUES (${id}, ${code}, ${dt}, ${receiptData.inboundInvoiceId || null}, ${receiptData.inboundInvoiceCode || null}, ${receiptData.supplierName}, ${receiptData.supplierTaxCode || null}, ${receiptData.warehouseName || "Kho Chính"}, ${receiptData.creatorName}, ${receiptData.receivedBy}, ${receiptData.totalItemsCount}, ${receiptData.totalQuantity}, ${receiptData.totalCostAmount}, ${receiptData.totalTaxAmount}, ${receiptData.grandTotal}, ${receiptData.paymentStatus}, ${receiptData.notes || null})
     `;
 
     for (let idx = 0; idx < items.length; idx++) {

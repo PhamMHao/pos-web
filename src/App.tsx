@@ -53,6 +53,8 @@ import { inboundInvoicesApi } from './features/inbound-invoices/api/inboundInvoi
 import { settingsApi } from './features/settings/api/settingsApi';
 import { fraudAlertsApi } from './features/fraud-alerts/api/fraudAlertsApi';
 import { suppliersApi } from './features/suppliers/api/suppliersApi';
+import { returnsApi } from './features/returns/api/returnsApi';
+import { transfersApi } from './features/transfers/api/transfersApi';
 import { useBarcodeScanner } from './hooks/useBarcodeScanner';
 import { sounds } from './utils/soundEffects';
 import { Bot, Sparkles } from 'lucide-react';
@@ -77,6 +79,8 @@ import {
   PaymentMethod,
   Supplier,
   PurchaseOrder,
+  ReturnOrder,
+  StockTransfer,
 } from './types';
 
 export function App() {
@@ -210,6 +214,105 @@ export function App() {
       if (fresh?.data && Array.isArray(fresh.data)) setPurchaseOrders(fresh.data);
     } catch (err: any) {
       console.warn('API purchase order delete warning:', err.message);
+    }
+  };
+
+  // 16. Return Orders (Phiếu Trả Hàng & Hoàn Tiền)
+  const [returnOrders, setReturnOrders] = useState<ReturnOrder[]>(() => {
+    const saved = localStorage.getItem('gp_erp_return_orders_data');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const handleSaveReturnOrder = async (newReturn: ReturnOrder) => {
+    setReturnOrders((prev) => {
+      const next = [newReturn, ...prev.filter((r) => r.id !== newReturn.id)];
+      localStorage.setItem('gp_erp_return_orders_data', JSON.stringify(next));
+      return next;
+    });
+
+    try {
+      await returnsApi.createReturnOrder(newReturn);
+      fetchFreshDataFromDb();
+    } catch (err: any) {
+      console.warn('API return order sync warning:', err.message);
+    }
+  };
+
+  const handleDeleteReturnOrder = async (id: string) => {
+    setReturnOrders((prev) => {
+      const next = prev.filter((r) => r.id !== id);
+      localStorage.setItem('gp_erp_return_orders_data', JSON.stringify(next));
+      return next;
+    });
+
+    try {
+      await returnsApi.deleteReturnOrder(id);
+      fetchFreshDataFromDb();
+    } catch (err: any) {
+      console.warn('API return order delete warning:', err.message);
+    }
+  };
+
+  // 17. Inter-Branch Stock Transfers (Chuyển Kho Nội Bộ)
+  const [stockTransfers, setStockTransfers] = useState<StockTransfer[]>(() => {
+    const saved = localStorage.getItem('gp_erp_stock_transfers_data');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const handleSaveStockTransfer = async (newTransfer: StockTransfer) => {
+    setStockTransfers((prev) => {
+      const next = [newTransfer, ...prev.filter((t) => t.id !== newTransfer.id)];
+      localStorage.setItem('gp_erp_stock_transfers_data', JSON.stringify(next));
+      return next;
+    });
+
+    try {
+      await transfersApi.createTransfer(newTransfer);
+      fetchFreshDataFromDb();
+    } catch (err: any) {
+      console.warn('API stock transfer sync warning:', err.message);
+    }
+  };
+
+  const handleUpdateStockTransferStatus = async (
+    id: string,
+    payload: { status: string; receiverName?: string; notes?: string }
+  ) => {
+    setStockTransfers((prev) => {
+      const next = prev.map((t) =>
+        t.id === id
+          ? {
+              ...t,
+              status: payload.status as any,
+              receiverName: payload.receiverName || t.receiverName,
+              receivedDate: new Date().toISOString(),
+            }
+          : t
+      );
+      localStorage.setItem('gp_erp_stock_transfers_data', JSON.stringify(next));
+      return next;
+    });
+
+    try {
+      await transfersApi.updateTransferStatus(id, payload);
+      fetchFreshDataFromDb();
+    } catch (err: any) {
+      console.warn('API stock transfer update warning:', err.message);
+    }
+  };
+
+  const handleDeleteStockTransfer = async (id: string) => {
+    setStockTransfers((prev) => {
+      const next = prev.filter((t) => t.id !== id);
+      localStorage.setItem('gp_erp_stock_transfers_data', JSON.stringify(next));
+      return next;
+    });
+
+    try {
+      await transfersApi.deleteTransfer(id);
+      fetchFreshDataFromDb();
+    } catch (err: any) {
+      console.warn('API stock transfer delete warning:', err.message);
     }
   };
 
@@ -576,6 +679,8 @@ export function App() {
         fraudRes,
         suppliersRes,
         poRes,
+        returnsRes,
+        transfersRes,
       ] = await Promise.allSettled([
         productsApi.getProducts({ limit: 1000 }),
         customersApi.getCustomers({ limit: 1000 }),
@@ -598,6 +703,8 @@ export function App() {
         fraudAlertsApi.getAlerts({ limit: 500 }),
         suppliersApi.getSuppliers({ limit: 500 }),
         suppliersApi.getPurchaseOrders({ limit: 500 }),
+        returnsApi.getReturnOrders({ limit: 500 }),
+        transfersApi.getTransfers({ limit: 500 }),
       ]);
 
       if (prodsRes.status === 'fulfilled' && prodsRes.value?.data && Array.isArray(prodsRes.value.data)) {
@@ -662,6 +769,14 @@ export function App() {
       }
       if (poRes.status === 'fulfilled' && poRes.value?.data && Array.isArray(poRes.value.data)) {
         setPurchaseOrders(poRes.value.data);
+      }
+      if (returnsRes.status === 'fulfilled' && returnsRes.value?.data && Array.isArray(returnsRes.value.data)) {
+        setReturnOrders(returnsRes.value.data);
+        localStorage.setItem('gp_erp_return_orders_data', JSON.stringify(returnsRes.value.data));
+      }
+      if (transfersRes.status === 'fulfilled' && transfersRes.value?.data && Array.isArray(transfersRes.value.data)) {
+        setStockTransfers(transfersRes.value.data);
+        localStorage.setItem('gp_erp_stock_transfers_data', JSON.stringify(transfersRes.value.data));
       }
 
       setLastSyncTime(new Date().toLocaleTimeString('vi-VN'));
@@ -1419,9 +1534,13 @@ export function App() {
               orders={orders}
               products={products}
               customers={customers}
+              returns={returnOrders}
+              serialRecords={serialRecords}
               onUpdateOrderStatus={handleUpdateOrderStatus}
               onSaveOrder={handleSaveOrder}
               onAdjustStock={handleAdjustStock}
+              onSaveReturn={handleSaveReturnOrder}
+              onDeleteReturn={handleDeleteReturnOrder}
               settings={settings}
             />
           )}
@@ -1527,6 +1646,10 @@ export function App() {
               settings={settings}
               stockReceipts={stockReceipts}
               setStockReceipts={setStockReceipts}
+              transfers={stockTransfers}
+              onSaveTransfer={handleSaveStockTransfer}
+              onUpdateTransferStatus={handleUpdateStockTransferStatus}
+              onDeleteTransfer={handleDeleteStockTransfer}
               onRefreshDb={fetchFreshDataFromDb}
               onOpenDocOcrScanner={(mode) => handleOpenDocOcrScanner(mode || 'stock_in')}
               onSavePartner={handleSaveSupplier}

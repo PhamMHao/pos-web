@@ -22,12 +22,21 @@ import inboundInvoicesRoutes from "./server/modules/inbound-invoices/inbound-inv
 import settingsRoutes from "./server/modules/settings/settings.routes";
 import fraudAlertsRoutes from "./server/modules/fraud-alerts/fraud-alerts.routes";
 import suppliersRoutes from "./server/modules/suppliers/suppliers.routes";
+import returnsRoutes from "./server/modules/returns/returns.routes";
+import transfersRoutes from "./server/modules/transfers/transfers.routes";
 import { errorHandler } from "./server/core/middlewares/errorHandler";
 
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const getDirname = () => {
+  try {
+    if (typeof import.meta !== "undefined" && import.meta.url) {
+      return path.dirname(fileURLToPath(import.meta.url));
+    }
+  } catch {}
+  return process.cwd();
+};
+const appDir = getDirname();
 
 async function startServer() {
   const app = express();
@@ -54,6 +63,8 @@ async function startServer() {
   app.use("/api/settings", settingsRoutes);
   app.use("/api/fraud-alerts", fraudAlertsRoutes);
   app.use("/api/suppliers", suppliersRoutes);
+  app.use("/api/returns", returnsRoutes);
+  app.use("/api/transfers", transfersRoutes);
 
   // Helper for lazy initialized Gemini
   let aiClient: GoogleGenAI | null = null;
