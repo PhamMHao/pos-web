@@ -14,6 +14,8 @@ import {
   INITIAL_SERIAL_RECORDS,
   INITIAL_EINVOICES,
   INITIAL_LABOR_CONTRACTS,
+  INITIAL_SUPPLIERS,
+  INITIAL_PURCHASE_ORDERS,
 } from "../src/data/initialData";
 import { INITIAL_INBOUND_INVOICES } from "../src/data/mockInboundData";
 
@@ -373,7 +375,56 @@ async function main() {
     }
   }
 
-  console.log("🎉 SEED THÀNH CÔNG: Toàn bộ 14 danh mục dữ liệu mẫu đã được nạp trơn tru vào SQL Server!");
+  // 15. Nhà cung cấp & Bảng giá (Suppliers & Price List)
+  console.log(`15. Seeding ${INITIAL_SUPPLIERS.length} Suppliers...`);
+  for (const s of INITIAL_SUPPLIERS) {
+    const existing = await prisma.supplier.findMany({ where: { code: s.code } });
+    if (existing.length === 0) {
+      const dt = safeDate(s.createdAt);
+      await prisma.$executeRaw`
+        INSERT INTO [Supplier] (id, code, name, taxCode, tier, category, contactPerson, phone, email, address, bankName, bankAccount, bankCode, creditLimit, creditDays, currentDebt, ratingQuality, ratingPrice, ratingOnTime, ratingWarranty, notes, createdAt, updatedAt)
+        VALUES (${s.id}, ${s.code}, ${s.name}, ${s.taxCode || null}, ${s.tier || "Tổng Đại Lý"}, ${s.category || "Camera & An Ninh"}, ${s.contactPerson || null}, ${s.phone}, ${s.email || null}, ${s.address || null}, ${s.bankName || null}, ${s.bankAccount || null}, ${s.bankCode || null}, ${s.creditLimit || 0}, ${s.creditDays || 30}, ${s.currentDebt || 0}, ${s.ratingQuality || 9.5}, ${s.ratingPrice || 9.0}, ${s.ratingOnTime || 9.5}, ${s.ratingWarranty || 9.2}, ${s.notes || null}, ${dt}, ${dt})
+      `;
+
+      if (s.priceList && s.priceList.length > 0) {
+        for (let idx = 0; idx < s.priceList.length; idx++) {
+          const it = s.priceList[idx];
+          const pId = `sup-price-${s.id}-${idx}`;
+          await prisma.$executeRaw`
+            INSERT INTO [SupplierPriceItem] (id, supplierId, sku, productName, costPrice, warrantyMonths, moq)
+            VALUES (${pId}, ${s.id}, ${it.sku}, ${it.productName}, ${it.costPrice}, ${it.warrantyMonths || 24}, ${it.moq || 1})
+          `;
+        }
+      }
+    }
+  }
+
+  // 16. Đơn đặt hàng mua (Purchase Orders)
+  console.log(`16. Seeding ${INITIAL_PURCHASE_ORDERS.length} Purchase Orders...`);
+  for (const po of INITIAL_PURCHASE_ORDERS) {
+    const existing = await prisma.purchaseOrder.findMany({ where: { code: po.code } });
+    if (existing.length === 0) {
+      const dt = safeDate(po.orderDate);
+      const expDt = safeDate(po.expectedDeliveryDate);
+      await prisma.$executeRaw`
+        INSERT INTO [PurchaseOrder] (id, code, supplierId, supplierName, supplierPhone, supplierAddress, supplierTaxCode, warehouseId, warehouseName, orderDate, expectedDeliveryDate, status, subtotal, vatRate, vatAmount, shippingFee, discountAmount, totalAmount, paidAmount, paymentStatus, paymentMethod, notes, createdAt, updatedAt)
+        VALUES (${po.id}, ${po.code}, ${po.supplierId}, ${po.supplierName}, ${po.supplierPhone || null}, ${po.supplierAddress || null}, ${po.supplierTaxCode || null}, ${po.warehouseId || "wh-main"}, ${po.warehouseName || "Kho Tổng Gia Phúc TP.HCM"}, ${dt}, ${expDt}, ${po.status || "confirmed"}, ${po.subtotal}, ${po.vatRate || 10}, ${po.vatAmount || 0}, ${po.shippingFee || 0}, ${po.discountAmount || 0}, ${po.totalAmount}, ${po.paidAmount || 0}, ${po.paymentStatus || "unpaid"}, ${po.paymentMethod || "transfer"}, ${po.notes || null}, ${dt}, ${dt})
+      `;
+
+      if (po.items && po.items.length > 0) {
+        for (let idx = 0; idx < po.items.length; idx++) {
+          const it = po.items[idx];
+          const itemId = `po-item-${po.id}-${idx}`;
+          await prisma.$executeRaw`
+            INSERT INTO [PurchaseOrderItem] (id, purchaseOrderId, productId, sku, productName, unit, quantity, unitPrice, total)
+            VALUES (${itemId}, ${po.id}, ${it.productId || null}, ${it.sku}, ${it.productName}, ${it.unit || "Cái"}, ${it.quantity}, ${it.unitPrice}, ${it.total})
+          `;
+        }
+      }
+    }
+  }
+
+  console.log("🎉 SEED THÀNH CÔNG: Toàn bộ 16 danh mục dữ liệu mẫu đã được nạp trơn tru vào SQL Server!");
 }
 
 main()

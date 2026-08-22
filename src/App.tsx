@@ -1,34 +1,41 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useStoreState } from './utils/storage';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
-import { PosView } from './components/pos/PosView';
-import { OrdersView } from './components/orders/OrdersView';
-import { InventoryView } from './components/inventory/InventoryView';
-import { CustomersView } from './components/customers/CustomersView';
-import { AnalyticsView } from './components/analytics/AnalyticsView';
-import { AiAdvisorView } from './components/ai/AiAdvisorView';
-import { PromotionsView } from './components/promotions/PromotionsView';
-import { SettingsView } from './components/settings/SettingsView';
-import { AccountingView } from './components/accounting/AccountingView';
-import { HrView } from './components/hr/HrView';
-import { EInvoiceManagerView } from './components/invoices/EInvoiceManagerView';
-import { LaborContractManagerView } from './components/contracts/LaborContractManagerView';
-import { QuotesView } from './components/quotes/QuotesView';
-import { CostingView } from './components/costing/CostingView';
-import { AssetsView } from './components/assets/AssetsView';
-import { WarrantyView } from './components/warranty/WarrantyView';
-import { SuppliersView } from './components/suppliers/SuppliersView';
-import { FraudModal } from './components/ai/FraudModal';
-import { ShiftModal } from './components/pos/ShiftModal';
-import { QuickStockModal } from './components/common/QuickStockModal';
-import { DeviceManagerModal } from './components/common/DeviceManagerModal';
-import { DatabaseConfigModal } from './components/settings/DatabaseConfigModal';
-import { LoginModal } from './features/auth/components/LoginModal';
-import { ShortcutsModal } from './components/common/ShortcutsModal';
-import { ScannerPrinterHubModal } from './components/common/ScannerPrinterHubModal';
-import { DocumentOcrScannerModal } from './components/common/DocumentOcrScannerModal';
-import { ProductBarcodeLabelModal } from './components/inventory/ProductBarcodeLabelModal';
+import { ViewLoadingSkeleton } from './components/common/ViewLoadingSkeleton';
+
+// Lazy-loaded Views (On-Demand Code Splitting)
+const PosView = lazy(() => import('./components/pos/PosView').then((m) => ({ default: m.PosView })));
+const OrdersView = lazy(() => import('./components/orders/OrdersView').then((m) => ({ default: m.OrdersView })));
+const InventoryView = lazy(() => import('./components/inventory/InventoryView').then((m) => ({ default: m.InventoryView })));
+const CustomersView = lazy(() => import('./components/customers/CustomersView').then((m) => ({ default: m.CustomersView })));
+const AnalyticsView = lazy(() => import('./components/analytics/AnalyticsView').then((m) => ({ default: m.AnalyticsView })));
+const AiAdvisorView = lazy(() => import('./components/ai/AiAdvisorView').then((m) => ({ default: m.AiAdvisorView })));
+const PromotionsView = lazy(() => import('./components/promotions/PromotionsView').then((m) => ({ default: m.PromotionsView })));
+const SettingsView = lazy(() => import('./components/settings/SettingsView').then((m) => ({ default: m.SettingsView })));
+const AccountingView = lazy(() => import('./components/accounting/AccountingView').then((m) => ({ default: m.AccountingView })));
+const HrView = lazy(() => import('./components/hr/HrView').then((m) => ({ default: m.HrView })));
+const EInvoiceManagerView = lazy(() => import('./components/invoices/EInvoiceManagerView').then((m) => ({ default: m.EInvoiceManagerView })));
+const LaborContractManagerView = lazy(() => import('./components/contracts/LaborContractManagerView').then((m) => ({ default: m.LaborContractManagerView })));
+const QuotesView = lazy(() => import('./components/quotes/QuotesView').then((m) => ({ default: m.QuotesView })));
+const CostingView = lazy(() => import('./components/costing/CostingView').then((m) => ({ default: m.CostingView })));
+const AssetsView = lazy(() => import('./components/assets/AssetsView').then((m) => ({ default: m.AssetsView })));
+const WarrantyView = lazy(() => import('./components/warranty/WarrantyView').then((m) => ({ default: m.WarrantyView })));
+const SuppliersView = lazy(() => import('./components/suppliers/SuppliersView').then((m) => ({ default: m.SuppliersView })));
+
+// Lazy-loaded Modals & Drawers (Chỉ tải khi mở)
+const FraudModal = lazy(() => import('./components/ai/FraudModal').then((m) => ({ default: m.FraudModal })));
+const ShiftModal = lazy(() => import('./components/pos/ShiftModal').then((m) => ({ default: m.ShiftModal })));
+const QuickStockModal = lazy(() => import('./components/common/QuickStockModal').then((m) => ({ default: m.QuickStockModal })));
+const DeviceManagerModal = lazy(() => import('./components/common/DeviceManagerModal').then((m) => ({ default: m.DeviceManagerModal })));
+const DatabaseConfigModal = lazy(() => import('./components/settings/DatabaseConfigModal').then((m) => ({ default: m.DatabaseConfigModal })));
+const LoginModal = lazy(() => import('./features/auth/components/LoginModal').then((m) => ({ default: m.LoginModal })));
+const ShortcutsModal = lazy(() => import('./components/common/ShortcutsModal').then((m) => ({ default: m.ShortcutsModal })));
+const ScannerPrinterHubModal = lazy(() => import('./components/common/ScannerPrinterHubModal').then((m) => ({ default: m.ScannerPrinterHubModal })));
+const DocumentOcrScannerModal = lazy(() => import('./components/common/DocumentOcrScannerModal').then((m) => ({ default: m.DocumentOcrScannerModal })));
+const ProductBarcodeLabelModal = lazy(() => import('./components/inventory/ProductBarcodeLabelModal').then((m) => ({ default: m.ProductBarcodeLabelModal })));
+const AiAssistantDrawer = lazy(() => import('./components/ai/AiAssistantDrawer').then((m) => ({ default: m.AiAssistantDrawer })));
+
 import { productsApi } from './features/products/api/productsApi';
 import { customersApi } from './features/customers/api/customersApi';
 import { posApi } from './features/pos/api/posApi';
@@ -43,7 +50,8 @@ import { promotionsApi } from './features/promotions/api/promotionsApi';
 import { assetsApi } from './features/assets/api/assetsApi';
 import { inboundInvoicesApi } from './features/inbound-invoices/api/inboundInvoicesApi';
 import { settingsApi } from './features/settings/api/settingsApi';
-import { AiAssistantDrawer } from './components/ai/AiAssistantDrawer';
+import { fraudAlertsApi } from './features/fraud-alerts/api/fraudAlertsApi';
+import { suppliersApi } from './features/suppliers/api/suppliersApi';
 import { useBarcodeScanner } from './hooks/useBarcodeScanner';
 import { sounds } from './utils/soundEffects';
 import { Bot, Sparkles } from 'lucide-react';
@@ -62,6 +70,7 @@ import {
   FraudAlert,
   WarrantyTicket,
   SerialDeviceRecord,
+  EInvoice,
   CashShift,
   CartItem,
   PaymentMethod,
@@ -134,48 +143,73 @@ export function App() {
     | 'contracts'
   >('pos');
 
-  const [suppliers, setSuppliers] = useState<Supplier[]>(() => {
-    try {
-      const raw = localStorage.getItem('gp_erp_suppliers_data');
-      if (raw) return JSON.parse(raw);
-    } catch {}
-    return [];
-  });
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
 
-  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>(() => {
-    try {
-      const raw = localStorage.getItem('gp_erp_purchase_orders_data');
-      if (raw) return JSON.parse(raw);
-    } catch {}
-    return [];
-  });
-
-  useEffect(() => {
-    try {
-      if (suppliers && suppliers.length > 0) {
-        localStorage.setItem('gp_erp_suppliers_data', JSON.stringify(suppliers));
-      }
-    } catch {}
-  }, [suppliers]);
-
-  useEffect(() => {
-    try {
-      if (purchaseOrders && purchaseOrders.length > 0) {
-        localStorage.setItem('gp_erp_purchase_orders_data', JSON.stringify(purchaseOrders));
-      }
-    } catch {}
-  }, [purchaseOrders]);
-
-  const handleSaveSupplier = (supplier: Supplier) => {
+  const handleSaveSupplier = async (supplier: Supplier) => {
     setSuppliers((prev) => {
-      const exists = prev.some((s) => s.id === supplier.id);
-      if (exists) return prev.map((s) => (s.id === supplier.id ? supplier : s));
+      const exists = prev.some((s) => s.id === supplier.id || s.code === supplier.code);
+      if (exists) {
+        return prev.map((s) => (s.id === supplier.id || s.code === supplier.code ? supplier : s));
+      }
       return [supplier, ...prev];
     });
+
+    try {
+      const exists = suppliers.some((s) => s.id === supplier.id || s.code === supplier.code);
+      if (exists) {
+        await suppliersApi.updateSupplier(supplier.id, supplier);
+      } else {
+        await suppliersApi.createSupplier(supplier);
+      }
+      const fresh = await suppliersApi.getSuppliers({ limit: 500 });
+      if (fresh?.data && Array.isArray(fresh.data)) setSuppliers(fresh.data);
+    } catch (err: any) {
+      console.warn('API supplier sync warning:', err.message);
+    }
   };
 
-  const handleSavePurchaseOrder = (po: PurchaseOrder) => {
+  const handleDeleteSupplier = async (supplierId: string) => {
+    setSuppliers((prev) => prev.filter((s) => s.id !== supplierId));
+    try {
+      await suppliersApi.deleteSupplier(supplierId);
+      const fresh = await suppliersApi.getSuppliers({ limit: 500 });
+      if (fresh?.data && Array.isArray(fresh.data)) setSuppliers(fresh.data);
+    } catch (err: any) {
+      console.warn('API supplier delete warning:', err.message);
+    }
+  };
+
+  const handleSavePurchaseOrder = async (po: PurchaseOrder) => {
     setPurchaseOrders((prev) => [po, ...prev.filter((p) => p.id !== po.id)]);
+    try {
+      const exists = purchaseOrders.some((p) => p.id === po.id || p.code === po.code);
+      if (exists) {
+        await suppliersApi.updatePurchaseOrderStatus(po.id, {
+          status: po.status,
+          paidAmount: po.paidAmount,
+          paymentStatus: po.paymentStatus,
+          notes: po.notes,
+        });
+      } else {
+        await suppliersApi.createPurchaseOrder(po);
+      }
+      const fresh = await suppliersApi.getPurchaseOrders({ limit: 500 });
+      if (fresh?.data && Array.isArray(fresh.data)) setPurchaseOrders(fresh.data);
+    } catch (err: any) {
+      console.warn('API purchase order sync warning:', err.message);
+    }
+  };
+
+  const handleDeletePurchaseOrder = async (poId: string) => {
+    setPurchaseOrders((prev) => prev.filter((p) => p.id !== poId));
+    try {
+      await suppliersApi.deletePurchaseOrder(poId);
+      const fresh = await suppliersApi.getPurchaseOrders({ limit: 500 });
+      if (fresh?.data && Array.isArray(fresh.data)) setPurchaseOrders(fresh.data);
+    } catch (err: any) {
+      console.warn('API purchase order delete warning:', err.message);
+    }
   };
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -202,22 +236,68 @@ export function App() {
     setShowDocOcrModal(true);
   };
 
-  const handleApplyOcrStockIn = (data: { supplierName: string; documentCode: string; items: any[] }) => {
-    data.items.forEach((it) => {
-      const existing = products.find((p) => (it.sku && p.sku.toLowerCase() === it.sku.toLowerCase()) || p.name.toLowerCase() === it.productName.toLowerCase());
+  const handleApplyOcrStockIn = async (data: { supplierName: string; documentCode: string; items: any[] }) => {
+    const docCode = data.documentCode || `PNK-OCR-${Date.now().toString().slice(-4)}`;
+    const receiptItems: any[] = [];
+    let totalCostAmount = 0;
+    let totalQty = 0;
+
+    for (const it of data.items) {
+      const qty = Number(it.quantity) || 1;
+      const unitCost = Number(it.unitPrice) || 0;
+      totalQty += qty;
+      totalCostAmount += qty * unitCost;
+
+      const existing = products.find(
+        (p) =>
+          (it.sku && p.sku.toLowerCase() === it.sku.toLowerCase()) ||
+          p.name.toLowerCase() === it.productName.toLowerCase()
+      );
+
       if (existing) {
-        handleUpdateProductStock(existing.id, (existing.stock || 0) + (Number(it.quantity) || 1));
+        const oldStock = Number(existing.stock) || 0;
+        const newStock = oldStock + qty;
+        await handleAdjustStock({
+          productId: existing.id,
+          productName: existing.name,
+          sku: existing.sku,
+          type: 'import',
+          quantityChange: qty,
+          oldStock,
+          newStock,
+          unitPrice: unitCost,
+          reason: `Nhập kho tự động từ quét AI Vision OCR phiếu ${docCode}`,
+          performedBy: 'Thủ kho AI OCR',
+        });
+        receiptItems.push({
+          productId: existing.id,
+          productName: existing.name,
+          sku: existing.sku,
+          unit: existing.unit || it.unit || 'Cái',
+          quantity: qty,
+          oldStock,
+          newStock,
+          oldCostPrice: existing.costPrice,
+          newCostPrice: unitCost,
+          unitCost,
+          taxRate: 10,
+          totalAmount: qty * unitCost,
+          storageLocation: existing.storageLocation || 'Kệ A-01',
+          warehouse: existing.warehouse || 'Kho Tổng Gia Phúc TP.HCM',
+        });
       } else {
+        const newProdId = 'prod-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
+        const newSku = it.sku || ('SP-' + Date.now().toString().slice(-4));
         const newProd: Product = {
-          id: 'prod-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
-          sku: it.sku || ('SP-' + Date.now().toString().slice(-4)),
+          id: newProdId,
+          sku: newSku,
           barcode: it.sku || ('893' + Date.now().toString().slice(-9)),
           name: it.productName,
           category: 'Camera & An Ninh',
           unit: it.unit || 'Cái',
-          costPrice: Number(it.unitPrice) || 0,
-          sellingPrice: Math.round((Number(it.unitPrice) || 0) * 1.25),
-          stock: Number(it.quantity) || 1,
+          costPrice: unitCost,
+          sellingPrice: Math.round(unitCost * 1.25),
+          stock: qty,
           minStock: 5,
           image: '',
           storageLocation: 'Kệ A-01',
@@ -225,10 +305,48 @@ export function App() {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
-        handleSaveProduct(newProd);
+        await handleSaveProduct(newProd);
+        receiptItems.push({
+          productId: newProdId,
+          productName: newProd.name,
+          sku: newProd.sku,
+          unit: newProd.unit,
+          quantity: qty,
+          oldStock: 0,
+          newStock: qty,
+          oldCostPrice: unitCost,
+          newCostPrice: unitCost,
+          unitCost,
+          taxRate: 10,
+          totalAmount: qty * unitCost,
+          storageLocation: 'Kệ A-01',
+          warehouse: 'Kho Tổng Gia Phúc TP.HCM',
+        });
       }
-    });
-    alert(`🎉 Đã nhập kho thành công ${data.items.length} mặt hàng từ chứng từ ${data.documentCode}!`);
+    }
+
+    try {
+      await warehouseApi.createGoodsReceipt({
+        code: docCode,
+        supplierName: data.supplierName || 'Nhà Cung Cấp',
+        warehouseName: 'Kho Tổng Gia Phúc TP.HCM',
+        creatorName: 'AI OCR Scanner',
+        receivedBy: 'Thủ kho AI',
+        totalItemsCount: data.items.length,
+        totalQuantity: totalQty,
+        totalCostAmount,
+        totalTaxAmount: Math.round(totalCostAmount * 0.1),
+        grandTotal: Math.round(totalCostAmount * 1.1),
+        paymentStatus: 'paid',
+        notes: `Phiếu nhập tự động từ quét AI OCR: ${docCode}`,
+        items: receiptItems,
+      });
+      await fetchFreshDataFromDb({ silent: true });
+    } catch (err: any) {
+      console.warn('API createGoodsReceipt OCR warning:', err.message);
+    }
+
+    alert(`🎉 Đã nhập kho thành công ${data.items.length} mặt hàng từ chứng từ ${docCode} vào CSDL SQL Server!`);
   };
 
   const handleApplyOcrSupplierQuote = (data: { supplierName: string; items: any[] }) => {
@@ -450,6 +568,9 @@ export function App() {
         assetsRes,
         inboundRes,
         settingsRes,
+        fraudRes,
+        suppliersRes,
+        poRes,
       ] = await Promise.allSettled([
         productsApi.getProducts({ limit: 1000 }),
         customersApi.getCustomers({ limit: 1000 }),
@@ -469,6 +590,9 @@ export function App() {
         assetsApi.getAssets({ limit: 500 }),
         inboundInvoicesApi.getInboundInvoices({ limit: 500 }),
         settingsApi.getSettings(),
+        fraudAlertsApi.getAlerts({ limit: 500 }),
+        suppliersApi.getSuppliers({ limit: 500 }),
+        suppliersApi.getPurchaseOrders({ limit: 500 }),
       ]);
 
       if (prodsRes.status === 'fulfilled' && prodsRes.value?.data && Array.isArray(prodsRes.value.data)) {
@@ -525,6 +649,15 @@ export function App() {
       if (settingsRes.status === 'fulfilled' && settingsRes.value) {
         setSettings((prev) => ({ ...prev, ...settingsRes.value }));
       }
+      if (fraudRes.status === 'fulfilled' && fraudRes.value?.data && Array.isArray(fraudRes.value.data)) {
+        setFraudAlerts(fraudRes.value.data);
+      }
+      if (suppliersRes.status === 'fulfilled' && suppliersRes.value?.data && Array.isArray(suppliersRes.value.data)) {
+        setSuppliers(suppliersRes.value.data);
+      }
+      if (poRes.status === 'fulfilled' && poRes.value?.data && Array.isArray(poRes.value.data)) {
+        setPurchaseOrders(poRes.value.data);
+      }
 
       setLastSyncTime(new Date().toLocaleTimeString('vi-VN'));
     } catch (err: any) {
@@ -565,6 +698,17 @@ export function App() {
       await settingsApi.updateSettings(newSettings);
     } catch (err: any) {
       console.warn('API updateSettings warning:', err.message);
+    }
+  };
+
+  const handleIssueEInvoice = async (newInv: EInvoice) => {
+    setEInvoices((prev) => [newInv, ...prev]);
+    try {
+      await einvoicesApi.createInvoice(newInv);
+      const fresh = await einvoicesApi.getInvoices({ limit: 500 });
+      if (fresh?.data && Array.isArray(fresh.data)) setEInvoices(fresh.data);
+    } catch (err: any) {
+      console.warn('API issue e-invoice error:', err.message);
     }
   };
 
@@ -806,10 +950,17 @@ export function App() {
     }
   };
 
-  const handleResolveFraudAlert = (alertId: string) => {
+  const handleResolveFraudAlert = async (alertId: string) => {
     setFraudAlerts((prev) =>
       prev.map((a) => (a.id === alertId ? { ...a, status: 'resolved' } : a))
     );
+    try {
+      await fraudAlertsApi.resolveAlert(alertId);
+      const fresh = await fraudAlertsApi.getAlerts({ limit: 500 });
+      if (fresh?.data && Array.isArray(fresh.data)) setFraudAlerts(fresh.data);
+    } catch (err: any) {
+      console.warn('API resolve fraud alert warning:', err.message);
+    }
   };
 
   const handleSaveWarranty = async (newTicket: WarrantyTicket) => {
@@ -876,9 +1027,21 @@ export function App() {
   };
 
   const handleSaveQuote = async (newQuote: PriceQuote) => {
-    setQuotes((prev) => [newQuote, ...prev.filter((q) => q.id !== newQuote.id)]);
+    setQuotes((prev) => {
+      const exists = prev.some((q) => q.id === newQuote.id || q.code === newQuote.code);
+      if (exists) {
+        return prev.map((q) => (q.id === newQuote.id || q.code === newQuote.code ? newQuote : q));
+      }
+      return [newQuote, ...prev];
+    });
+
     try {
-      await quotesApi.createQuote(newQuote);
+      const exists = quotes.some((q) => q.id === newQuote.id || q.code === newQuote.code);
+      if (exists) {
+        await quotesApi.updateQuote(newQuote.id, newQuote);
+      } else {
+        await quotesApi.createQuote(newQuote);
+      }
       const fresh = await quotesApi.getQuotes({ limit: 500 });
       if (fresh?.data && Array.isArray(fresh.data)) setQuotes(fresh.data);
     } catch (err: any) {
@@ -1054,9 +1217,21 @@ export function App() {
   };
 
   const handleSaveCosting = async (costing: ProductCosting) => {
-    setCostingList((prev) => [costing, ...prev.filter((c) => c.id !== costing.id)]);
+    setCostingList((prev) => {
+      const exists = prev.some((c) => c.id === costing.id || c.sku === costing.sku);
+      if (exists) {
+        return prev.map((c) => (c.id === costing.id || c.sku === costing.sku ? costing : c));
+      }
+      return [costing, ...prev];
+    });
+
     try {
-      await costingApi.createCosting(costing);
+      const exists = costingList.some((c) => c.id === costing.id || c.sku === costing.sku);
+      if (exists) {
+        await costingApi.updateCosting(costing.id, costing);
+      } else {
+        await costingApi.createCosting(costing);
+      }
       const fresh = await costingApi.getCostings({ limit: 500 });
       if (fresh?.data && Array.isArray(fresh.data)) setCostingList(fresh.data);
     } catch (err: any) {
@@ -1146,6 +1321,14 @@ export function App() {
     downloadAnchor.remove();
   };
 
+  const handleResetAllData = () => {
+    resetToInitialData();
+    setSuppliers([]);
+    setPurchaseOrders([]);
+    localStorage.removeItem('gp_erp_suppliers_data');
+    localStorage.removeItem('gp_erp_purchase_orders_data');
+  };
+
   const pendingOrdersCount = (orders || []).filter((o) => o && o.status === 'pending').length;
   const lowStockCount = (products || []).filter((p) => p && p.stock <= p.minStock).length;
 
@@ -1206,7 +1389,8 @@ export function App() {
 
         {/* View Content */}
         <main className="flex-1 overflow-hidden relative">
-          {activeTab === 'pos' && (
+          <Suspense fallback={<ViewLoadingSkeleton />}>
+            {activeTab === 'pos' && (
             <PosView
               products={products}
               customers={customers}
@@ -1218,7 +1402,7 @@ export function App() {
               onAddCustomer={handleSaveCustomer}
               onOpenDevices={() => setShowDeviceModal(true)}
               onOpenAiAssistant={() => setShowAiDrawer(true)}
-              onIssueEInvoice={(newInv) => setEInvoices((prev) => [newInv, ...prev])}
+              onIssueEInvoice={handleIssueEInvoice}
               loadedQuoteData={loadedQuoteData}
               onClearLoadedQuoteData={() => setLoadedQuoteData(null)}
             />
@@ -1303,7 +1487,9 @@ export function App() {
               products={products}
               settings={settings}
               onSaveSupplier={handleSaveSupplier}
+              onDeleteSupplier={handleDeleteSupplier}
               onSavePurchaseOrder={handleSavePurchaseOrder}
+              onDeletePurchaseOrder={handleDeletePurchaseOrder}
               onOpenDocOcrScanner={(mode) => handleOpenDocOcrScanner(mode || 'supplier_quote')}
             />
           )}
@@ -1399,199 +1585,210 @@ export function App() {
             <SettingsView
               settings={settings}
               onSaveSettings={handleSaveSettings}
-              onResetData={resetToInitialData}
+              onResetData={handleResetAllData}
               onExportAllData={handleExportAllData}
               onRefreshData={() => fetchFreshDataFromDb()}
             />
           )}
+          </Suspense>
         </main>
       </div>
 
-      {/* AI Assistant Omnipresent Drawer (Accessed via F1 or Navbar) */}
-      <AiAssistantDrawer
-        isOpen={showAiDrawer}
-        onClose={() => setShowAiDrawer(false)}
-        products={products}
-        customers={customers}
-        quotes={quotes}
-        orders={orders}
-        warranties={warranties}
-        eInvoices={eInvoices}
-        laborContracts={laborContracts}
-        employees={employees}
-        accountingRecords={accountingRecords}
-        settings={settings}
-        onNavigate={(tab) => {
-          setActiveTab(tab as any);
-        }}
-      />
-
-      {/* Cash Shift Modal */}
-      {showShiftModal && (
-        <ShiftModal
-          currentShift={currentShift}
-          onOpenShift={async (shiftData) => {
-            const newShift: CashShift = {
-              id: 'shift-' + Date.now(),
-              shiftName: shiftData.shiftName,
-              staffName: shiftData.staffName,
-              startTime: new Date().toISOString(),
-              initialCash: shiftData.initialCash,
-              cashSales: 0,
-              transferSales: 0,
-              cardSales: 0,
-              otherSales: 0,
-              totalSales: 0,
-              cashWithdrawals: 0,
-              expectedEndingCash: shiftData.initialCash,
-              status: 'open',
-            };
-            setCurrentShift(newShift);
-            setShifts((prev) => [newShift, ...prev]);
-            setShowShiftModal(false);
-
-            try {
-              const res = await posApi.openShift({
-                shiftName: shiftData.shiftName,
-                staffName: shiftData.staffName,
-                initialCash: shiftData.initialCash,
-              });
-              if (res) {
-                setCurrentShift(res as any);
-              }
-            } catch (err: any) {
-              console.warn('API openShift warning:', err.message);
-            }
-          }}
-          onCloseShift={async (actualCash, note) => {
-            if (currentShift) {
-              const closedShift: CashShift = {
-                ...currentShift,
-                actualEndingCash: actualCash,
-                note,
-                endTime: new Date().toISOString(),
-                status: 'closed',
-              };
-              setCurrentShift(null);
-              setShifts((prev) => [closedShift, ...prev.filter((s) => s.id !== currentShift.id)]);
-
-              try {
-                await posApi.closeShift(currentShift.id, {
-                  actualEndingCash: actualCash,
-                  note,
-                });
-              } catch (err: any) {
-                console.warn('API closeShift warning:', err.message);
-              }
-            }
-            setShowShiftModal(false);
-          }}
-          onCloseModal={() => setShowShiftModal(false)}
-        />
-      )}
-
-      {/* Fraud Alert Modal */}
-      {activeFraudAlert && (
-        <FraudModal
-          alert={activeFraudAlert}
-          onClose={() => setActiveFraudAlert(null)}
-          onResolve={handleResolveFraudAlert}
-        />
-      )}
-
-      {/* Desktop Quick Stock Modal (Nhập kho, Xuất kho, Kiểm kho) */}
-      <QuickStockModal
-        isOpen={showQuickStockModal}
-        onClose={() => setShowQuickStockModal(false)}
-        products={products}
-        onAdjustStock={handleAdjustStock}
-        initialType={quickStockType}
-      />
-
-      {/* Desktop Hardware Device Manager Modal (Máy in bill K80, máy quét mã vạch 2D, POS quẹt thẻ, cân điện tử, két tiền) */}
-      <DeviceManagerModal
-        isOpen={showDeviceModal}
-        onClose={() => setShowDeviceModal(false)}
-      />
-
-      {/* SQL Server Connection & Setup Modal */}
-      <DatabaseConfigModal
-        isOpen={showDbModal}
-        onClose={() => setShowDbModal(false)}
-      />
-
-      {/* User Login & Role Switch Modal */}
-      <LoginModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-      />
-
-      {/* POS Keyboard Shortcuts Modal (Root Level) */}
-      <ShortcutsModal
-        isOpen={showShortcutsModal}
-        onClose={() => setShowShortcutsModal(false)}
-      />
-
-      {/* Unified Barcode Scanner & Physical/Virtual Printer Hub Modal (F3) */}
-      {showScannerPrinterHubModal && (
-        <ScannerPrinterHubModal
-          isOpen={showScannerPrinterHubModal}
-          onClose={() => {
-            setShowScannerPrinterHubModal(false);
-            setScannerHubInitialCode('');
-          }}
-          initialScanCode={scannerHubInitialCode}
-          initialTab={scannerHubInitialTab}
+      {/* Lazy Modals & Drawers */}
+      <Suspense fallback={null}>
+        {/* AI Assistant Omnipresent Drawer (Accessed via F1 or Navbar) */}
+        <AiAssistantDrawer
+          isOpen={showAiDrawer}
+          onClose={() => setShowAiDrawer(false)}
           products={products}
+          customers={customers}
+          quotes={quotes}
           orders={orders}
           warranties={warranties}
-          serialRecords={serialRecords}
-          assets={assets}
+          eInvoices={eInvoices}
+          laborContracts={laborContracts}
+          employees={employees}
+          accountingRecords={accountingRecords}
           settings={settings}
-          onAddToCart={(product) => {
-            setActiveTab('pos');
+          onNavigate={(tab) => {
+            setActiveTab(tab as any);
           }}
+        />
+
+        {/* Cash Shift Modal */}
+        {showShiftModal && (
+          <ShiftModal
+            currentShift={currentShift}
+            onOpenShift={async (shiftData) => {
+              const newShift: CashShift = {
+                id: 'shift-' + Date.now(),
+                shiftName: shiftData.shiftName,
+                staffName: shiftData.staffName,
+                startTime: new Date().toISOString(),
+                initialCash: shiftData.initialCash,
+                cashSales: 0,
+                transferSales: 0,
+                cardSales: 0,
+                otherSales: 0,
+                totalSales: 0,
+                cashWithdrawals: 0,
+                expectedEndingCash: shiftData.initialCash,
+                status: 'open',
+              };
+              setCurrentShift(newShift);
+              setShifts((prev) => [newShift, ...prev]);
+              setShowShiftModal(false);
+
+              try {
+                const res = await posApi.openShift({
+                  shiftName: shiftData.shiftName,
+                  staffName: shiftData.staffName,
+                  initialCash: shiftData.initialCash,
+                });
+                if (res) {
+                  setCurrentShift(res as any);
+                }
+              } catch (err: any) {
+                console.warn('API openShift warning:', err.message);
+              }
+            }}
+            onCloseShift={async (actualCash, note) => {
+              if (currentShift) {
+                const closedShift: CashShift = {
+                  ...currentShift,
+                  actualEndingCash: actualCash,
+                  note,
+                  endTime: new Date().toISOString(),
+                  status: 'closed',
+                };
+                setCurrentShift(null);
+                setShifts((prev) => [closedShift, ...prev.filter((s) => s.id !== currentShift.id)]);
+
+                try {
+                  await posApi.closeShift(currentShift.id, {
+                    actualEndingCash: actualCash,
+                    note,
+                  });
+                } catch (err: any) {
+                  console.warn('API closeShift warning:', err.message);
+                }
+              }
+              setShowShiftModal(false);
+            }}
+            onCloseModal={() => setShowShiftModal(false)}
+          />
+        )}
+
+        {/* Fraud Alert Modal */}
+        {activeFraudAlert && (
+          <FraudModal
+            alert={activeFraudAlert}
+            onClose={() => setActiveFraudAlert(null)}
+            onResolve={handleResolveFraudAlert}
+          />
+        )}
+
+        {/* Desktop Quick Stock Modal (Nhập kho, Xuất kho, Kiểm kho) */}
+        <QuickStockModal
+          isOpen={showQuickStockModal}
+          onClose={() => setShowQuickStockModal(false)}
+          products={products}
           onAdjustStock={handleAdjustStock}
-          onSaveProduct={handleSaveProduct}
-          onSaveSerialRecord={(rec) => setSerialRecords((prev) => [rec, ...prev])}
-          onNavigateToPos={() => setActiveTab('pos')}
-          onOpenBarcodeLabelModal={(prod) => {
-            setBarcodeModalProduct(prod);
-            setShowBarcodeModal(true);
-          }}
-          onUpdateSettings={setSettings}
+          initialType={quickStockType}
         />
-      )}
 
-      {/* Product Barcode & QR Code Label Modal */}
-      {showBarcodeModal && (
-        <ProductBarcodeLabelModal
-          isOpen={showBarcodeModal}
-          onClose={() => {
-            setShowBarcodeModal(false);
-            setBarcodeModalProduct(null);
-          }}
-          products={products}
-          initialSelectedProduct={barcodeModalProduct}
-          settings={settings}
+        {/* Desktop Hardware Device Manager Modal (Máy in bill K80, máy quét mã vạch 2D, POS quẹt thẻ, cân điện tử, két tiền) */}
+        <DeviceManagerModal
+          isOpen={showDeviceModal}
+          onClose={() => setShowDeviceModal(false)}
         />
-      )}
 
-      {/* AI Vision Document OCR & Excel/PDF Import Modal */}
-      {showDocOcrModal && (
-        <DocumentOcrScannerModal
-          isOpen={showDocOcrModal}
-          onClose={() => setShowDocOcrModal(false)}
-          products={products}
-          suppliers={suppliers}
-          settings={settings}
-          initialMode={docOcrInitialMode}
-          onApplyStockIn={handleApplyOcrStockIn}
-          onApplySupplierQuote={handleApplyOcrSupplierQuote}
-          onApplyPurchaseOrder={handleApplyOcrPurchaseOrder}
-          onApplyCustomerQuote={handleApplyOcrCustomerQuote}
+        {/* SQL Server Connection & Setup Modal */}
+        <DatabaseConfigModal
+          isOpen={showDbModal}
+          onClose={() => setShowDbModal(false)}
         />
-      )}
+
+        {/* User Login & Role Switch Modal */}
+        <LoginModal
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+        />
+
+        {/* POS Keyboard Shortcuts Modal (Root Level) */}
+        <ShortcutsModal
+          isOpen={showShortcutsModal}
+          onClose={() => setShowShortcutsModal(false)}
+        />
+
+        {/* Unified Barcode Scanner & Physical/Virtual Printer Hub Modal (F3) */}
+        {showScannerPrinterHubModal && (
+          <ScannerPrinterHubModal
+            isOpen={showScannerPrinterHubModal}
+            onClose={() => {
+              setShowScannerPrinterHubModal(false);
+              setScannerHubInitialCode('');
+            }}
+            initialScanCode={scannerHubInitialCode}
+            initialTab={scannerHubInitialTab}
+            products={products}
+            orders={orders}
+            warranties={warranties}
+            serialRecords={serialRecords}
+            assets={assets}
+            settings={settings}
+            onAddToCart={(product) => {
+              setActiveTab('pos');
+            }}
+            onAdjustStock={handleAdjustStock}
+            onSaveProduct={handleSaveProduct}
+            onSaveSerialRecord={async (rec) => {
+              setSerialRecords((prev) => [rec, ...prev.filter((s) => s.serialNumber !== rec.serialNumber)]);
+              try {
+                await warrantiesApi.createOrUpdateSerialDevice(rec);
+              } catch (err: any) {
+                console.warn('API save serial record warning:', err.message);
+              }
+            }}
+            onNavigateToPos={() => setActiveTab('pos')}
+            onOpenBarcodeLabelModal={(prod) => {
+              setBarcodeModalProduct(prod);
+              setShowBarcodeModal(true);
+            }}
+            onUpdateSettings={setSettings}
+          />
+        )}
+
+        {/* Product Barcode & QR Code Label Modal */}
+        {showBarcodeModal && (
+          <ProductBarcodeLabelModal
+            isOpen={showBarcodeModal}
+            onClose={() => {
+              setShowBarcodeModal(false);
+              setBarcodeModalProduct(null);
+            }}
+            products={products}
+            initialSelectedProduct={barcodeModalProduct}
+            settings={settings}
+          />
+        )}
+
+        {/* AI Vision Document OCR & Excel/PDF Import Modal */}
+        {showDocOcrModal && (
+          <DocumentOcrScannerModal
+            isOpen={showDocOcrModal}
+            onClose={() => setShowDocOcrModal(false)}
+            products={products}
+            suppliers={suppliers}
+            settings={settings}
+            initialMode={docOcrInitialMode}
+            onApplyStockIn={handleApplyOcrStockIn}
+            onApplySupplierQuote={handleApplyOcrSupplierQuote}
+            onApplyPurchaseOrder={handleApplyOcrPurchaseOrder}
+            onApplyCustomerQuote={handleApplyOcrCustomerQuote}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }

@@ -1,6 +1,40 @@
 import prisma from "../../config/db";
 import bcrypt from "bcryptjs";
 
+function escapeSqlStr(str: any): string {
+  if (str === null || str === undefined) return "NULL";
+  return `N'${String(str).replace(/'/g, "''")}'`;
+}
+
+function escapeSqlDate(d: any): string {
+  if (!d) return "NULL";
+  const date = new Date(d);
+  if (isNaN(date.getTime())) return "NULL";
+  return `'${date.toISOString()}'`;
+}
+
+function escapeSqlDateRequired(d: any): string {
+  if (!d) return `'${new Date().toISOString()}'`;
+  const date = new Date(d);
+  if (isNaN(date.getTime())) return `'${new Date().toISOString()}'`;
+  return `'${date.toISOString()}'`;
+}
+
+function escapeSqlNum(num: any, defaultVal = 0): string {
+  if (num === null || num === undefined || isNaN(Number(num))) return `${defaultVal}`;
+  return `${Number(num)}`;
+}
+
+function escapeSqlNumNullable(num: any): string {
+  if (num === null || num === undefined || isNaN(Number(num))) return "NULL";
+  return `${Number(num)}`;
+}
+
+function escapeSqlBit(val: any, defaultVal = false): string {
+  if (val === undefined || val === null) return defaultVal ? "1" : "0";
+  return val ? "1" : "0";
+}
+
 export class SettingsService {
   static async getSettings() {
     const records = await prisma.storeSettings.findMany({
@@ -36,53 +70,73 @@ export class SettingsService {
 
   static async updateSettings(data: any) {
     const {
-      storeName = "Gia Phúc Computer",
-      tagline = "",
-      phone = "",
-      email = "",
-      address = "",
-      taxCode = "",
-      bankName = "",
-      bankAccount = "",
-      bankCode = "",
-      ...rest
+      storeName,
+      tagline,
+      phone,
+      email,
+      address,
+      taxCode,
+      bankName,
+      bankAccount,
+      bankCode,
+      ...extendedSettings
     } = data;
 
-    const settingsJson = JSON.stringify(data);
+    const current = (await this.getSettings()) || ({} as any);
+    const mergedExtended = {
+      ...current,
+      ...extendedSettings,
+    };
 
-    const existing = await prisma.storeSettings.findMany({
-      where: { id: "default_settings" },
-    });
+    delete mergedExtended.storeName;
+    delete mergedExtended.tagline;
+    delete mergedExtended.phone;
+    delete mergedExtended.email;
+    delete mergedExtended.address;
+    delete mergedExtended.taxCode;
+    delete mergedExtended.bankName;
+    delete mergedExtended.bankAccount;
+    delete mergedExtended.bankCode;
+    delete mergedExtended.updatedAt;
 
-    if (existing.length === 0) {
-      await prisma.$executeRaw`
+    const settingsJson = JSON.stringify(mergedExtended);
+    const finalStoreName = storeName !== undefined ? storeName : (current.storeName || "Gia Phúc Computer");
+    const finalTagline = tagline !== undefined ? tagline : (current.tagline || "Máy Tính - Laptop - Linh Kiện & Dịch Vụ Kỹ Thuật");
+    const finalPhone = phone !== undefined ? phone : (current.phone || "0985 862 609");
+    const finalEmail = email !== undefined ? email : (current.email || "contact@vitinhgiaphuc.com");
+    const finalAddress = address !== undefined ? address : (current.address || "Số 123 Đường Công Nghệ, TP. Hồ Chí Minh");
+    const finalTaxCode = taxCode !== undefined ? taxCode : (current.taxCode || "0318999888");
+    const finalBankName = bankName !== undefined ? bankName : (current.bankName || "MBBank - Ngân Hàng Quân Đội");
+    const finalBankAccount = bankAccount !== undefined ? bankAccount : (current.bankAccount || "9988776655");
+    const finalBankCode = bankCode !== undefined ? bankCode : (current.bankCode || "MB");
+
+    await prisma.$executeRaw`
+      IF EXISTS (SELECT 1 FROM [StoreSettings] WHERE id = 'default_settings')
+      BEGIN
+        UPDATE [StoreSettings]
+        SET storeName = ${finalStoreName},
+            tagline = ${finalTagline},
+            phone = ${finalPhone},
+            email = ${finalEmail},
+            address = ${finalAddress},
+            taxCode = ${finalTaxCode},
+            bankName = ${finalBankName},
+            bankAccount = ${finalBankAccount},
+            bankCode = ${finalBankCode},
+            settingsJson = ${settingsJson},
+            updatedAt = GETDATE()
+        WHERE id = 'default_settings'
+      END
+      ELSE
+      BEGIN
         INSERT INTO [StoreSettings] (id, storeName, tagline, phone, email, address, taxCode, bankName, bankAccount, bankCode, settingsJson, updatedAt)
-        VALUES ('default_settings', ${storeName}, ${tagline}, ${phone}, ${email}, ${address}, ${taxCode}, ${bankName}, ${bankAccount}, ${bankCode}, ${settingsJson}, GETDATE())
-      `;
-    } else {
-      await prisma.storeSettings.updateMany({
-        where: { id: "default_settings" },
-        data: {
-          storeName,
-          tagline,
-          phone,
-          email,
-          address,
-          taxCode,
-          bankName,
-          bankAccount,
-          bankCode,
-          settingsJson,
-        },
-      });
-    }
+        VALUES ('default_settings', ${finalStoreName}, ${finalTagline}, ${finalPhone}, ${finalEmail}, ${finalAddress}, ${finalTaxCode}, ${finalBankName}, ${finalBankAccount}, ${finalBankCode}, ${settingsJson}, GETDATE())
+      END
+    `;
 
     return this.getSettings();
   }
 
-  /**
-   * 1. Xuất toàn bộ dữ liệu CSDL ra JSON sao lưu (Full Backup)
-   */
   static async backupDatabase() {
     const [
       users,
@@ -114,6 +168,10 @@ export class SettingsService {
       promotions,
       fraudAlerts,
       cashShifts,
+      suppliers,
+      supplierPriceItems,
+      purchaseOrders,
+      purchaseOrderItems,
     ] = await Promise.all([
       prisma.user.findMany(),
       prisma.storeSettings.findMany(),
@@ -144,44 +202,16 @@ export class SettingsService {
       prisma.promotion.findMany(),
       prisma.fraudAlert.findMany(),
       prisma.cashShift.findMany(),
+      prisma.supplier.findMany(),
+      prisma.supplierPriceItem.findMany(),
+      prisma.purchaseOrder.findMany(),
+      prisma.purchaseOrderItem.findMany(),
     ]);
-
-    const totalRecords =
-      users.length +
-      storeSettings.length +
-      products.length +
-      uomConversions.length +
-      customers.length +
-      orders.length +
-      orderItems.length +
-      inventoryLogs.length +
-      stockGoodsReceipts.length +
-      stockGoodsReceiptItems.length +
-      priceQuotes.length +
-      priceQuoteItems.length +
-      productCostings.length +
-      costingBOMItems.length +
-      enterpriseAssets.length +
-      warrantyTickets.length +
-      warrantyPartItems.length +
-      warrantyTimelineEvents.length +
-      serialDeviceRecords.length +
-      eInvoices.length +
-      eInvoiceItems.length +
-      inboundEInvoices.length +
-      inboundInvoiceItems.length +
-      employees.length +
-      laborContracts.length +
-      accountingRecords.length +
-      promotions.length +
-      fraudAlerts.length +
-      cashShifts.length;
 
     const backupPayload = {
       system: "GP-ERP Enterprise",
       version: "2.0.0",
       createdAt: new Date().toISOString(),
-      totalRecords,
       tables: {
         users,
         storeSettings,
@@ -212,21 +242,26 @@ export class SettingsService {
         promotions,
         fraudAlerts,
         cashShifts,
+        suppliers,
+        supplierPriceItems,
+        purchaseOrders,
+        purchaseOrderItems,
       },
     };
 
     return backupPayload;
   }
 
-  /**
-   * 2. Xóa sạch toàn bộ dữ liệu CSDL (Wipe Data - Reset về Trắng)
-   */
   static async wipeAllData(confirmation: string) {
-    if (confirmation !== "XOA_DU_LIEU") {
-      throw new Error("Mã xác nhận không chính xác. Vui lòng nhập đúng 'XOA_DU_LIEU' để xác nhận xóa sạch dữ liệu.");
+    const normConfirm = (confirmation || "").trim().toUpperCase();
+    if (normConfirm !== "XOA_DU_LIEU" && normConfirm !== "CONFIRM_DELETE_ALL_DATA") {
+      throw new Error("Mã xác nhận xóa dữ liệu không chính xác. Vui lòng nhập XOA_DU_LIEU.");
     }
 
-    // Delete in strict foreign key order
+    await prisma.$executeRaw`DELETE FROM [PurchaseOrderItem]`;
+    await prisma.$executeRaw`DELETE FROM [PurchaseOrder]`;
+    await prisma.$executeRaw`DELETE FROM [SupplierPriceItem]`;
+    await prisma.$executeRaw`DELETE FROM [Supplier]`;
     await prisma.$executeRaw`DELETE FROM [OrderItem]`;
     await prisma.$executeRaw`DELETE FROM [Order]`;
     await prisma.$executeRaw`DELETE FROM [StockGoodsReceiptItem]`;
@@ -255,26 +290,27 @@ export class SettingsService {
     await prisma.$executeRaw`DELETE FROM [CashShift]`;
     await prisma.$executeRaw`DELETE FROM [Customer]`;
 
-    // Ensure Admin user and StoreSettings remain active
+    // Giữ nguyên StoreSettings và Admin Account
     await this.ensureAdminAndSettings();
 
     return {
       success: true,
-      message: "Đã xóa sạch toàn bộ dữ liệu hệ thống thành công! CSDL hiện tại là dữ liệu trống (sẵn sàng nhập mới).",
+      message: "Toàn bộ dữ liệu nghiệp vụ đã được xóa sạch hoàn toàn khỏi CSDL SQL Server!",
     };
   }
 
-  /**
-   * 3. Khôi phục CSDL từ File Sao Lưu JSON (Restore Backup)
-   */
-  static async restoreDatabase(payload: any) {
-    if (!payload || !payload.tables) {
-      throw new Error("File sao lưu không đúng định dạng GP-ERP Enterprise Backup JSON.");
+  static async restoreDatabase(backupPayload: any) {
+    if (!backupPayload || !backupPayload.tables) {
+      throw new Error("File sao lưu không hợp lệ hoặc thiếu dữ liệu bảng biểu.");
     }
 
-    const { tables } = payload;
+    const { tables } = backupPayload;
 
-    // Step 1: Clear current data
+    // Step 1: Wipe all existing data in correct FK order
+    await prisma.$executeRaw`DELETE FROM [PurchaseOrderItem]`;
+    await prisma.$executeRaw`DELETE FROM [PurchaseOrder]`;
+    await prisma.$executeRaw`DELETE FROM [SupplierPriceItem]`;
+    await prisma.$executeRaw`DELETE FROM [Supplier]`;
     await prisma.$executeRaw`DELETE FROM [OrderItem]`;
     await prisma.$executeRaw`DELETE FROM [Order]`;
     await prisma.$executeRaw`DELETE FROM [StockGoodsReceiptItem]`;
@@ -302,33 +338,23 @@ export class SettingsService {
     await prisma.$executeRaw`DELETE FROM [FraudAlert]`;
     await prisma.$executeRaw`DELETE FROM [CashShift]`;
     await prisma.$executeRaw`DELETE FROM [Customer]`;
+    await prisma.$executeRaw`DELETE FROM [User]`;
 
     let restoredStats: Record<string, number> = {};
 
-    // Step 2: Insert Users if present
     if (Array.isArray(tables.users) && tables.users.length > 0) {
       for (const u of tables.users) {
-        const existingUsers = await prisma.user.findMany({ where: { username: u.username } });
-        if (existingUsers.length === 0) {
-          await prisma.user.create({
-            data: {
-              id: u.id,
-              username: u.username,
-              passwordHash: u.passwordHash,
-              fullName: u.fullName,
-              email: u.email,
-              phone: u.phone,
-              role: u.role,
-              status: u.status || "active",
-              avatar: u.avatar,
-            },
-          });
-        }
+        await prisma.$executeRawUnsafe(`
+          IF NOT EXISTS (SELECT 1 FROM [User] WHERE id = ${escapeSqlStr(u.id)} OR username = ${escapeSqlStr(u.username)})
+          BEGIN
+            INSERT INTO [User] (id, username, passwordHash, fullName, email, phone, role, status, avatar, createdAt, updatedAt)
+            VALUES (${escapeSqlStr(u.id)}, ${escapeSqlStr(u.username)}, ${escapeSqlStr(u.passwordHash)}, ${escapeSqlStr(u.fullName)}, ${escapeSqlStr(u.email)}, ${escapeSqlStr(u.phone)}, ${escapeSqlStr(u.role)}, ${escapeSqlStr(u.status || 'active')}, ${escapeSqlStr(u.avatar)}, ${escapeSqlDateRequired(u.createdAt)}, ${escapeSqlDateRequired(u.updatedAt)})
+          END
+        `);
       }
       restoredStats["users"] = tables.users.length;
     }
 
-    // Step 3: Insert StoreSettings
     if (Array.isArray(tables.storeSettings) && tables.storeSettings.length > 0) {
       const s = tables.storeSettings[0];
       await this.updateSettings({
@@ -341,429 +367,332 @@ export class SettingsService {
         bankName: s.bankName,
         bankAccount: s.bankAccount,
         bankCode: s.bankCode,
-        ...(s.settingsJson ? JSON.parse(s.settingsJson) : {}),
+        ...(s.settingsJson ? (typeof s.settingsJson === "string" ? JSON.parse(s.settingsJson) : s.settingsJson) : {}),
       });
       restoredStats["settings"] = 1;
     }
 
-    // Step 4: Customers
     if (Array.isArray(tables.customers) && tables.customers.length > 0) {
       for (const c of tables.customers) {
-        await prisma.customer.create({
-          data: {
-            id: c.id,
-            name: c.name,
-            phone: c.phone,
-            email: c.email,
-            address: c.address,
-            tier: c.tier || "Đồng",
-            totalSpent: c.totalSpent || 0,
-            totalOrders: c.totalOrders || 0,
-            debt: c.debt || 0,
-            points: c.points || 0,
-            note: c.note || c.notes,
-          },
-        });
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO [Customer] (id, name, phone, email, address, tier, points, totalSpent, totalOrders, debt, note, createdAt, updatedAt)
+          VALUES (${escapeSqlStr(c.id)}, ${escapeSqlStr(c.name)}, ${escapeSqlStr(c.phone)}, ${escapeSqlStr(c.email)}, ${escapeSqlStr(c.address)}, ${escapeSqlStr(c.tier || "Đồng")}, ${escapeSqlNum(c.points)}, ${escapeSqlNum(c.totalSpent)}, ${escapeSqlNum(c.totalOrders)}, ${escapeSqlNum(c.debt)}, ${escapeSqlStr(c.note || c.notes)}, ${escapeSqlDateRequired(c.createdAt)}, ${escapeSqlDateRequired(c.updatedAt)})
+        `);
       }
       restoredStats["customers"] = tables.customers.length;
     }
 
-    // Step 5: Products & UOM
     if (Array.isArray(tables.products) && tables.products.length > 0) {
       for (const p of tables.products) {
-        await prisma.product.create({
-          data: {
-            id: p.id,
-            sku: p.sku,
-            barcode: p.barcode || p.sku,
-            name: p.name,
-            category: p.category,
-            unit: p.unit,
-            costPrice: p.costPrice,
-            sellingPrice: p.sellingPrice,
-            stock: p.stock,
-            minStock: p.minStock || 5,
-            image: p.image,
-            warehouse: p.warehouse || "Kho Chính",
-            storageLocation: p.storageLocation,
-            description: p.description,
-            isFeatured: p.isFeatured || false,
-            weightOrVolume: p.weightOrVolume,
-          },
-        });
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO [Product] (id, sku, barcode, name, category, unit, costPrice, sellingPrice, stock, minStock, image, warehouse, storageLocation, description, isFeatured, weightOrVolume, createdAt, updatedAt)
+          VALUES (${escapeSqlStr(p.id)}, ${escapeSqlStr(p.sku)}, ${escapeSqlStr(p.barcode || p.sku)}, ${escapeSqlStr(p.name)}, ${escapeSqlStr(p.category)}, ${escapeSqlStr(p.unit)}, ${escapeSqlNum(p.costPrice)}, ${escapeSqlNum(p.sellingPrice)}, ${escapeSqlNum(p.stock)}, ${escapeSqlNum(p.minStock || 5)}, ${escapeSqlStr(p.image)}, ${escapeSqlStr(p.warehouse || "Kho Chính")}, ${escapeSqlStr(p.storageLocation)}, ${escapeSqlStr(p.description)}, ${escapeSqlBit(p.isFeatured, false)}, ${escapeSqlStr(p.weightOrVolume)}, ${escapeSqlDateRequired(p.createdAt)}, ${escapeSqlDateRequired(p.updatedAt)})
+        `);
       }
       restoredStats["products"] = tables.products.length;
 
       if (Array.isArray(tables.uomConversions) && tables.uomConversions.length > 0) {
         for (const u of tables.uomConversions) {
-          await prisma.productUOMConversion.create({
-            data: {
-              id: u.id,
-              productId: u.productId,
-              unit: u.unit,
-              ratioToBase: u.ratioToBase,
-              costPrice: u.costPrice,
-              sellingPrice: u.sellingPrice,
-              barcode: u.barcode,
-            },
-          });
+          await prisma.$executeRawUnsafe(`
+            INSERT INTO [ProductUOMConversion] (id, productId, unit, ratioToBase, costPrice, sellingPrice, barcode, isBase, referenceUnit, conversionRate, description)
+            VALUES (${escapeSqlStr(u.id)}, ${escapeSqlStr(u.productId)}, ${escapeSqlStr(u.unit)}, ${escapeSqlNum(u.ratioToBase || 1)}, ${escapeSqlNum(u.costPrice)}, ${escapeSqlNum(u.sellingPrice)}, ${escapeSqlStr(u.barcode)}, ${escapeSqlBit(u.isBase, false)}, ${escapeSqlStr(u.referenceUnit)}, ${escapeSqlNumNullable(u.conversionRate)}, ${escapeSqlStr(u.description)})
+          `);
         }
         restoredStats["uomConversions"] = tables.uomConversions.length;
       }
     }
 
-    // Step 6: Orders & OrderItems
     if (Array.isArray(tables.orders) && tables.orders.length > 0) {
       for (const o of tables.orders) {
-        await prisma.order.create({
-          data: {
-            id: o.id,
-            code: o.code,
-            customerId: o.customerId,
-            customerName: o.customerName,
-            customerPhone: o.customerPhone,
-            customerAddress: o.customerAddress,
-            subtotal: o.subtotal,
-            taxAmount: o.taxAmount || 0,
-            discountAmount: o.discountAmount || 0,
-            total: o.total,
-            status: o.status,
-            channel: o.channel || "Tại quầy (POS)",
-            paymentMethod: o.paymentMethod || "cash",
-            paymentStatus: o.paymentStatus || "paid",
-            paidAmount: o.paidAmount || o.total,
-            changeAmount: o.changeAmount || 0,
-            note: o.note || o.notes,
-            createdAt: o.createdAt ? new Date(o.createdAt) : new Date(),
-          },
-        });
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO [Order] (id, code, channel, status, customerId, customerName, customerPhone, customerAddress, customerRank, subtotal, discountAmount, discountCode, taxRate, taxAmount, shippingFee, shippingPartner, trackingCode, total, totalCost, profit, paymentMethod, paymentStatus, paidAmount, changeAmount, note, shiftId, createdAt, completedAt)
+          VALUES (${escapeSqlStr(o.id)}, ${escapeSqlStr(o.code)}, ${escapeSqlStr(o.channel || "Tại quầy (POS)")}, ${escapeSqlStr(o.status || "completed")}, ${escapeSqlStr(o.customerId)}, ${escapeSqlStr(o.customerName)}, ${escapeSqlStr(o.customerPhone)}, ${escapeSqlStr(o.customerAddress)}, ${escapeSqlStr(o.customerRank)}, ${escapeSqlNum(o.subtotal)}, ${escapeSqlNum(o.discountAmount)}, ${escapeSqlStr(o.discountCode)}, ${escapeSqlNum(o.taxRate)}, ${escapeSqlNum(o.taxAmount)}, ${escapeSqlNum(o.shippingFee)}, ${escapeSqlStr(o.shippingPartner)}, ${escapeSqlStr(o.trackingCode)}, ${escapeSqlNum(o.total)}, ${escapeSqlNum(o.totalCost)}, ${escapeSqlNum(o.profit)}, ${escapeSqlStr(o.paymentMethod || "cash")}, ${escapeSqlStr(o.paymentStatus || "paid")}, ${escapeSqlNum(o.paidAmount || o.total)}, ${escapeSqlNum(o.changeAmount)}, ${escapeSqlStr(o.note || o.notes)}, ${escapeSqlStr(o.shiftId)}, ${escapeSqlDateRequired(o.createdAt)}, ${escapeSqlDate(o.completedAt)})
+        `);
       }
       restoredStats["orders"] = tables.orders.length;
 
       if (Array.isArray(tables.orderItems) && tables.orderItems.length > 0) {
         for (const oi of tables.orderItems) {
-          await prisma.orderItem.create({
-            data: {
-              id: oi.id,
-              orderId: oi.orderId,
-              productId: oi.productId,
-              productName: oi.productName,
-              sku: oi.sku,
-              unit: oi.unit,
-              ratioToBase: oi.ratioToBase || 1,
-              quantity: oi.quantity,
-              unitPrice: oi.unitPrice,
-              costPrice: oi.costPrice,
-              discountPercent: oi.discountPercent || 0,
-              total: oi.total,
-            },
-          });
+          await prisma.$executeRawUnsafe(`
+            INSERT INTO [OrderItem] (id, orderId, productId, productName, sku, unit, ratioToBase, quantity, unitPrice, costPrice, discountPercent, total)
+            VALUES (${escapeSqlStr(oi.id)}, ${escapeSqlStr(oi.orderId)}, ${escapeSqlStr(oi.productId)}, ${escapeSqlStr(oi.productName)}, ${escapeSqlStr(oi.sku)}, ${escapeSqlStr(oi.unit)}, ${escapeSqlNum(oi.ratioToBase || 1)}, ${escapeSqlNum(oi.quantity || 1)}, ${escapeSqlNum(oi.unitPrice)}, ${escapeSqlNum(oi.costPrice)}, ${escapeSqlNum(oi.discountPercent)}, ${escapeSqlNum(oi.total)})
+          `);
         }
         restoredStats["orderItems"] = tables.orderItems.length;
       }
     }
 
-    // Step 7: Inventory Logs
     if (Array.isArray(tables.inventoryLogs) && tables.inventoryLogs.length > 0) {
       for (const l of tables.inventoryLogs) {
-        await prisma.inventoryLog.create({
-          data: {
-            id: l.id,
-            productId: l.productId,
-            productName: l.productName,
-            sku: l.sku,
-            type: l.type,
-            quantityChange: l.quantityChange,
-            oldStock: l.oldStock,
-            newStock: l.newStock,
-            unitPrice: l.unitPrice,
-            reason: l.reason,
-            performedBy: l.performedBy,
-            timestamp: l.timestamp ? new Date(l.timestamp) : new Date(),
-          },
-        });
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO [InventoryLog] (id, productId, productName, sku, type, quantityChange, oldStock, newStock, unitPrice, reason, performedBy, timestamp)
+          VALUES (${escapeSqlStr(l.id)}, ${escapeSqlStr(l.productId)}, ${escapeSqlStr(l.productName)}, ${escapeSqlStr(l.sku)}, ${escapeSqlStr(l.type)}, ${escapeSqlNum(l.quantityChange)}, ${escapeSqlNum(l.oldStock)}, ${escapeSqlNum(l.newStock)}, ${escapeSqlNumNullable(l.unitPrice)}, ${escapeSqlStr(l.reason || "")}, ${escapeSqlStr(l.performedBy || "Hệ thống")}, ${escapeSqlDateRequired(l.timestamp)})
+        `);
       }
       restoredStats["inventoryLogs"] = tables.inventoryLogs.length;
     }
 
-    // Step 8: Price Quotes
     if (Array.isArray(tables.priceQuotes) && tables.priceQuotes.length > 0) {
       for (const q of tables.priceQuotes) {
-        await prisma.priceQuote.create({
-          data: {
-            id: q.id,
-            code: q.code,
-            customerName: q.customerName,
-            customerPhone: q.customerPhone,
-            customerCompany: q.customerCompany,
-            validUntil: q.validUntil ? new Date(q.validUntil) : new Date(),
-            totalAmount: q.totalAmount || q.subtotal || q.total,
-            discountPercent: q.discountPercent || 0,
-            finalTotal: q.finalTotal || q.total,
-            status: q.status || "draft",
-            notes: q.notes,
-            createdAt: q.createdAt ? new Date(q.createdAt) : new Date(),
-          },
-        });
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO [PriceQuote] (id, code, customerName, customerPhone, customerCompany, totalAmount, discountPercent, finalTotal, validUntil, status, createdAt, notes)
+          VALUES (${escapeSqlStr(q.id)}, ${escapeSqlStr(q.code)}, ${escapeSqlStr(q.customerName)}, ${escapeSqlStr(q.customerPhone)}, ${escapeSqlStr(q.customerCompany)}, ${escapeSqlNum(q.totalAmount || q.subtotal || q.total)}, ${escapeSqlNum(q.discountPercent)}, ${escapeSqlNum(q.finalTotal || q.total)}, ${escapeSqlDateRequired(q.validUntil)}, ${escapeSqlStr(q.status || "draft")}, ${escapeSqlDateRequired(q.createdAt)}, ${escapeSqlStr(q.notes)})
+        `);
       }
       restoredStats["quotes"] = tables.priceQuotes.length;
 
       if (Array.isArray(tables.priceQuoteItems) && tables.priceQuoteItems.length > 0) {
         for (const qi of tables.priceQuoteItems) {
-          await prisma.priceQuoteItem.create({
-            data: {
-              id: qi.id,
-              quoteId: qi.quoteId,
-              productName: qi.productName,
-              sku: qi.sku,
-              unit: qi.unit,
-              quantity: qi.quantity,
-              unitPrice: qi.unitPrice,
-              total: qi.total,
-            },
-          });
+          await prisma.$executeRawUnsafe(`
+            INSERT INTO [PriceQuoteItem] (id, quoteId, productName, sku, unit, quantity, unitPrice, total)
+            VALUES (${escapeSqlStr(qi.id)}, ${escapeSqlStr(qi.quoteId)}, ${escapeSqlStr(qi.productName)}, ${escapeSqlStr(qi.sku)}, ${escapeSqlStr(qi.unit)}, ${escapeSqlNum(qi.quantity || 1)}, ${escapeSqlNum(qi.unitPrice)}, ${escapeSqlNum(qi.total)})
+          `);
         }
+        restoredStats["priceQuoteItems"] = tables.priceQuoteItems.length;
       }
     }
 
-    // Step 9: Costings & BOM
     if (Array.isArray(tables.productCostings) && tables.productCostings.length > 0) {
       for (const c of tables.productCostings) {
-        await prisma.productCosting.create({
-          data: {
-            id: c.id,
-            productName: c.productName,
-            sku: c.sku,
-            rawMaterialsCost: c.rawMaterialsCost,
-            laborCost: c.laborCost,
-            machineryAndOverheadCost: c.machineryAndOverheadCost,
-            totalStandardCost: c.totalStandardCost,
-            currentSellingPrice: c.currentSellingPrice,
-            grossMarginPercent: c.grossMarginPercent,
-            lastUpdated: c.lastUpdated ? new Date(c.lastUpdated) : new Date(),
-          },
-        });
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO [ProductCosting] (id, productName, sku, rawMaterialsCost, laborCost, machineryAndOverheadCost, totalStandardCost, currentSellingPrice, grossMarginPercent, lastUpdated)
+          VALUES (${escapeSqlStr(c.id)}, ${escapeSqlStr(c.productName)}, ${escapeSqlStr(c.sku)}, ${escapeSqlNum(c.rawMaterialsCost)}, ${escapeSqlNum(c.laborCost)}, ${escapeSqlNum(c.machineryAndOverheadCost)}, ${escapeSqlNum(c.totalStandardCost)}, ${escapeSqlNum(c.currentSellingPrice)}, ${escapeSqlNum(c.grossMarginPercent)}, ${escapeSqlDateRequired(c.lastUpdated)})
+        `);
       }
       restoredStats["costings"] = tables.productCostings.length;
 
       if (Array.isArray(tables.costingBOMItems) && tables.costingBOMItems.length > 0) {
         for (const bi of tables.costingBOMItems) {
-          await prisma.costingBOMItem.create({
-            data: {
-              id: bi.id,
-              costingId: bi.costingId,
-              materialName: bi.materialName,
-              quantity: bi.quantity,
-              unit: bi.unit,
-              unitCost: bi.unitCost,
-              totalCost: bi.totalCost,
-            },
-          });
+          await prisma.$executeRawUnsafe(`
+            INSERT INTO [CostingBOMItem] (id, costingId, materialName, quantity, unit, unitCost, totalCost)
+            VALUES (${escapeSqlStr(bi.id)}, ${escapeSqlStr(bi.costingId)}, ${escapeSqlStr(bi.materialName)}, ${escapeSqlNum(bi.quantity || 1)}, ${escapeSqlStr(bi.unit)}, ${escapeSqlNum(bi.unitCost)}, ${escapeSqlNum(bi.totalCost)})
+          `);
         }
+        restoredStats["costingBOMItems"] = tables.costingBOMItems.length;
       }
     }
 
-    // Step 10: Warranty Tickets & Serial Devices
+    if (Array.isArray(tables.stockGoodsReceipts) && tables.stockGoodsReceipts.length > 0) {
+      for (const r of tables.stockGoodsReceipts) {
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO [StockGoodsReceipt] (id, code, date, inboundInvoiceId, inboundInvoiceCode, supplierName, supplierTaxCode, warehouseName, creatorName, receivedBy, totalItemsCount, totalQuantity, totalCostAmount, totalTaxAmount, grandTotal, paymentStatus, notes)
+          VALUES (${escapeSqlStr(r.id)}, ${escapeSqlStr(r.code)}, ${escapeSqlDateRequired(r.date)}, ${escapeSqlStr(r.inboundInvoiceId)}, ${escapeSqlStr(r.inboundInvoiceCode)}, ${escapeSqlStr(r.supplierName)}, ${escapeSqlStr(r.supplierTaxCode)}, ${escapeSqlStr(r.warehouseName || 'Kho Chính')}, ${escapeSqlStr(r.creatorName || 'Admin')}, ${escapeSqlStr(r.receivedBy || 'Thủ Kho')}, ${escapeSqlNum(r.totalItemsCount)}, ${escapeSqlNum(r.totalQuantity)}, ${escapeSqlNum(r.totalCostAmount)}, ${escapeSqlNum(r.totalTaxAmount)}, ${escapeSqlNum(r.grandTotal)}, ${escapeSqlStr(r.paymentStatus || 'paid')}, ${escapeSqlStr(r.notes)})
+        `);
+      }
+      restoredStats["stockGoodsReceipts"] = tables.stockGoodsReceipts.length;
+
+      if (Array.isArray(tables.stockGoodsReceiptItems) && tables.stockGoodsReceiptItems.length > 0) {
+        for (const ri of tables.stockGoodsReceiptItems) {
+          await prisma.$executeRawUnsafe(`
+            INSERT INTO [StockGoodsReceiptItem] (id, receiptId, productId, productName, sku, unit, quantity, oldStock, newStock, oldCostPrice, newCostPrice, unitCost, taxRate, totalAmount, storageLocation, warehouse, category, notes)
+            VALUES (${escapeSqlStr(ri.id)}, ${escapeSqlStr(ri.receiptId)}, ${escapeSqlStr(ri.productId)}, ${escapeSqlStr(ri.productName)}, ${escapeSqlStr(ri.sku)}, ${escapeSqlStr(ri.unit)}, ${escapeSqlNum(ri.quantity || 1)}, ${escapeSqlNum(ri.oldStock)}, ${escapeSqlNum(ri.newStock)}, ${escapeSqlNum(ri.oldCostPrice)}, ${escapeSqlNum(ri.newCostPrice)}, ${escapeSqlNum(ri.unitCost)}, ${escapeSqlNum(ri.taxRate)}, ${escapeSqlNum(ri.totalAmount)}, ${escapeSqlStr(ri.storageLocation)}, ${escapeSqlStr(ri.warehouse)}, ${escapeSqlStr(ri.category)}, ${escapeSqlStr(ri.notes)})
+          `);
+        }
+        restoredStats["stockGoodsReceiptItems"] = tables.stockGoodsReceiptItems.length;
+      }
+    }
+
     if (Array.isArray(tables.warrantyTickets) && tables.warrantyTickets.length > 0) {
       for (const w of tables.warrantyTickets) {
-        await prisma.warrantyTicket.create({
-          data: {
-            id: w.id,
-            code: w.code,
-            type: w.type || "warranty",
-            priority: w.priority || "normal",
-            customerName: w.customerName,
-            customerPhone: w.customerPhone,
-            customerAddress: w.customerAddress,
-            productName: w.productName || w.deviceName || "Thiết bị",
-            serialNumber: w.serialNumber,
-            productId: w.productId,
-            issueDescription: w.issueDescription || "Bảo hành thiết bị",
-            status: w.status || "received",
-            technicianName: w.technicianName || w.assignedTechnician || "Kỹ thuật viên",
-            receivedDate: w.receivedDate ? new Date(w.receivedDate) : new Date(),
-            expectedReturnDate: w.expectedReturnDate ? new Date(w.expectedReturnDate) : new Date(),
-            laborCost: w.laborCost || 0,
-            partsCost: w.partsCost || 0,
-            totalFee: w.totalFee || 0,
-          },
-        });
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO [WarrantyTicket] (id, code, type, priority, status, orderCode, productId, productName, model, serialNumber, qrCodeUrl, customerName, customerPhone, customerAddress, customerEmail, accessoriesIncluded, cosmeticCondition, issueDescription, technicianDiagnosis, resolution, technicianName, receivedDate, expectedReturnDate, actualReturnDate, laborCost, partsCost, discountAmount, totalFee, paymentStatus, paidAmount, returnedToPerson, returnNote, warrantyExtensionMonths)
+          VALUES (${escapeSqlStr(w.id)}, ${escapeSqlStr(w.code)}, ${escapeSqlStr(w.type || "warranty")}, ${escapeSqlStr(w.priority || "normal")}, ${escapeSqlStr(w.status || "received")}, ${escapeSqlStr(w.orderCode)}, ${escapeSqlStr(w.productId)}, ${escapeSqlStr(w.productName || w.deviceName || "Thiết bị")}, ${escapeSqlStr(w.model)}, ${escapeSqlStr(w.serialNumber || "")}, ${escapeSqlStr(w.qrCodeUrl)}, ${escapeSqlStr(w.customerName)}, ${escapeSqlStr(w.customerPhone)}, ${escapeSqlStr(w.customerAddress)}, ${escapeSqlStr(w.customerEmail)}, ${escapeSqlStr(w.accessoriesIncluded)}, ${escapeSqlStr(w.cosmeticCondition)}, ${escapeSqlStr(w.issueDescription || "")}, ${escapeSqlStr(w.technicianDiagnosis)}, ${escapeSqlStr(w.resolution)}, ${escapeSqlStr(w.technicianName || "Kỹ thuật viên")}, ${escapeSqlDateRequired(w.receivedDate)}, ${escapeSqlDateRequired(w.expectedReturnDate)}, ${escapeSqlDate(w.actualReturnDate)}, ${escapeSqlNum(w.laborCost)}, ${escapeSqlNum(w.partsCost)}, ${escapeSqlNum(w.discountAmount)}, ${escapeSqlNum(w.totalFee)}, ${escapeSqlStr(w.paymentStatus || "free")}, ${escapeSqlNum(w.paidAmount)}, ${escapeSqlStr(w.returnedToPerson)}, ${escapeSqlStr(w.returnNote)}, ${escapeSqlNum(w.warrantyExtensionMonths)})
+        `);
       }
       restoredStats["warrantyTickets"] = tables.warrantyTickets.length;
+
+      if (Array.isArray(tables.warrantyPartItems) && tables.warrantyPartItems.length > 0) {
+        for (const pi of tables.warrantyPartItems) {
+          await prisma.$executeRawUnsafe(`
+            INSERT INTO [WarrantyPartItem] (id, warrantyId, partName, sku, quantity, unit, unitPrice, isUnderWarranty, warrantyMonths)
+            VALUES (${escapeSqlStr(pi.id)}, ${escapeSqlStr(pi.warrantyId)}, ${escapeSqlStr(pi.partName)}, ${escapeSqlStr(pi.sku)}, ${escapeSqlNum(pi.quantity || 1)}, ${escapeSqlStr(pi.unit)}, ${escapeSqlNum(pi.unitPrice)}, ${escapeSqlBit(pi.isUnderWarranty, true)}, ${escapeSqlNum(pi.warrantyMonths)})
+          `);
+        }
+        restoredStats["warrantyPartItems"] = tables.warrantyPartItems.length;
+      }
+
+      if (Array.isArray(tables.warrantyTimelineEvents) && tables.warrantyTimelineEvents.length > 0) {
+        for (const tl of tables.warrantyTimelineEvents) {
+          await prisma.$executeRawUnsafe(`
+            INSERT INTO [WarrantyTimelineEvent] (id, warrantyId, timestamp, action, actor, notes, status)
+            VALUES (${escapeSqlStr(tl.id)}, ${escapeSqlStr(tl.warrantyId)}, ${escapeSqlDateRequired(tl.timestamp)}, ${escapeSqlStr(tl.action)}, ${escapeSqlStr(tl.actor)}, ${escapeSqlStr(tl.notes)}, ${escapeSqlStr(tl.status)})
+          `);
+        }
+        restoredStats["warrantyTimelineEvents"] = tables.warrantyTimelineEvents.length;
+      }
     }
 
     if (Array.isArray(tables.serialDeviceRecords) && tables.serialDeviceRecords.length > 0) {
       for (const s of tables.serialDeviceRecords) {
-        await prisma.serialDeviceRecord.create({
-          data: {
-            id: s.id,
-            serialNumber: s.serialNumber,
-            productName: s.productName,
-            sku: s.sku || s.productSku,
-            customerName: s.customerName,
-            customerPhone: s.customerPhone,
-            soldDate: s.soldDate ? new Date(s.soldDate) : null,
-            warrantyPeriodMonths: s.warrantyPeriodMonths || s.warrantyMonths || 12,
-            warrantyExpiryDate: s.warrantyExpiryDate ? new Date(s.warrantyExpiryDate) : new Date(),
-            warrantyStatus: s.warrantyStatus || "valid",
-            soldOrderCode: s.soldOrderCode,
-            totalRepairsCount: s.totalRepairsCount || 0,
-            totalMaintenancesCount: s.totalMaintenancesCount || 0,
-            notes: s.notes,
-          },
-        });
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO [SerialDeviceRecord] (id, serialNumber, productName, sku, soldOrderCode, soldDate, customerName, customerPhone, warrantyPeriodMonths, warrantyExpiryDate, warrantyStatus, totalRepairsCount, totalMaintenancesCount, notes)
+          VALUES (${escapeSqlStr(s.id)}, ${escapeSqlStr(s.serialNumber)}, ${escapeSqlStr(s.productName)}, ${escapeSqlStr(s.sku || s.productSku || "")}, ${escapeSqlStr(s.soldOrderCode)}, ${escapeSqlDate(s.soldDate)}, ${escapeSqlStr(s.customerName)}, ${escapeSqlStr(s.customerPhone)}, ${escapeSqlNum(s.warrantyPeriodMonths || s.warrantyMonths || 12)}, ${escapeSqlDateRequired(s.warrantyExpiryDate)}, ${escapeSqlStr(s.warrantyStatus || "valid")}, ${escapeSqlNum(s.totalRepairsCount)}, ${escapeSqlNum(s.totalMaintenancesCount)}, ${escapeSqlStr(s.notes)})
+        `);
       }
       restoredStats["serialRecords"] = tables.serialDeviceRecords.length;
     }
 
-    // Step 11: Accounting, HR, Assets, Inbound
     if (Array.isArray(tables.accountingRecords) && tables.accountingRecords.length > 0) {
       for (const a of tables.accountingRecords) {
-        await prisma.accountingRecord.create({
-          data: {
-            id: a.id,
-            code: a.code,
-            type: a.type,
-            category: a.category,
-            amount: a.amount,
-            date: a.date ? new Date(a.date) : new Date(),
-            party: a.party,
-            paymentMethod: a.paymentMethod || "cash",
-            status: a.status || "completed",
-            note: a.note,
-            receiptNumber: a.receiptNumber,
-          },
-        });
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO [AccountingRecord] (id, code, type, category, amount, date, party, paymentMethod, status, note, receiptNumber)
+          VALUES (${escapeSqlStr(a.id)}, ${escapeSqlStr(a.code)}, ${escapeSqlStr(a.type)}, ${escapeSqlStr(a.category)}, ${escapeSqlNum(a.amount)}, ${escapeSqlDateRequired(a.date)}, ${escapeSqlStr(a.party)}, ${escapeSqlStr(a.paymentMethod || "cash")}, ${escapeSqlStr(a.status || "completed")}, ${escapeSqlStr(a.note)}, ${escapeSqlStr(a.receiptNumber)})
+        `);
       }
       restoredStats["accountingRecords"] = tables.accountingRecords.length;
     }
 
     if (Array.isArray(tables.employees) && tables.employees.length > 0) {
       for (const emp of tables.employees) {
-        await prisma.employee.create({
-          data: {
-            id: emp.id,
-            code: emp.code,
-            name: emp.name,
-            role: emp.role,
-            phone: emp.phone,
-            email: emp.email,
-            baseSalary: emp.baseSalary,
-            salesKpiTarget: emp.salesKpiTarget || 0,
-            currentSales: emp.currentSales || 0,
-            commissionRate: emp.commissionRate || 0,
-            status: emp.status || "active",
-            avatar: emp.avatar,
-            joinedDate: emp.joinedDate ? new Date(emp.joinedDate) : new Date(),
-            shiftSchedule: emp.shiftSchedule,
-          },
-        });
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO [Employee] (id, code, name, role, phone, email, baseSalary, salesKpiTarget, currentSales, commissionRate, status, avatar, joinedDate, shiftSchedule)
+          VALUES (${escapeSqlStr(emp.id)}, ${escapeSqlStr(emp.code)}, ${escapeSqlStr(emp.name)}, ${escapeSqlStr(emp.role)}, ${escapeSqlStr(emp.phone)}, ${escapeSqlStr(emp.email)}, ${escapeSqlNum(emp.baseSalary)}, ${escapeSqlNum(emp.salesKpiTarget)}, ${escapeSqlNum(emp.currentSales)}, ${escapeSqlNum(emp.commissionRate)}, ${escapeSqlStr(emp.status || "active")}, ${escapeSqlStr(emp.avatar)}, ${escapeSqlDateRequired(emp.joinedDate)}, ${escapeSqlStr(emp.shiftSchedule)})
+        `);
       }
       restoredStats["employees"] = tables.employees.length;
     }
 
     if (Array.isArray(tables.laborContracts) && tables.laborContracts.length > 0) {
       for (const lc of tables.laborContracts) {
-        await prisma.laborContract.create({
-          data: {
-            id: lc.id,
-            contractNumber: lc.contractNumber,
-            employeeId: lc.employeeId,
-            employeeCode: lc.employeeCode,
-            employeeName: lc.employeeName,
-            employeeRole: lc.employeeRole,
-            contractType: lc.contractType,
-            startDate: lc.startDate ? new Date(lc.startDate) : new Date(),
-            endDate: lc.endDate ? new Date(lc.endDate) : null,
-            signDate: lc.signDate ? new Date(lc.signDate) : new Date(),
-            status: lc.status || "active",
-            employerData: lc.employerData,
-            employeeInfo: lc.employeeInfo,
-            termsData: lc.termsData,
-            signaturesData: lc.signaturesData,
-            notes: lc.notes,
-          },
-        });
+        const employerData = typeof lc.employerData === "string" ? lc.employerData : JSON.stringify(lc.employerData || {});
+        const employeeInfo = typeof lc.employeeInfo === "string" ? lc.employeeInfo : JSON.stringify(lc.employeeInfo || {});
+        const termsData = typeof lc.termsData === "string" ? lc.termsData : JSON.stringify(lc.termsData || {});
+        const signaturesData = typeof lc.signaturesData === "string" ? lc.signaturesData : JSON.stringify(lc.signaturesData || {});
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO [LaborContract] (id, contractNumber, employeeId, employeeCode, employeeName, employeeRole, contractType, startDate, endDate, signDate, status, employerData, employeeInfo, termsData, signaturesData, notes)
+          VALUES (${escapeSqlStr(lc.id)}, ${escapeSqlStr(lc.contractNumber)}, ${escapeSqlStr(lc.employeeId)}, ${escapeSqlStr(lc.employeeCode)}, ${escapeSqlStr(lc.employeeName)}, ${escapeSqlStr(lc.employeeRole)}, ${escapeSqlStr(lc.contractType)}, ${escapeSqlDateRequired(lc.startDate)}, ${escapeSqlDate(lc.endDate)}, ${escapeSqlDateRequired(lc.signDate)}, ${escapeSqlStr(lc.status || "active")}, ${escapeSqlStr(employerData)}, ${escapeSqlStr(employeeInfo)}, ${escapeSqlStr(termsData)}, ${escapeSqlStr(signaturesData)}, ${escapeSqlStr(lc.notes)})
+        `);
       }
       restoredStats["laborContracts"] = tables.laborContracts.length;
     }
 
     if (Array.isArray(tables.enterpriseAssets) && tables.enterpriseAssets.length > 0) {
       for (const ast of tables.enterpriseAssets) {
-        const id = ast.id;
-        const pDate = new Date(ast.purchaseDate);
-        const mDate = ast.lastMaintenanceDate ? new Date(ast.lastMaintenanceDate) : null;
-        const status = ast.status || "good";
-        const depMonths = Number(ast.depreciationMonths) || 12;
-        const origVal = Number(ast.originalValue) || 0;
-        const remVal = Number(ast.remainingValue) || 0;
-        if (mDate) {
-          await prisma.$executeRaw`
-            INSERT INTO [EnterpriseAsset] (id, code, name, category, purchaseDate, originalValue, depreciationMonths, remainingValue, assignedTo, status, lastMaintenanceDate)
-            VALUES (${id}, ${ast.code}, ${ast.name}, ${ast.category}, ${pDate}, ${origVal}, ${depMonths}, ${remVal}, ${ast.assignedTo}, ${status}, ${mDate})
-          `;
-        } else {
-          await prisma.$executeRaw`
-            INSERT INTO [EnterpriseAsset] (id, code, name, category, purchaseDate, originalValue, depreciationMonths, remainingValue, assignedTo, status)
-            VALUES (${id}, ${ast.code}, ${ast.name}, ${ast.category}, ${pDate}, ${origVal}, ${depMonths}, ${remVal}, ${ast.assignedTo}, ${status})
-          `;
-        }
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO [EnterpriseAsset] (id, code, name, category, purchaseDate, originalValue, depreciationMonths, remainingValue, assignedTo, status, lastMaintenanceDate)
+          VALUES (${escapeSqlStr(ast.id)}, ${escapeSqlStr(ast.code)}, ${escapeSqlStr(ast.name)}, ${escapeSqlStr(ast.category)}, ${escapeSqlDateRequired(ast.purchaseDate)}, ${escapeSqlNum(ast.originalValue)}, ${escapeSqlNum(ast.depreciationMonths || 12)}, ${escapeSqlNum(ast.remainingValue)}, ${escapeSqlStr(ast.assignedTo)}, ${escapeSqlStr(ast.status || "good")}, ${escapeSqlDate(ast.lastMaintenanceDate)})
+        `);
       }
       restoredStats["assets"] = tables.enterpriseAssets.length;
     }
 
     if (Array.isArray(tables.eInvoices) && tables.eInvoices.length > 0) {
       for (const inv of tables.eInvoices) {
-        await prisma.eInvoice.create({
-          data: {
-            id: inv.id,
-            orderId: inv.orderId,
-            orderCode: inv.orderCode,
-            invoiceCode: inv.invoiceCode,
-            invoiceNumber: inv.invoiceNumber,
-            invoiceSymbol: inv.invoiceSymbol,
-            invoiceTemplate: inv.invoiceTemplate,
-            issueDate: inv.issueDate ? new Date(inv.issueDate) : new Date(),
-            cqtCode: inv.cqtCode,
-            lookupCode: inv.lookupCode || inv.invoiceCode,
-            lookupUrl: inv.lookupUrl || "https://hoadondientu.gdt.gov.vn",
-            sellerData: typeof inv.sellerData === "string" ? inv.sellerData : JSON.stringify(inv.sellerData || {}),
-            buyerData: typeof inv.buyerData === "string" ? inv.buyerData : JSON.stringify(inv.buyerData || {}),
-            paymentMethod: inv.paymentMethod || "TM/CK",
-            subtotal: inv.subtotal,
-            taxRate: inv.taxRate || 0,
-            taxAmount: inv.taxAmount || 0,
-            totalAmount: inv.totalAmount,
-            amountInWords: inv.amountInWords || "",
-            status: inv.status || "signed",
-            signDate: inv.signDate ? new Date(inv.signDate) : new Date(),
-          },
-        });
+        const sellerData = typeof inv.sellerData === "string" ? inv.sellerData : JSON.stringify(inv.sellerData || {});
+        const buyerData = typeof inv.buyerData === "string" ? inv.buyerData : JSON.stringify(inv.buyerData || {});
+        const digitalSignature = inv.digitalSignature ? (typeof inv.digitalSignature === "string" ? inv.digitalSignature : JSON.stringify(inv.digitalSignature)) : null;
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO [EInvoice] (id, invoiceCode, invoiceNumber, invoiceSymbol, invoiceTemplate, invoiceType, cqtCode, lookupCode, lookupUrl, issueDate, signDate, status, orderId, orderCode, sellerData, buyerData, subtotal, discountAmount, taxRate, taxAmount, totalAmount, amountInWords, paymentMethod, notes, digitalSignature, cqtStatusMessage)
+          VALUES (${escapeSqlStr(inv.id)}, ${escapeSqlStr(inv.invoiceCode)}, ${escapeSqlStr(inv.invoiceNumber)}, ${escapeSqlStr(inv.invoiceSymbol)}, ${escapeSqlStr(inv.invoiceTemplate)}, ${escapeSqlStr(inv.invoiceType || "vat")}, ${escapeSqlStr(inv.cqtCode)}, ${escapeSqlStr(inv.lookupCode || inv.invoiceCode)}, ${escapeSqlStr(inv.lookupUrl || "https://hoadondientu.gdt.gov.vn")}, ${escapeSqlDateRequired(inv.issueDate)}, ${escapeSqlDate(inv.signDate)}, ${escapeSqlStr(inv.status || "signed")}, ${escapeSqlStr(inv.orderId)}, ${escapeSqlStr(inv.orderCode)}, ${escapeSqlStr(sellerData)}, ${escapeSqlStr(buyerData)}, ${escapeSqlNum(inv.subtotal)}, ${escapeSqlNum(inv.discountAmount)}, ${escapeSqlNum(inv.taxRate)}, ${escapeSqlNum(inv.taxAmount)}, ${escapeSqlNum(inv.totalAmount)}, ${escapeSqlStr(inv.amountInWords || "")}, ${escapeSqlStr(inv.paymentMethod || "TM/CK")}, ${escapeSqlStr(inv.notes)}, ${escapeSqlStr(digitalSignature)}, ${escapeSqlStr(inv.cqtStatusMessage)})
+        `);
       }
       restoredStats["eInvoices"] = tables.eInvoices.length;
+
+      if (Array.isArray(tables.eInvoiceItems) && tables.eInvoiceItems.length > 0) {
+        for (const ii of tables.eInvoiceItems) {
+          await prisma.$executeRawUnsafe(`
+            INSERT INTO [EInvoiceItem] (id, invoiceId, sku, productName, unit, quantity, unitPrice, subtotal, discountPercent, discountAmount, taxRate, taxAmount, total)
+            VALUES (${escapeSqlStr(ii.id)}, ${escapeSqlStr(ii.invoiceId)}, ${escapeSqlStr(ii.sku)}, ${escapeSqlStr(ii.productName)}, ${escapeSqlStr(ii.unit)}, ${escapeSqlNum(ii.quantity || 1)}, ${escapeSqlNum(ii.unitPrice)}, ${escapeSqlNum(ii.subtotal)}, ${escapeSqlNum(ii.discountPercent)}, ${escapeSqlNum(ii.discountAmount)}, ${escapeSqlNum(ii.taxRate)}, ${escapeSqlNum(ii.taxAmount)}, ${escapeSqlNum(ii.total)})
+          `);
+        }
+        restoredStats["eInvoiceItems"] = tables.eInvoiceItems.length;
+      }
+    }
+
+    if (Array.isArray(tables.inboundEInvoices) && tables.inboundEInvoices.length > 0) {
+      for (const inb of tables.inboundEInvoices) {
+        const sellerData = typeof inb.sellerData === "string" ? inb.sellerData : JSON.stringify(inb.sellerData || {});
+        const buyerData = typeof inb.buyerData === "string" ? inb.buyerData : JSON.stringify(inb.buyerData || {});
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO [InboundEInvoice] (id, source, sourceDetail, sourceFile, invoiceCode, invoiceNumber, invoiceSymbol, invoiceTemplate, issueDate, receivedDate, cqtCode, lookupCode, lookupUrl, sellerData, buyerData, subtotal, taxRate, taxAmount, totalAmount, amountInWords, status, goodsReceiptId, importedAt, importedBy, targetWarehouse, accountingRecordId, notes, rawXmlContent)
+          VALUES (${escapeSqlStr(inb.id)}, ${escapeSqlStr(inb.source || "xml_upload")}, ${escapeSqlStr(inb.sourceDetail)}, ${escapeSqlStr(inb.sourceFile)}, ${escapeSqlStr(inb.invoiceCode)}, ${escapeSqlStr(inb.invoiceNumber)}, ${escapeSqlStr(inb.invoiceSymbol)}, ${escapeSqlStr(inb.invoiceTemplate)}, ${escapeSqlDateRequired(inb.issueDate)}, ${escapeSqlDateRequired(inb.receivedDate)}, ${escapeSqlStr(inb.cqtCode)}, ${escapeSqlStr(inb.lookupCode)}, ${escapeSqlStr(inb.lookupUrl)}, ${escapeSqlStr(sellerData)}, ${escapeSqlStr(buyerData)}, ${escapeSqlNum(inb.subtotal)}, ${escapeSqlNum(inb.taxRate)}, ${escapeSqlNum(inb.taxAmount)}, ${escapeSqlNum(inb.totalAmount)}, ${escapeSqlStr(inb.amountInWords || "")}, ${escapeSqlStr(inb.status || "pending_review")}, ${escapeSqlStr(inb.goodsReceiptId)}, ${escapeSqlDate(inb.importedAt)}, ${escapeSqlStr(inb.importedBy)}, ${escapeSqlStr(inb.targetWarehouse)}, ${escapeSqlStr(inb.accountingRecordId)}, ${escapeSqlStr(inb.notes)}, ${escapeSqlStr(inb.rawXmlContent)})
+        `);
+      }
+      restoredStats["inboundEInvoices"] = tables.inboundEInvoices.length;
+
+      if (Array.isArray(tables.inboundInvoiceItems) && tables.inboundInvoiceItems.length > 0) {
+        for (const item of tables.inboundInvoiceItems) {
+          await prisma.$executeRawUnsafe(`
+            INSERT INTO [InboundInvoiceItem] (id, inboundInvoiceId, lineNumber, productName, skuOrCode, unit, quantity, unitPrice, subtotal, taxRate, taxAmount, total, matchedProductId, matchedProductName, matchedProductSku, currentStock, currentCostPrice, ratioToBaseUnit, isNewProduct, status, assignedCategory, assignedWarehouse, assignedStorageLocation, suggestedSellingPrice, customSku, customBarcode)
+            VALUES (${escapeSqlStr(item.id)}, ${escapeSqlStr(item.inboundInvoiceId)}, ${escapeSqlNum(item.lineNumber || 1)}, ${escapeSqlStr(item.productName)}, ${escapeSqlStr(item.skuOrCode)}, ${escapeSqlStr(item.unit)}, ${escapeSqlNum(item.quantity || 1)}, ${escapeSqlNum(item.unitPrice)}, ${escapeSqlNum(item.subtotal)}, ${escapeSqlNum(item.taxRate)}, ${escapeSqlNum(item.taxAmount)}, ${escapeSqlNum(item.total)}, ${escapeSqlStr(item.matchedProductId)}, ${escapeSqlStr(item.matchedProductName)}, ${escapeSqlStr(item.matchedProductSku)}, ${escapeSqlNumNullable(item.currentStock)}, ${escapeSqlNumNullable(item.currentCostPrice)}, ${escapeSqlNum(item.ratioToBaseUnit || 1)}, ${escapeSqlBit(item.isNewProduct, false)}, ${escapeSqlStr(item.status || "unmatched")}, ${escapeSqlStr(item.assignedCategory)}, ${escapeSqlStr(item.assignedWarehouse)}, ${escapeSqlStr(item.assignedStorageLocation)}, ${escapeSqlNumNullable(item.suggestedSellingPrice)}, ${escapeSqlStr(item.customSku)}, ${escapeSqlStr(item.customBarcode)})
+          `);
+        }
+        restoredStats["inboundInvoiceItems"] = tables.inboundInvoiceItems.length;
+      }
     }
 
     if (Array.isArray(tables.promotions) && tables.promotions.length > 0) {
       for (const p of tables.promotions) {
-        await prisma.promotion.create({
-          data: {
-            id: p.id,
-            code: p.code,
-            title: p.title,
-            discountType: p.discountType,
-            discountValue: p.discountValue,
-            minOrderValue: p.minOrderValue || 0,
-            maxDiscount: p.maxDiscount,
-            usageLimit: p.usageLimit || 100,
-            usedCount: p.usedCount || 0,
-            startDate: p.startDate ? new Date(p.startDate) : new Date(),
-            endDate: p.endDate ? new Date(p.endDate) : new Date(),
-            isActive: p.isActive !== false,
-          },
-        });
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO [Promotion] (id, code, title, discountType, discountValue, minOrderValue, maxDiscount, usageLimit, usedCount, startDate, endDate, isActive)
+          VALUES (${escapeSqlStr(p.id)}, ${escapeSqlStr(p.code)}, ${escapeSqlStr(p.title)}, ${escapeSqlStr(p.discountType)}, ${escapeSqlNum(p.discountValue)}, ${escapeSqlNum(p.minOrderValue)}, ${escapeSqlNumNullable(p.maxDiscount)}, ${escapeSqlNum(p.usageLimit || 100)}, ${escapeSqlNum(p.usedCount)}, ${escapeSqlDateRequired(p.startDate)}, ${escapeSqlDateRequired(p.endDate)}, ${escapeSqlBit(p.isActive, true)})
+        `);
       }
       restoredStats["promotions"] = tables.promotions.length;
     }
+
+    if (Array.isArray(tables.fraudAlerts) && tables.fraudAlerts.length > 0) {
+      for (const f of tables.fraudAlerts) {
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO [FraudAlert] (id, severity, title, description, timestamp, source, status, suggestedAction)
+          VALUES (${escapeSqlStr(f.id)}, ${escapeSqlStr(f.severity || "medium")}, ${escapeSqlStr(f.title)}, ${escapeSqlStr(f.description)}, ${escapeSqlDateRequired(f.timestamp)}, ${escapeSqlStr(f.source || "POS")}, ${escapeSqlStr(f.status || "unresolved")}, ${escapeSqlStr(f.suggestedAction || "")})
+        `);
+      }
+      restoredStats["fraudAlerts"] = tables.fraudAlerts.length;
+    }
+
+    if (Array.isArray(tables.cashShifts) && tables.cashShifts.length > 0) {
+      for (const cs of tables.cashShifts) {
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO [CashShift] (id, shiftName, staffId, staffName, startTime, endTime, initialCash, cashSales, transferSales, cardSales, otherSales, totalSales, cashWithdrawals, expectedEndingCash, actualEndingCash, note, status)
+          VALUES (${escapeSqlStr(cs.id)}, ${escapeSqlStr(cs.shiftName)}, ${escapeSqlStr(cs.staffId)}, ${escapeSqlStr(cs.staffName)}, ${escapeSqlDateRequired(cs.startTime)}, ${escapeSqlDate(cs.endTime)}, ${escapeSqlNum(cs.initialCash)}, ${escapeSqlNum(cs.cashSales)}, ${escapeSqlNum(cs.transferSales)}, ${escapeSqlNum(cs.cardSales)}, ${escapeSqlNum(cs.otherSales)}, ${escapeSqlNum(cs.totalSales)}, ${escapeSqlNum(cs.cashWithdrawals)}, ${escapeSqlNum(cs.expectedEndingCash)}, ${escapeSqlNumNullable(cs.actualEndingCash)}, ${escapeSqlStr(cs.note)}, ${escapeSqlStr(cs.status || "open")})
+        `);
+      }
+      restoredStats["cashShifts"] = tables.cashShifts.length;
+    }
+
+    if (Array.isArray(tables.suppliers) && tables.suppliers.length > 0) {
+      for (const sup of tables.suppliers) {
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO [Supplier] (id, code, name, taxCode, tier, category, contactPerson, phone, email, address, bankName, bankAccount, bankCode, creditLimit, creditDays, currentDebt, ratingQuality, ratingPrice, ratingOnTime, ratingWarranty, notes, createdAt, updatedAt)
+          VALUES (${escapeSqlStr(sup.id)}, ${escapeSqlStr(sup.code)}, ${escapeSqlStr(sup.name)}, ${escapeSqlStr(sup.taxCode)}, ${escapeSqlStr(sup.tier || "Tổng Đại Lý")}, ${escapeSqlStr(sup.category || "Camera & An Ninh")}, ${escapeSqlStr(sup.contactPerson)}, ${escapeSqlStr(sup.phone)}, ${escapeSqlStr(sup.email)}, ${escapeSqlStr(sup.address)}, ${escapeSqlStr(sup.bankName)}, ${escapeSqlStr(sup.bankAccount)}, ${escapeSqlStr(sup.bankCode)}, ${escapeSqlNum(sup.creditLimit)}, ${escapeSqlNum(sup.creditDays || 30)}, ${escapeSqlNum(sup.currentDebt)}, ${escapeSqlNum(sup.ratingQuality || 9.5)}, ${escapeSqlNum(sup.ratingPrice || 9.0)}, ${escapeSqlNum(sup.ratingOnTime || 9.5)}, ${escapeSqlNum(sup.ratingWarranty || 9.2)}, ${escapeSqlStr(sup.notes)}, ${escapeSqlDateRequired(sup.createdAt)}, ${escapeSqlDateRequired(sup.updatedAt)})
+        `);
+      }
+      restoredStats["suppliers"] = tables.suppliers.length;
+
+      if (Array.isArray(tables.supplierPriceItems) && tables.supplierPriceItems.length > 0) {
+        for (const pi of tables.supplierPriceItems) {
+          await prisma.$executeRawUnsafe(`
+            INSERT INTO [SupplierPriceItem] (id, supplierId, sku, productName, costPrice, warrantyMonths, moq)
+            VALUES (${escapeSqlStr(pi.id)}, ${escapeSqlStr(pi.supplierId)}, ${escapeSqlStr(pi.sku)}, ${escapeSqlStr(pi.productName)}, ${escapeSqlNum(pi.costPrice)}, ${escapeSqlNum(pi.warrantyMonths || 12)}, ${escapeSqlNum(pi.moq || 1)})
+          `);
+        }
+        restoredStats["supplierPriceItems"] = tables.supplierPriceItems.length;
+      }
+    }
+
+    if (Array.isArray(tables.purchaseOrders) && tables.purchaseOrders.length > 0) {
+      for (const po of tables.purchaseOrders) {
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO [PurchaseOrder] (id, code, supplierId, supplierName, supplierPhone, supplierAddress, supplierTaxCode, warehouseId, warehouseName, orderDate, expectedDeliveryDate, status, subtotal, vatRate, vatAmount, shippingFee, discountAmount, totalAmount, paidAmount, paymentStatus, paymentMethod, notes, createdAt, updatedAt)
+          VALUES (${escapeSqlStr(po.id)}, ${escapeSqlStr(po.code)}, ${escapeSqlStr(po.supplierId)}, ${escapeSqlStr(po.supplierName)}, ${escapeSqlStr(po.supplierPhone)}, ${escapeSqlStr(po.supplierAddress)}, ${escapeSqlStr(po.supplierTaxCode)}, ${escapeSqlStr(po.warehouseId || "wh-main")}, ${escapeSqlStr(po.warehouseName || "Kho Chính")}, ${escapeSqlDateRequired(po.orderDate)}, ${escapeSqlDateRequired(po.expectedDeliveryDate)}, ${escapeSqlStr(po.status || "confirmed")}, ${escapeSqlNum(po.subtotal)}, ${escapeSqlNum(po.vatRate || 10)}, ${escapeSqlNum(po.vatAmount)}, ${escapeSqlNum(po.shippingFee)}, ${escapeSqlNum(po.discountAmount)}, ${escapeSqlNum(po.totalAmount)}, ${escapeSqlNum(po.paidAmount)}, ${escapeSqlStr(po.paymentStatus || "unpaid")}, ${escapeSqlStr(po.paymentMethod || "transfer")}, ${escapeSqlStr(po.notes)}, ${escapeSqlDateRequired(po.createdAt)}, ${escapeSqlDateRequired(po.updatedAt)})
+        `);
+      }
+      restoredStats["purchaseOrders"] = tables.purchaseOrders.length;
+
+      if (Array.isArray(tables.purchaseOrderItems) && tables.purchaseOrderItems.length > 0) {
+        for (const poi of tables.purchaseOrderItems) {
+          await prisma.$executeRawUnsafe(`
+            INSERT INTO [PurchaseOrderItem] (id, purchaseOrderId, productId, sku, productName, unit, quantity, unitPrice, total)
+            VALUES (${escapeSqlStr(poi.id)}, ${escapeSqlStr(poi.purchaseOrderId)}, ${escapeSqlStr(poi.productId)}, ${escapeSqlStr(poi.sku)}, ${escapeSqlStr(poi.productName)}, ${escapeSqlStr(poi.unit || "Cái")}, ${escapeSqlNum(poi.quantity || 1)}, ${escapeSqlNum(poi.unitPrice)}, ${escapeSqlNum(poi.total)})
+          `);
+        }
+        restoredStats["purchaseOrderItems"] = tables.purchaseOrderItems.length;
+      }
+    }
+
+    // Step 13: Ensure Admin and settings are intact
+    await this.ensureAdminAndSettings();
 
     return {
       success: true,
@@ -780,18 +709,13 @@ export class SettingsService {
     if (adminUsers.length === 0) {
       const salt = await bcrypt.genSalt(10);
       const passwordHash = await bcrypt.hash("123456", salt);
-      await prisma.user.create({
-        data: {
-          id: "usr-admin-01",
-          username: "admin",
-          passwordHash,
-          fullName: "Quản Trị Viên Hệ Thống (Phạm Gia Phúc)",
-          email: "admin@vitinhgiaphuc.com",
-          phone: "0985862609",
-          role: "Admin",
-          status: "active",
-        },
-      });
+      await prisma.$executeRaw`
+        IF NOT EXISTS (SELECT 1 FROM [User] WHERE username = 'admin' OR id = 'usr-admin-01')
+        BEGIN
+          INSERT INTO [User] (id, username, passwordHash, fullName, email, phone, role, status, createdAt, updatedAt)
+          VALUES ('usr-admin-01', 'admin', ${passwordHash}, N'Quản Trị Viên Hệ Thống (Phạm Gia Phúc)', 'admin@vitinhgiaphuc.com', '0985862609', 'Admin', 'active', GETDATE(), GETDATE())
+        END
+      `;
     }
 
     const settings = await prisma.storeSettings.findMany({ where: { id: "default_settings" } });
@@ -813,4 +737,3 @@ export class SettingsService {
     }
   }
 }
-

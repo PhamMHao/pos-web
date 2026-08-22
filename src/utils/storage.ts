@@ -61,6 +61,8 @@ const KEYS = {
   LABOR_CONTRACTS: 'gperp_labor_contracts_v2',
   INBOUND_INVOICES: 'gperp_inbound_invoices_v2',
   STOCK_RECEIPTS: 'gperp_stock_receipts_v2',
+  SUPPLIERS: 'gp_erp_suppliers_data',
+  PURCHASE_ORDERS: 'gp_erp_purchase_orders_data',
 };
 
 function getStoredItem<T>(key: string, fallback: T): T {
@@ -360,6 +362,8 @@ export function useStoreState() {
     setStoredItem(KEYS.INBOUND_INVOICES, []);
     setStoredItem(KEYS.STOCK_RECEIPTS, []);
     setStoredItem(KEYS.INVENTORY_LOGS, []);
+    setStoredItem(KEYS.SUPPLIERS, []);
+    setStoredItem(KEYS.PURCHASE_ORDERS, []);
   };
 
   return {

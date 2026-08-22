@@ -570,3 +570,87 @@ model StoreSettings {
   settingsJson String   @db.NVarChar(Max) // Lưu toàn bộ JSON cấu hình mở rộng (in ấn, máy in, scanner, ...)
   updatedAt    DateTime @updatedAt
 }
+
+// 14. NHÀ CUNG CẤP & BẢNG GIÁ ĐỐI TÁC
+model Supplier {
+  id             String               @id @default(uuid())
+  code           String               @unique // NCC-001
+  name           String
+  taxCode        String?
+  tier           String               @default("Tổng Đại Lý") // 'Tier 1 Chính Hãng' | 'Tổng Đại Lý' | 'Nhà Phân Phối'
+  category       String               @default("Camera & An Ninh")
+  contactPerson  String?
+  phone          String
+  email          String?
+  address        String?
+  bankName       String?
+  bankAccount    String?
+  bankCode       String?
+  creditLimit    Decimal              @default(0) @db.Decimal(18, 2)
+  creditDays     Int                  @default(30)
+  currentDebt    Decimal              @default(0) @db.Decimal(18, 2)
+  ratingQuality  Decimal              @default(9.5) @db.Decimal(4, 2)
+  ratingPrice    Decimal              @default(9.0) @db.Decimal(4, 2)
+  ratingOnTime   Decimal              @default(9.5) @db.Decimal(4, 2)
+  ratingWarranty Decimal              @default(9.2) @db.Decimal(4, 2)
+  notes          String?              @db.NVarChar(Max)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  priceList      SupplierPriceItem[]
+  purchaseOrders PurchaseOrder[]
+}
+
+model SupplierPriceItem {
+  id             String   @id @default(uuid())
+  supplierId     String
+  supplier       Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  sku            String
+  productName    String
+  costPrice      Decimal  @db.Decimal(18, 2)
+  warrantyMonths Int      @default(24)
+  moq            Int      @default(1)
+}
+
+// 15. ĐƠN ĐẶT HÀNG MUA (PURCHASE ORDERS - PO)
+model PurchaseOrder {
+  id                   String              @id @default(uuid())
+  code                 String              @unique // PO-2026-0001
+  supplierId           String
+  supplier             Supplier            @relation(fields: [supplierId], references: [id])
+  supplierName         String
+  supplierPhone        String?
+  supplierAddress      String?
+  supplierTaxCode      String?
+  warehouseId          String              @default("wh-main")
+  warehouseName        String              @default("Kho Chính")
+  orderDate            DateTime            @default(now())
+  expectedDeliveryDate DateTime
+  status               String              @default("confirmed") // 'draft'|'sent'|'confirmed'|'partially_received'|'completed'|'cancelled'
+  subtotal             Decimal             @db.Decimal(18, 2)
+  vatRate              Decimal             @default(10) @db.Decimal(5, 2)
+  vatAmount            Decimal             @default(0) @db.Decimal(18, 2)
+  shippingFee          Decimal             @default(0) @db.Decimal(18, 2)
+  discountAmount       Decimal             @default(0) @db.Decimal(18, 2)
+  totalAmount          Decimal             @db.Decimal(18, 2)
+  paidAmount           Decimal             @default(0) @db.Decimal(18, 2)
+  paymentStatus        String              @default("unpaid") // 'unpaid'|'partial'|'paid'
+  paymentMethod        String              @default("transfer")
+  notes                String?             @db.NVarChar(Max)
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  items                PurchaseOrderItem[]
+}
+
+model PurchaseOrderItem {
+  id              String        @id @default(uuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  productId       String?
+  sku             String
+  productName     String
+  unit            String        @default("Cái")
+  quantity        Decimal       @db.Decimal(18, 2)
+  unitPrice       Decimal       @db.Decimal(18, 2)
+  total           Decimal       @db.Decimal(18, 2)
+}
+

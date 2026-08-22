@@ -20,6 +20,8 @@ import promotionsRoutes from "./server/modules/promotions/promotions.routes";
 import assetsRoutes from "./server/modules/assets/assets.routes";
 import inboundInvoicesRoutes from "./server/modules/inbound-invoices/inbound-invoices.routes";
 import settingsRoutes from "./server/modules/settings/settings.routes";
+import fraudAlertsRoutes from "./server/modules/fraud-alerts/fraud-alerts.routes";
+import suppliersRoutes from "./server/modules/suppliers/suppliers.routes";
 import { errorHandler } from "./server/core/middlewares/errorHandler";
 
 dotenv.config();
@@ -50,6 +52,8 @@ async function startServer() {
   app.use("/api/assets", assetsRoutes);
   app.use("/api/inbound-invoices", inboundInvoicesRoutes);
   app.use("/api/settings", settingsRoutes);
+  app.use("/api/fraud-alerts", fraudAlertsRoutes);
+  app.use("/api/suppliers", suppliersRoutes);
 
   // Helper for lazy initialized Gemini
   let aiClient: GoogleGenAI | null = null;
