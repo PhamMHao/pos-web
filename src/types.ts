@@ -342,7 +342,9 @@ export type PrintDocType =
   | 'stock_disposal' // BIÊN BẢN TIÊU HỦY VẬT TƯ & TÀI SẢN
   | 'liquidation_receipt' // PHIẾU THU TIỀN THANH LÝ (THU HỒI VỐN)
   | 'delivery_dispatch' // PHIẾU ĐIỀU PHỐI GIAO HÀNG & THU TIỀN COD
-  | 'shipping_label'; // TEM VẬN ĐƠN DÁN KIỆN HÀNG (K80 / A5)
+  | 'shipping_label' // TEM VẬN ĐƠN DÁN KIỆN HÀNG (K80 / A5)
+  | 'goods_delivery_record' // BIÊN BẢN GIAO NHẬN HÀNG HÓA (Theo Ảnh 1)
+  | 'sales_return'; // PHIẾU HÀNG BÁN TRẢ LẠI MẪU 02-TT TT200 (Theo Ảnh 2)
 
 // Enterprise Module Types
 export interface AccountingRecord {

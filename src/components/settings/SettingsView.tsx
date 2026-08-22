@@ -162,6 +162,18 @@ const DOC_TYPE_LABELS: Record<PrintDocType, { label: string; desc: string; defau
     defaultSize: 'K80',
     defaultOrientation: 'portrait',
   },
+  goods_delivery_record: {
+    label: '18. Biên Bản Giao Nhận Hàng Hóa (Ảnh 1)',
+    desc: 'Biên bản giao nhận hàng hóa chuẩn pháp lý Bên A & Bên B kèm Serial No và cam kết mới 100%',
+    defaultSize: 'A4',
+    defaultOrientation: 'portrait',
+  },
+  sales_return: {
+    label: '19. Phiếu Hàng Bán Trả Lại Mẫu 02-TT (Ảnh 2)',
+    desc: 'Mẫu hàng bán trả lại chuẩn Thông tư 200/2014/TT-BTC định khoản Nợ 1561/5212 Có 6321/1311',
+    defaultSize: 'A4',
+    defaultOrientation: 'portrait',
+  },
 };
 
 export const SettingsView: React.FC<SettingsViewProps> = ({

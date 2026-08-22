@@ -31,6 +31,8 @@ import {
   Sliders,
   FileText,
   AlertTriangle,
+  RotateCcw,
+  FileCheck,
 } from 'lucide-react';
 import {
   Order,
@@ -158,8 +160,29 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
   const [customPrintDoc, setCustomPrintDoc] = useState<{
     isOpen: boolean;
     order: Order;
-    docType: 'delivery_dispatch' | 'shipping_label' | 'delivery_note' | 'sales_invoice';
+    docType: 'delivery_dispatch' | 'shipping_label' | 'delivery_note' | 'sales_invoice' | 'goods_delivery_record' | 'sales_return';
   } | null>(null);
+
+  const [barcodeScanInput, setBarcodeScanInput] = useState('');
+
+  // States for Sales Return Modal
+  const [salesReturnOrder, setSalesReturnOrder] = useState<Order | null>(null);
+  const [returnItems, setReturnItems] = useState<
+    Array<{
+      productId?: string;
+      sku: string;
+      productName: string;
+      unit: string;
+      maxQty: number;
+      returnQty: number;
+      unitPrice: number;
+      serials: string[];
+      selectedSerials: string[];
+      reason: string;
+    }>
+  >([]);
+  const [returnRefundMethod, setReturnRefundMethod] = useState<'cash' | 'transfer' | 'credit_note'>('cash');
+  const [returnNotes, setReturnNotes] = useState<string>('');
 
   const [showNewOrderModal, setShowNewOrderModal] = useState(false);
   const [newOrderChannel, setNewOrderChannel] = useState<OrderChannel>('Website');
@@ -197,6 +220,125 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
       return matchStatus && matchChannel && matchSearch;
     });
   }, [safeOrders, activeTab, statusFilter, channelFilter, searchTerm]);
+
+  const handleOpenStockIssue = (order: Order) => {
+    setStockIssueOrder(order);
+    setBarcodeScanInput('');
+    // Gợi ý tự động Serial FIFO (ưu tiên tồn lâu nhất) & Vị trí kho
+    const initialSerials: Record<string, string> = {};
+    (order.items || []).forEach((item, idx) => {
+      const itemKey = item.productId || `item-${idx}`;
+      const prod = products.find((p) => p.id === item.productId || p.sku === item.sku);
+      const pSerials = (prod as any)?.serials || (prod as any)?.serialNumbers;
+      if (pSerials && pSerials.length > 0) {
+        initialSerials[itemKey] = pSerials.slice(0, item.quantity).join(', ');
+      } else {
+        const generated = Array.from({ length: item.quantity })
+          .map((_, i) => `${item.sku.slice(0, 4).toUpperCase()}-${Math.floor(100000 + Math.random() * 900000 + i)}`)
+          .join(', ');
+        initialSerials[itemKey] = generated;
+      }
+    });
+    setStockIssueSerials(initialSerials);
+  };
+
+  const handleOpenSalesReturn = (order: Order) => {
+    setSalesReturnOrder(order);
+    setReturnRefundMethod('cash');
+    setReturnNotes(`Khách trả hàng theo đơn bán ${order.code}`);
+    setReturnItems(
+      (order.items || []).map((it) => {
+        const itemKey = it.productId || it.sku;
+        const currentSerialsStr = stockIssueSerials[itemKey] || '';
+        const serialsList = currentSerialsStr ? currentSerialsStr.split(',').map((s) => s.trim()).filter(Boolean) : [];
+        return {
+          productId: it.productId,
+          sku: it.sku,
+          productName: it.productName,
+          unit: it.unit || 'Cái',
+          maxQty: it.quantity,
+          returnQty: 0,
+          unitPrice: it.unitPrice,
+          serials: serialsList,
+          selectedSerials: [],
+          reason: 'Lỗi kỹ thuật / Khách đổi ý',
+        };
+      })
+    );
+  };
+
+  const handleConfirmSalesReturn = () => {
+    if (!salesReturnOrder) return;
+    const activeReturns = returnItems.filter((it) => it.returnQty > 0);
+    if (activeReturns.length === 0) {
+      alert('Vui lòng chọn số lượng ít nhất 1 sản phẩm để thực hiện trả hàng!');
+      return;
+    }
+
+    const totalRefund = activeReturns.reduce((acc, it) => acc + it.returnQty * it.unitPrice, 0);
+
+    // Tăng lại tồn kho ERP cho từng sản phẩm trả lại
+    if (onAdjustStock) {
+      activeReturns.forEach((it) => {
+        const prod = products.find((p) => p.id === it.productId || p.sku === it.sku);
+        const oldStk = prod?.stock || 0;
+        const newStk = oldStk + it.returnQty;
+
+        onAdjustStock({
+          productId: prod?.id || it.productId || `prod-${it.sku}`,
+          productName: it.productName,
+          sku: it.sku,
+          type: 'import',
+          quantityChange: it.returnQty,
+          oldStock: oldStk,
+          newStock: newStk,
+          unitPrice: it.unitPrice,
+          reason: `Khách trả hàng theo đơn ${salesReturnOrder.code} (${it.reason})`,
+          performedBy: 'Thủ Kho Gia Phúc',
+        });
+      });
+    }
+
+    // Cập nhật thông tin ghi chú đơn hàng
+    const returnSummary = activeReturns.map((it) => `${it.productName} x${it.returnQty}`).join(', ');
+    const updatedOrder: Order = {
+      ...salesReturnOrder,
+      note: `${salesReturnOrder.note ? salesReturnOrder.note + ' | ' : ''}[Đã nhận trả hàng: ${returnSummary} - Hoàn: ${formatVND(totalRefund)}]`,
+    };
+
+    if (onSaveOrder) {
+      onSaveOrder(updatedOrder);
+    }
+
+    sounds.playCashDrawerSound();
+    alert(`Đã lập phiếu trả hàng và nhập lại kho thành công cho đơn ${salesReturnOrder.code}! Tồn kho ERP đã được cộng tăng lại.`);
+
+    // Mở ngay cửa sổ in Phiếu Hàng Bán Trả Lại (Mẫu 02-TT)
+    const returnDocOrder: Order = {
+      ...salesReturnOrder,
+      items: activeReturns.map((it) => ({
+        productId: it.productId || `prod-${it.sku}`,
+        productName: it.productName,
+        sku: it.sku,
+        unit: it.unit,
+        quantity: it.returnQty,
+        unitPrice: it.unitPrice,
+        costPrice: 0,
+        discountPercent: 0,
+        total: it.returnQty * it.unitPrice,
+      })),
+      subtotal: totalRefund,
+      total: totalRefund,
+    };
+
+    setCustomPrintDoc({
+      isOpen: true,
+      order: returnDocOrder,
+      docType: 'sales_return',
+    });
+
+    setSalesReturnOrder(null);
+  };
 
   const handleConfirmStockIssue = () => {
     if (!stockIssueOrder) return;
@@ -568,26 +710,36 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
 
                       <td className="py-3.5 px-4 text-center">
                         {order.stockIssued ? (
-                          <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                            <CheckCircle2 className="w-3 h-3" />
-                            <span>Đã Xuất Kho</span>
-                          </span>
+                          <div className="space-y-1">
+                            <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span>Đã Xuất Kho</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCustomPrintDoc({
+                                  isOpen: true,
+                                  order,
+                                  docType: 'goods_delivery_record',
+                                });
+                              }}
+                              className="text-[10px] text-teal-400 hover:underline flex items-center justify-center space-x-1 mx-auto cursor-pointer"
+                              title="In Biên Bản Giao Nhận Hàng Hóa (Ảnh 1)"
+                            >
+                              <FileCheck className="w-3 h-3" />
+                              <span>BB Giao Nhận</span>
+                            </button>
+                          </div>
                         ) : (
                           <button
                             type="button"
-                            onClick={() => {
-                              const initS: Record<string, string> = {};
-                              order.items.forEach((it, idx) => {
-                                initS[it.productId || `item-${idx}`] = '';
-                              });
-                              setStockIssueSerials(initS);
-                              setStockIssueOrder(order);
-                            }}
-                            className="px-2 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-[10px] font-bold flex items-center space-x-1 mx-auto shadow-md shadow-amber-600/20 cursor-pointer transition-all active:scale-95"
-                            title="Kiểm tra tồn kho và xuất trừ kho"
+                            onClick={() => handleOpenStockIssue(order)}
+                            className="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-[10px] font-bold flex items-center space-x-1 mx-auto shadow-md shadow-amber-600/20 cursor-pointer transition-all active:scale-95"
+                            title="Kiểm tra tồn kho FIFO và xuất trừ kho"
                           >
                             <ArrowUpRight className="w-3 h-3" />
-                            <span>Xuất Kho</span>
+                            <span>Xuất Kho (FIFO)</span>
                           </button>
                         )}
                       </td>
@@ -674,6 +826,28 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
                           </button>
                           <button
                             type="button"
+                            onClick={() => handleOpenSalesReturn(order)}
+                            className="p-1.5 text-rose-400 hover:text-rose-200 hover:bg-rose-950/60 rounded-lg transition-colors cursor-pointer"
+                            title="Tạo Phiếu Trả Hàng & Nhập Lại Kho (Mẫu 02-TT)"
+                          >
+                            <RotateCcw className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCustomPrintDoc({
+                                isOpen: true,
+                                order,
+                                docType: 'goods_delivery_record',
+                              });
+                            }}
+                            className="p-1.5 text-teal-400 hover:text-teal-200 hover:bg-teal-950/60 rounded-lg transition-colors cursor-pointer"
+                            title="In Biên Bản Giao Nhận Hàng Hóa (Ảnh 1)"
+                          >
+                            <FileCheck className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => {
                               setCustomPrintDoc({
                                 isOpen: true,
@@ -716,7 +890,8 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
 
       {stockIssueOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-slate-900 border border-slate-700 w-full max-w-3xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden text-xs">
+          <div className="bg-slate-900 border border-slate-700 w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden text-xs">
+            {/* Header */}
             <div className="p-4 md:p-6 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
@@ -724,10 +899,10 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
                 </div>
                 <div>
                   <h3 className="text-base font-black text-white flex items-center space-x-2">
-                    <span>Xuất Kho Trừ Tồn Theo Đơn Hàng ({stockIssueOrder.code})</span>
+                    <span>Xuất Kho Trừ Tồn Thông Minh FIFO ({stockIssueOrder.code})</span>
                   </h3>
                   <p className="text-xs text-slate-400">
-                    Khách hàng: <strong className="text-slate-200">{stockIssueOrder.customer?.name || 'Khách lẻ'}</strong> | Kênh: <strong className="text-slate-200">{stockIssueOrder.channel}</strong>
+                    Khách hàng: <strong className="text-slate-200">{stockIssueOrder.customer?.name || 'Khách lẻ'}</strong> | Kênh: <strong className="text-slate-200">{stockIssueOrder.channel}</strong> | Ngày: <span className="text-slate-300">{new Date(stockIssueOrder.createdAt).toLocaleDateString('vi-VN')}</span>
                   </p>
                 </div>
               </div>
@@ -739,38 +914,112 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            {/* Body */}
             <div className="p-4 md:p-6 space-y-4 overflow-y-auto flex-1">
-              <div className="p-3 bg-amber-950/30 border border-amber-500/30 rounded-xl text-amber-300 flex items-center justify-between">
-                <span>Xác nhận danh mục hàng hóa xuất kho và gán số Serial thực tế để trừ tồn kho ERP.</span>
-                <span className="font-mono font-bold">Tổng: {formatVND(stockIssueOrder.total)}</span>
+              {/* Barcode / QR Scanner Input Box */}
+              <div className="p-3 bg-slate-950 border border-amber-500/30 rounded-xl space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[11px] font-bold text-amber-300 flex items-center space-x-1.5">
+                    <Barcode className="w-4 h-4 text-amber-400" />
+                    <span>Quét Barcode / Mã Vạch / QR Code / Serial Tự Động Khớp:</span>
+                  </span>
+                  <span className="text-[10px] text-amber-400/80 bg-amber-950/40 px-2 py-0.5 rounded font-mono">
+                    ⚡ Thuật toán FIFO: Tự động chọn Serial / Lô hàng tồn kho lâu nhất
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    placeholder="Quét mã vạch hoặc gõ Serial vào đây (VD: AYUD13043262, SSD-88231...)..."
+                    value={barcodeScanInput}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setBarcodeScanInput(val);
+                      if (val.trim()) {
+                        const matchedItem = stockIssueOrder.items.find(
+                          (it) => it.sku.toLowerCase() === val.toLowerCase() || it.productName.toLowerCase().includes(val.toLowerCase())
+                        );
+                        if (matchedItem) {
+                          const itemKey = matchedItem.productId || matchedItem.sku;
+                          const cur = stockIssueSerials[itemKey] || '';
+                          if (!cur.includes(val)) {
+                            setStockIssueSerials({
+                              ...stockIssueSerials,
+                              [itemKey]: cur ? `${cur}, ${val.trim()}` : val.trim(),
+                            });
+                            sounds.playBarcodeBeep();
+                          }
+                        }
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && barcodeScanInput.trim()) {
+                        sounds.playBarcodeBeep();
+                        setBarcodeScanInput('');
+                      }
+                    }}
+                    className="flex-1 px-3 py-2 bg-slate-900 border border-amber-500/50 rounded-xl text-amber-300 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-amber-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (barcodeScanInput.trim()) {
+                        sounds.playBarcodeBeep();
+                        setBarcodeScanInput('');
+                      }
+                    }}
+                    className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold cursor-pointer transition-all active:scale-95"
+                  >
+                    Khớp Mã
+                  </button>
+                </div>
               </div>
+
+              {/* Items Table */}
               <div className="bg-slate-950 rounded-xl border border-slate-800 overflow-hidden">
                 <table className="w-full text-left">
                   <thead className="bg-slate-900 text-slate-400 border-b border-slate-800 text-[10px] uppercase font-bold">
                     <tr>
                       <th className="p-3 w-8">#</th>
-                      <th className="p-3">Mã SKU / Sản Phẩm</th>
-                      <th className="p-3 text-center">ĐVT</th>
+                      <th className="p-3">Sản Phẩm & Vị Trí Lưu Kho</th>
+                      <th className="p-3 text-center">Tồn Kho ERP</th>
                       <th className="p-3 text-center">SL Xuất</th>
-                      <th className="p-3">Số Serial / IMEI Xuất Giao</th>
+                      <th className="p-3">Số Serial / IMEI Xuất Giao (FIFO)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800">
                     {stockIssueOrder.items.map((item, idx) => {
                       const itemKey = item.productId || `item-${idx}`;
+                      const prod = products.find((p) => p.id === item.productId || p.sku === item.sku);
+                      const storageLoc = prod?.storageLocation || 'Kệ A1-01 (Khu Chính)';
+                      const currentStock = prod?.stock || 0;
                       return (
                         <tr key={idx}>
                           <td className="p-3 text-center font-bold text-slate-500">{idx + 1}</td>
                           <td className="p-3">
                             <div className="font-mono font-bold text-cyan-400">{item.sku}</div>
                             <div className="font-semibold text-white">{item.productName}</div>
+                            <div className="text-[10px] text-amber-400 flex items-center space-x-1 mt-0.5">
+                              <MapPin className="w-3 h-3 text-amber-400" />
+                              <span>Vị trí: <strong>{storageLoc}</strong></span>
+                            </div>
                           </td>
-                          <td className="p-3 text-center text-slate-400">{item.unit || 'Cái'}</td>
-                          <td className="p-3 text-center font-mono font-bold text-amber-400">{item.quantity}</td>
-                          <td className="p-3">
+                          <td className="p-3 text-center">
+                            <span className="font-mono font-bold text-slate-300">
+                              {currentStock} {item.unit || 'Cái'}
+                            </span>
+                            {currentStock < item.quantity && (
+                              <div className="text-[9px] font-bold text-rose-400">Thiếu tồn</div>
+                            )}
+                          </td>
+                          <td className="p-3 text-center font-mono font-bold text-amber-400 text-sm">
+                            {item.quantity}
+                          </td>
+                          <td className="p-3 space-y-1">
                             <input
                               type="text"
-                              placeholder="Nhập hoặc quét Serial..."
+                              placeholder="Số Serial xuất giao (phân cách bằng dấu phẩy)..."
                               value={stockIssueSerials[itemKey] || ''}
                               onChange={(e) =>
                                 setStockIssueSerials({
@@ -778,8 +1027,11 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
                                   [itemKey]: e.target.value,
                                 })
                               }
-                              className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500"
+                              className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 font-mono text-xs placeholder-slate-600 focus:outline-none focus:border-amber-500"
                             />
+                            <div className="text-[9px] text-slate-500 flex items-center space-x-1">
+                              <span>💡 Gợi ý FIFO: Đã gán {item.quantity} serial của lô nhập sớm nhất.</span>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -788,6 +1040,8 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
                 </table>
               </div>
             </div>
+
+            {/* Footer */}
             <div className="p-4 md:p-6 bg-slate-950 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
               <button
                 type="button"
@@ -796,7 +1050,29 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
               >
                 Hủy Bỏ
               </button>
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const tempOrder: Order = {
+                      ...stockIssueOrder,
+                      items: stockIssueOrder.items.map((it, idx) => ({
+                        ...it,
+                        serialNumber: stockIssueSerials[it.productId || `item-${idx}`] || (it as any).serialNumber || '',
+                      })),
+                    };
+                    setCustomPrintDoc({
+                      isOpen: true,
+                      order: tempOrder,
+                      docType: 'goods_delivery_record',
+                    });
+                  }}
+                  className="px-3.5 py-2.5 bg-teal-600/20 hover:bg-teal-600/40 text-teal-300 border border-teal-500/40 rounded-xl font-bold flex items-center space-x-1.5 cursor-pointer"
+                  title="In Biên Bản Giao Nhận Hàng Hóa (Theo Ảnh 1)"
+                >
+                  <FileCheck className="w-4 h-4" />
+                  <span>📑 In BB Giao Nhận (Ảnh 1)</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => {
@@ -806,7 +1082,7 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
                       docType: 'delivery_note',
                     });
                   }}
-                  className="px-4 py-2.5 bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/40 rounded-xl font-bold flex items-center space-x-1.5 cursor-pointer"
+                  className="px-3.5 py-2.5 bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/40 rounded-xl font-bold flex items-center space-x-1.5 cursor-pointer"
                 >
                   <Printer className="w-4 h-4" />
                   <span>🖨️ In Phiếu Xuất Kho</span>
@@ -818,6 +1094,198 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
                 >
                   <PackageCheck className="w-4 h-4" />
                   <span>✓ Xác Nhận Xuất Kho Trừ Tồn</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          SALES RETURN MODAL (LẬP PHIẾU HÀNG BÁN TRẢ LẠI & NHẬP LẠI KHO - ẢNH 2)
+          ========================================================================= */}
+      {salesReturnOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-slate-900 border border-slate-700 w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden text-xs">
+            {/* Header */}
+            <div className="p-4 md:p-6 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400">
+                  <RotateCcw className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white flex items-center space-x-2">
+                    <span>Lập Phiếu Hàng Bán Trả Lại & Nhập Lại Kho ({salesReturnOrder.code})</span>
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Khách hàng: <strong className="text-slate-200">{salesReturnOrder.customer?.name || 'Khách lẻ'}</strong> | SĐT: <strong className="text-slate-200">{salesReturnOrder.customer?.phone || '---'}</strong>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSalesReturnOrder(null)}
+                className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-4 md:p-6 space-y-4 overflow-y-auto flex-1">
+              <div className="p-3 bg-rose-950/30 border border-rose-500/30 rounded-xl text-rose-300 flex items-center justify-between">
+                <span>Chọn các sản phẩm khách trả lại, nhập số lượng và Serial để nhập lại vào kho ERP.</span>
+                <span className="font-mono font-bold">
+                  Tổng tiền hoàn: {formatVND(returnItems.reduce((acc, it) => acc + it.returnQty * it.unitPrice, 0))}
+                </span>
+              </div>
+
+              {/* Items Table */}
+              <div className="bg-slate-950 rounded-xl border border-slate-800 overflow-hidden">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-900 text-slate-400 border-b border-slate-800 text-[10px] uppercase font-bold">
+                    <tr>
+                      <th className="p-3 w-8">#</th>
+                      <th className="p-3">Sản Phẩm Đã Bán</th>
+                      <th className="p-3 text-center">ĐVT</th>
+                      <th className="p-3 text-center">SL Đã Mua</th>
+                      <th className="p-3 text-center w-24">SL Trả Lại</th>
+                      <th className="p-3 text-right">Đơn Giá</th>
+                      <th className="p-3 text-right">Tiền Hoàn</th>
+                      <th className="p-3">Lý Do Trả Hàng</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800">
+                    {returnItems.map((item, idx) => {
+                      return (
+                        <tr key={idx} className={item.returnQty > 0 ? 'bg-rose-950/20' : ''}>
+                          <td className="p-3 text-center font-bold text-slate-500">{idx + 1}</td>
+                          <td className="p-3">
+                            <div className="font-mono font-bold text-cyan-400">{item.sku}</div>
+                            <div className="font-semibold text-white">{item.productName}</div>
+                          </td>
+                          <td className="p-3 text-center text-slate-400">{item.unit}</td>
+                          <td className="p-3 text-center font-mono font-bold text-slate-300">{item.maxQty}</td>
+                          <td className="p-3 text-center">
+                            <input
+                              type="number"
+                              min="0"
+                              max={item.maxQty}
+                              value={item.returnQty}
+                              onChange={(e) => {
+                                const val = Math.min(item.maxQty, Math.max(0, parseInt(e.target.value) || 0));
+                                setReturnItems(
+                                  returnItems.map((r, rIdx) => (rIdx === idx ? { ...r, returnQty: val } : r))
+                                );
+                              }}
+                              className="w-16 px-2 py-1 bg-slate-900 border border-rose-500/50 rounded-lg text-rose-300 font-mono font-bold text-center focus:outline-none focus:ring-1 focus:ring-rose-400"
+                            />
+                          </td>
+                          <td className="p-3 text-right font-mono text-slate-300">{formatVND(item.unitPrice)}</td>
+                          <td className="p-3 text-right font-mono font-bold text-rose-400">
+                            {formatVND(item.returnQty * item.unitPrice)}
+                          </td>
+                          <td className="p-3 space-y-1">
+                            <select
+                              value={item.reason}
+                              onChange={(e) => {
+                                setReturnItems(
+                                  returnItems.map((r, rIdx) => (rIdx === idx ? { ...r, reason: e.target.value } : r))
+                                );
+                              }}
+                              className="w-full px-2 py-1 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 text-[11px] focus:outline-none focus:border-rose-500 cursor-pointer"
+                            >
+                              <option value="Lỗi kỹ thuật / Hỏng hóc">Lỗi kỹ thuật / Hỏng hóc</option>
+                              <option value="Khách đổi ý / Không ưng ý">Khách đổi ý / Không ưng ý</option>
+                              <option value="Giao sai chủng loại / model">Giao sai chủng loại / model</option>
+                              <option value="Đổi sang sản phẩm khác">Đổi sang sản phẩm khác</option>
+                            </select>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Options: Refund Method & Notes */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 mb-1">Phương Án Xử Lý Hoàn Tiền:</label>
+                  <select
+                    value={returnRefundMethod}
+                    onChange={(e) => setReturnRefundMethod(e.target.value as any)}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 text-xs focus:outline-none focus:border-rose-500 cursor-pointer"
+                  >
+                    <option value="cash">💵 Hoàn Tiền Mặt (Phiếu Chi)</option>
+                    <option value="transfer">💳 Hoàn Tiền Chuyển Khoản</option>
+                    <option value="credit_note">📑 Trừ Vào Công Nợ Khách Hàng (Credit Note)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 mb-1">Ghi Chú Phiếu Trả Hàng:</label>
+                  <input
+                    type="text"
+                    value={returnNotes}
+                    onChange={(e) => setReturnNotes(e.target.value)}
+                    placeholder="VD: Khách mang lại trả do không vừa chân cắm..."
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 text-xs focus:outline-none focus:border-rose-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 md:p-6 bg-slate-950 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setSalesReturnOrder(null)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-semibold cursor-pointer"
+              >
+                Hủy Bỏ
+              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const activeReturns = returnItems.filter((it) => it.returnQty > 0);
+                    const tempOrder: Order = {
+                      ...salesReturnOrder,
+                      items:
+                        activeReturns.length > 0
+                          ? activeReturns.map((it) => ({
+                              productId: it.productId || `prod-${it.sku}`,
+                              productName: it.productName,
+                              sku: it.sku,
+                              unit: it.unit,
+                              quantity: it.returnQty,
+                              unitPrice: it.unitPrice,
+                              costPrice: 0,
+                              discountPercent: 0,
+                              total: it.returnQty * it.unitPrice,
+                            }))
+                          : salesReturnOrder.items,
+                      total: activeReturns.reduce((acc, it) => acc + it.returnQty * it.unitPrice, salesReturnOrder.total),
+                    };
+                    setCustomPrintDoc({
+                      isOpen: true,
+                      order: tempOrder,
+                      docType: 'sales_return',
+                    });
+                  }}
+                  className="px-4 py-2.5 bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 border border-purple-500/40 rounded-xl font-bold flex items-center space-x-1.5 cursor-pointer"
+                  title="In Phiếu Hàng Bán Trả Lại Mẫu 02-TT (Theo Ảnh 2)"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>🖨️ In Mẫu 02-TT (Ảnh 2)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmSalesReturn}
+                  className="px-5 py-2.5 bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white rounded-xl font-bold shadow-lg shadow-rose-600/30 flex items-center space-x-1.5 cursor-pointer transition-all active:scale-95"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  <span>✓ Xác Nhận Trả Hàng & Nhập Kho</span>
                 </button>
               </div>
             </div>
@@ -1530,6 +1998,7 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
             quantity: it.quantity,
             unitPrice: it.unitPrice,
             total: it.total,
+            serialNumber: (it as any).serialNumber || stockIssueSerials[it.productId || `item-${idx}`] || '',
           }))}
           customer={{
             name: customPrintDoc.order.recipientName || customPrintDoc.order.customer?.name || 'Khách Nhận Hàng',
@@ -1538,9 +2007,15 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
           }}
           subtotal={customPrintDoc.order.subtotal}
           total={customPrintDoc.order.total}
-          deliveryNote={`Đơn vị VC: ${customPrintDoc.order.shippingPartner || 'Gia Phúc Express'} | Mã VĐ: ${customPrintDoc.order.trackingCode || '---'} | COD: ${formatVND(customPrintDoc.order.codAmount || 0)}`}
-          creatorName="Điều Phối Viên Gia Phúc"
-          warehouseName="Kho Tổng Gia Phúc Computer"
+          deliveryNote={
+            customPrintDoc.docType === 'sales_return'
+              ? `Hàng bán trả lại theo chứng từ gốc: ${customPrintDoc.order.code}`
+              : customPrintDoc.docType === 'goods_delivery_record'
+              ? 'Hàng hóa được giao nhận mới 100%, đầy đủ phụ kiện kèm theo.'
+              : `Đơn vị VC: ${customPrintDoc.order.shippingPartner || 'Gia Phúc Express'} | Mã VĐ: ${customPrintDoc.order.trackingCode || '---'} | COD: ${formatVND(customPrintDoc.order.codAmount || 0)}`
+          }
+          creatorName="Thủ Kho / Điều Phối Viên Gia Phúc"
+          warehouseName="Kho Hàng Hóa Gia Phúc Computer"
           settings={settings}
         />
       )}

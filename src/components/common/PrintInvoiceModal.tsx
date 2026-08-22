@@ -433,6 +433,10 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
         return 'PHIẾU ĐIỀU PHỐI GIAO HÀNG & THU TIỀN COD';
       case 'shipping_label':
         return 'TEM VẬN ĐƠN DÁN KIỆN HÀNG';
+      case 'goods_delivery_record':
+        return 'BIÊN BẢN GIAO NHẬN HÀNG HÓA';
+      case 'sales_return':
+        return 'HÀNG BÁN TRẢ LẠI';
       default:
         return 'HÓA ĐƠN BÁN HÀNG';
     }
@@ -551,6 +555,10 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
               <optgroup label="🚚 Điều Phối Vận Chuyển & Giao Hàng">
                 <option value="delivery_dispatch">15. Phiếu Điều Phối Giao Hàng & Thu COD</option>
                 <option value="shipping_label">16. Tem Vận Đơn Dán Kiện Hàng (K80 / A5)</option>
+              </optgroup>
+              <optgroup label="📋 Biên Bản Giao Nhận & Hàng Bán Trả Lại">
+                <option value="goods_delivery_record">17. Biên Bản Giao Nhận Hàng Hóa (Ảnh 1)</option>
+                <option value="sales_return">18. Phiếu Hàng Bán Trả Lại (Mẫu 02-TT) (Ảnh 2)</option>
               </optgroup>
             </select>
 
@@ -1149,173 +1157,347 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                   ========================================================================= */}
               {paperSize !== 'K80' && paperSize !== 'K58' ? (
                 <div className="w-full text-black flex flex-col justify-between h-full">
-                  {/* Top Header: Company Legal Profile + Logo */}
-                  <div className="border-b border-black pb-1.5 mb-1.5">
-                    <div className="flex items-start justify-between gap-2 sm:gap-4">
-                      {/* Left: Logo Gia Phúc */}
-                      {showLogo && (
-                        <div className="flex-shrink-0 flex items-center justify-center pt-0.5">
-                          {customLogoUrl ? (
-                            <img
-                              src={customLogoUrl}
-                              alt="Logo"
-                              referrerPolicy="no-referrer"
-                              className={`${paperSize === 'A5' ? 'h-10' : 'h-14'} w-auto max-w-[130px] object-contain`}
+                  {/* -------------------------------------------------------------
+                      DOCUMENT HEADER & METADATA SELECTOR
+                      ------------------------------------------------------------- */}
+                  {docType === 'goods_delivery_record' ? (
+                    /* CASE: BIÊN BẢN GIAO NHẬN HÀNG HÓA (Theo Ảnh 1) */
+                    <div className="border-b-2 border-black pb-2 mb-2">
+                      <div className="flex items-start justify-between gap-3">
+                        {/* Left: Store Brand & Info */}
+                        <div className="flex items-center space-x-2 flex-1">
+                          {showLogo && (
+                            <div className="flex-shrink-0 flex items-center justify-center">
+                              {customLogoUrl ? (
+                                <img
+                                  src={customLogoUrl}
+                                  alt="Logo"
+                                  referrerPolicy="no-referrer"
+                                  className="h-12 w-auto max-w-[120px] object-contain"
+                                />
+                              ) : (
+                                <GiaPhucLogo isPrint={true} size="xs" />
+                              )}
+                            </div>
+                          )}
+                          <div className="text-left">
+                            <div className="font-black text-[10pt] uppercase text-blue-950 leading-tight">
+                              {companyName}
+                            </div>
+                            <div className="text-[7.5pt] text-gray-800 leading-tight mt-0.5">
+                              {companyAddress}
+                            </div>
+                            <div className="text-[7.5pt] text-gray-700 leading-tight">
+                              MST: {settings?.taxCode || '0309214381'} &nbsp;|&nbsp; ĐT: {companyPhone}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Center: Quốc Hiệu Tiêu Ngữ */}
+                        <div className="text-center flex-1">
+                          <div className="font-bold text-[9pt] uppercase tracking-wider text-black">
+                            CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
+                          </div>
+                          <div className="font-bold text-[8.5pt] italic text-black">
+                            Độc Lập – Tự Do – Hạnh Phúc
+                          </div>
+                          <div className="text-[8pt] text-gray-600 font-serif">oOo</div>
+                        </div>
+
+                        {/* Right: Mã Vạch / QR Code */}
+                        {showBarcode && (codePlacement === 'split' || codePlacement === 'header' || codePlacement === 'both') && (
+                          <div className="flex-shrink-0 flex flex-col items-end">
+                            <SlipBarcodeQR
+                              docCode={docNumber}
+                              docType={docType}
+                              date={docDateStr}
+                              customerName={customerName}
+                              totalAmount={calculatedGrandTotal}
+                              paperSize={paperSize}
+                              showBarcode={true}
+                              showQr={codePlacement === 'header' || codePlacement === 'both'}
+                              renderMode={codePlacement === 'split' ? 'barcode_only' : 'both'}
+                              align="right"
+                              layout="column"
+                              className="my-0"
                             />
-                          ) : (
-                            <GiaPhucLogo isPrint={true} size={paperSize === 'A5' ? 'xs' : 'sm'} />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Tiêu đề & Căn cứ pháp lý */}
+                      <div className="text-center mt-2">
+                        <h2 className="text-[14pt] font-black uppercase tracking-wider text-black">
+                          BIÊN BẢN GIAO NHẬN HÀNG HÓA
+                        </h2>
+                        <div className="text-[8pt] text-gray-700 italic">
+                          TP. Hồ Chí Minh, {docDateStr}
+                        </div>
+                        <div className="text-[8pt] text-gray-900 italic mt-0.5 font-medium">
+                          Căn cứ vào thỏa thuận mua bán giữa hai bên gồm có:
+                        </div>
+                      </div>
+
+                      {/* Thông tin BÊN A & BÊN B */}
+                      <div className="mt-2 space-y-1.5 text-[8pt] text-gray-900 border border-black p-2 rounded bg-gray-50/50">
+                        <div>
+                          <div className="font-bold uppercase text-black text-[8.5pt]">
+                            BÊN A (BÊN BÁN): <span className="font-black">{companyName}</span>
+                          </div>
+                          <div className="grid grid-cols-12 gap-x-2 pl-3 pt-0.5 leading-snug">
+                            <div className="col-span-12"><strong>Địa chỉ:</strong> {companyAddress}</div>
+                            <div className="col-span-6"><strong>Người bán:</strong> {creator} &nbsp;|&nbsp; <strong>ĐT:</strong> {companyPhone}</div>
+                            <div className="col-span-6"><strong>Mã số thuế:</strong> {settings?.taxCode || '0309214381'} &nbsp;|&nbsp; <strong>Website:</strong> {companyWeb || 'giaphuc.vn'}</div>
+                            <div className="col-span-12">
+                              <strong>Thông tin chuyển khoản:</strong> {settings?.bankAccount ? `${settings.bankAccount} - Ngân hàng ${settings.bankName} - CN TP.HCM` : '63217849 - Ngân hàng ACB - CN Bắc Sài Gòn - TP.HCM'} (Chủ TK: {companyName})
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="pt-1 border-t border-dotted border-gray-400">
+                          <div className="font-bold uppercase text-black text-[8.5pt]">
+                            BÊN B (BÊN MUA): <span className="font-black">{customerName}</span>
+                          </div>
+                          <div className="grid grid-cols-12 gap-x-2 pl-3 pt-0.5 leading-snug">
+                            <div className="col-span-8"><strong>Địa chỉ:</strong> {customerAddress || 'Tại cửa hàng'}</div>
+                            <div className="col-span-4"><strong>Mã số thuế:</strong> {(propCustomer as any)?.taxCode || (order?.customer as any)?.taxCode || '---'}</div>
+                            <div className="col-span-6"><strong>Người đặt / nhận hàng:</strong> {recipientName || customerName}</div>
+                            <div className="col-span-6"><strong>ĐT / ĐC giao hàng:</strong> {customerPhone || '---'}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : docType === 'sales_return' ? (
+                    /* CASE: PHIẾU HÀNG BÁN TRẢ LẠI MẪU 02-TT (Theo Ảnh 2) */
+                    <div className="border-b-2 border-black pb-2 mb-2">
+                      <div className="flex items-start justify-between gap-4">
+                        {/* Left: Doanh nghiệp */}
+                        <div className="flex-1">
+                          <div className="font-black text-[10pt] uppercase text-black">{companyName}</div>
+                          <div className="text-[7.5pt] text-gray-800 leading-tight">{companyAddress}</div>
+                          <div className="text-[7.5pt] text-gray-700">Điện thoại: {companyPhone}</div>
+                        </div>
+
+                        {/* Right: Mẫu số 02-TT TT200 & Định khoản kế toán */}
+                        <div className="text-right text-[7.5pt] text-gray-900 border border-black p-1.5 bg-gray-50 rounded">
+                          <div className="font-bold text-[8pt] text-black">Mẫu số: 02-TT</div>
+                          <div className="italic text-[6.5pt] text-gray-600">(Ban hành theo Thông tư số: 200/2014/TT-BTC Ngày 22/12/2014 của BTC)</div>
+                          <div className="grid grid-cols-2 gap-x-3 text-left pt-1 border-t border-gray-400 mt-1 font-mono text-[7pt]">
+                            <div>
+                              <div><strong>Nợ:</strong> 1561 &nbsp;&nbsp;&nbsp; 0</div>
+                              <div>&nbsp;&nbsp;&nbsp;&nbsp; 5212 &nbsp;&nbsp;&nbsp; {formatVND(calculatedGrandTotal).replace(' ₫', '')}</div>
+                            </div>
+                            <div>
+                              <div><strong>Có:</strong> 6321 &nbsp;&nbsp;&nbsp; 0</div>
+                              <div>&nbsp;&nbsp;&nbsp;&nbsp; 1311 &nbsp;&nbsp;&nbsp; {formatVND(calculatedGrandTotal).replace(' ₫', '')}</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Tiêu đề & Ngày tháng */}
+                      <div className="text-center mt-2">
+                        <h2 className="text-[15pt] font-black uppercase tracking-wider text-black">
+                          HÀNG BÁN TRẢ LẠI
+                        </h2>
+                        <div className="text-[8pt] text-gray-700 italic">
+                          {docDateStr} &nbsp;&nbsp;&nbsp;&nbsp; <strong>Số:</strong> {docNumber}
+                        </div>
+                      </div>
+
+                      {/* Khối thông tin chứng từ gốc */}
+                      <div className="mt-2 space-y-1 text-[8pt] text-gray-900 border border-black p-2 rounded bg-gray-50/50">
+                        <div className="flex items-baseline">
+                          <span className="font-semibold w-48">- Họ tên người giao hàng:</span>
+                          <span className="flex-1 font-bold text-black border-b border-dotted border-gray-600 pb-0.5">{customerName}</span>
+                        </div>
+                        <div className="flex items-baseline">
+                          <span className="font-semibold w-48">- Theo số:</span>
+                          <span className="font-bold text-black border-b border-dotted border-gray-600 pb-0.5 px-2 font-mono">{docNumber}</span>
+                          <span className="font-semibold ml-2 mr-2">ngày:</span>
+                          <span className="flex-1 text-black border-b border-dotted border-gray-600 pb-0.5">{docDateStr}</span>
+                        </div>
+                        <div className="flex items-baseline">
+                          <span className="font-semibold w-48">- Nhập tại kho:</span>
+                          <span className="flex-1 font-bold text-black border-b border-dotted border-gray-600 pb-0.5">{warehouse || 'Kho hàng hóa Gia Phúc'}</span>
+                        </div>
+                        <div className="flex items-baseline">
+                          <span className="font-semibold w-48">- Lý do trả hàng / Diễn giải:</span>
+                          <span className="flex-1 text-gray-900 border-b border-dotted border-gray-600 pb-0.5">{explanationNote || 'Khách hàng trả hàng theo đơn bán hàng'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* CASE: TEMPLATE CHUẨN CÁC LOẠI PHIẾU KHÁC */
+                    <>
+                      <div className="border-b border-black pb-1.5 mb-1.5">
+                        <div className="flex items-start justify-between gap-2 sm:gap-4">
+                          {/* Left: Logo Gia Phúc */}
+                          {showLogo && (
+                            <div className="flex-shrink-0 flex items-center justify-center pt-0.5">
+                              {customLogoUrl ? (
+                                <img
+                                  src={customLogoUrl}
+                                  alt="Logo"
+                                  referrerPolicy="no-referrer"
+                                  className={`${paperSize === 'A5' ? 'h-10' : 'h-14'} w-auto max-w-[130px] object-contain`}
+                                />
+                              ) : (
+                                <GiaPhucLogo isPrint={true} size={paperSize === 'A5' ? 'xs' : 'sm'} />
+                              )}
+                            </div>
+                          )}
+
+                          {/* Right: Company Legal Information Header */}
+                          <div className="flex-1 text-center sm:text-left pl-1">
+                            <h1
+                              className={`${
+                                paperSize === 'A5' ? 'text-[10pt]' : 'text-[12pt]'
+                              } font-black uppercase text-blue-950 tracking-tight leading-tight`}
+                            >
+                              {companyName}
+                            </h1>
+                            <div
+                              className={`${
+                                paperSize === 'A5' ? 'text-[7.5pt]' : 'text-[8.5pt]'
+                              } text-gray-800 mt-0.5 leading-snug`}
+                            >
+                              <span>{companyAddress}</span>
+                            </div>
+                            <div
+                              className={`${
+                                paperSize === 'A5' ? 'text-[7.5pt]' : 'text-[8.5pt]'
+                              } text-gray-800 flex flex-wrap items-center gap-x-3 gap-y-0.5 leading-snug`}
+                            >
+                              <span>
+                                <strong>Tell/Zalo:</strong> {companyPhone}
+                              </span>
+                              <span>
+                                <strong>Tell/Fax:</strong> {companyFax}
+                              </span>
+                            </div>
+                            <div
+                              className={`${
+                                paperSize === 'A5' ? 'text-[7pt]' : 'text-[8pt]'
+                              } text-gray-700 flex flex-wrap items-center gap-x-3 gap-y-0.5 leading-snug`}
+                            >
+                              <span>
+                                <strong>Website:</strong> {companyWeb}
+                              </span>
+                              <span>
+                                <strong>Email:</strong> {companyEmail}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Right: Top-Right Barcode & QR Box (Cân đối đầu trang - Đúng vị trí khoanh đỏ Ảnh 1) */}
+                          {showBarcode && (codePlacement === 'split' || codePlacement === 'header' || codePlacement === 'both') && (
+                            <div className="flex-shrink-0 flex flex-col items-end justify-start pl-2 pt-0.5">
+                              <SlipBarcodeQR
+                                docCode={docNumber}
+                                docType={docType}
+                                date={docDateStr}
+                                customerName={customerName}
+                                totalAmount={calculatedGrandTotal}
+                                paperSize={paperSize}
+                                showBarcode={true}
+                                showQr={codePlacement === 'header' || codePlacement === 'both'}
+                                renderMode={codePlacement === 'split' ? 'barcode_only' : 'both'}
+                                align="right"
+                                layout="column"
+                                className="my-0"
+                              />
+                            </div>
                           )}
                         </div>
-                      )}
+                      </div>
 
-                      {/* Right: Company Legal Information Header */}
-                      <div className="flex-1 text-center sm:text-left pl-1">
-                        <h1
+                      {/* Document Title & Date */}
+                      <div className="text-center my-1">
+                        <h2
                           className={`${
-                            paperSize === 'A5' ? 'text-[10pt]' : 'text-[12pt]'
-                          } font-black uppercase text-blue-950 tracking-tight leading-tight`}
+                            paperSize === 'A5' ? 'text-[12pt]' : 'text-[15pt]'
+                          } font-black uppercase tracking-wider text-black`}
                         >
-                          {companyName}
-                        </h1>
+                          {getDocTitle()}
+                        </h2>
                         <div
                           className={`${
-                            paperSize === 'A5' ? 'text-[7.5pt]' : 'text-[8.5pt]'
-                          } text-gray-800 mt-0.5 leading-snug`}
+                            paperSize === 'A5' ? 'text-[8pt]' : 'text-[9pt]'
+                          } text-gray-700 italic mt-0.5`}
                         >
-                          <span>{companyAddress}</span>
-                        </div>
-                        <div
-                          className={`${
-                            paperSize === 'A5' ? 'text-[7.5pt]' : 'text-[8.5pt]'
-                          } text-gray-800 flex flex-wrap items-center gap-x-3 gap-y-0.5 leading-snug`}
-                        >
-                          <span>
-                            <strong>Tell/Zalo:</strong> {companyPhone}
-                          </span>
-                          <span>
-                            <strong>Tell/Fax:</strong> {companyFax}
-                          </span>
-                        </div>
-                        <div
-                          className={`${
-                            paperSize === 'A5' ? 'text-[7pt]' : 'text-[8pt]'
-                          } text-gray-700 flex flex-wrap items-center gap-x-3 gap-y-0.5 leading-snug`}
-                        >
-                          <span>
-                            <strong>Website:</strong> {companyWeb}
-                          </span>
-                          <span>
-                            <strong>Email:</strong> {companyEmail}
-                          </span>
+                          {docDateStr}
                         </div>
                       </div>
 
-                      {/* Right: Top-Right Barcode & QR Box (Cân đối đầu trang - Đúng vị trí khoanh đỏ Ảnh 1) */}
-                      {showBarcode && (codePlacement === 'split' || codePlacement === 'header' || codePlacement === 'both') && (
-                        <div className="flex-shrink-0 flex flex-col items-end justify-start pl-2 pt-0.5">
-                          <SlipBarcodeQR
-                            docCode={docNumber}
-                            docType={docType}
-                            date={docDateStr}
-                            customerName={customerName}
-                            totalAmount={calculatedGrandTotal}
-                            paperSize={paperSize}
-                            showBarcode={true}
-                            showQr={codePlacement === 'header' || codePlacement === 'both'}
-                            renderMode={codePlacement === 'split' ? 'barcode_only' : 'both'}
-                            align="right"
-                            layout="column"
-                            className="my-0"
-                          />
+                      {/* Metadata Header Box (Right-aligned Voucher No., Creator, Warehouse) */}
+                      <div
+                        className={`grid grid-cols-12 gap-1 ${
+                          paperSize === 'A5' ? 'text-[8pt]' : 'text-[9pt]'
+                        } text-gray-900 mb-1.5`}
+                      >
+                        {/* Left Column: Customer Details */}
+                        <div className="col-span-8 space-y-1">
+                          <div className="flex items-baseline">
+                            <span className="font-bold whitespace-nowrap w-24">
+                              {docType === 'goods_receipt' ? 'Nhà cung cấp:' : 'Khách hàng:'}
+                            </span>
+                            <span className="flex-1 font-bold text-black border-b border-dotted border-gray-600 pb-0.5">
+                              {customerName}
+                            </span>
+                          </div>
+                          <div className="flex items-baseline">
+                            <span className="font-bold whitespace-nowrap w-24">Địa chỉ:</span>
+                            <span className="flex-1 text-gray-900 border-b border-dotted border-gray-600 pb-0.5">
+                              {customerAddress}
+                            </span>
+                          </div>
+                          <div className="flex items-baseline gap-2">
+                            <div className="flex-1 flex items-baseline">
+                              <span className="font-bold whitespace-nowrap w-24">Người nhận:</span>
+                              <span className="flex-1 text-gray-900 border-b border-dotted border-gray-600 pb-0.5">
+                                {recipientName || customerName}
+                              </span>
+                            </div>
+                            <div className="w-44 flex items-baseline">
+                              <span className="font-bold whitespace-nowrap mr-1">Số điện thoại:</span>
+                              <span className="flex-1 font-bold text-black border-b border-dotted border-gray-600 pb-0.5">
+                                {customerPhone}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-baseline">
+                            <span className="font-bold whitespace-nowrap w-24">Diễn giải:</span>
+                            <span className="flex-1 text-gray-900 font-semibold border-b border-dotted border-gray-600 pb-0.5">
+                              {explanationNote}
+                            </span>
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  </div>
 
-                  {/* Document Title & Date */}
-                  <div className="text-center my-1">
-                    <h2
-                      className={`${
-                        paperSize === 'A5' ? 'text-[12pt]' : 'text-[15pt]'
-                      } font-black uppercase tracking-wider text-black`}
-                    >
-                      {getDocTitle()}
-                    </h2>
-                    <div
-                      className={`${
-                        paperSize === 'A5' ? 'text-[8pt]' : 'text-[9pt]'
-                      } text-gray-700 italic mt-0.5`}
-                    >
-                      {docDateStr}
-                    </div>
-                  </div>
-
-                  {/* Metadata Header Box (Right-aligned Voucher No., Creator, Warehouse) */}
-                  <div
-                    className={`grid grid-cols-12 gap-1 ${
-                      paperSize === 'A5' ? 'text-[8pt]' : 'text-[9pt]'
-                    } text-gray-900 mb-1.5`}
-                  >
-                    {/* Left Column: Customer Details */}
-                    <div className="col-span-8 space-y-1">
-                      <div className="flex items-baseline">
-                        <span className="font-bold whitespace-nowrap w-24">
-                          {docType === 'goods_receipt' ? 'Nhà cung cấp:' : 'Khách hàng:'}
-                        </span>
-                        <span className="flex-1 font-bold text-black border-b border-dotted border-gray-600 pb-0.5">
-                          {customerName}
-                        </span>
-                      </div>
-                      <div className="flex items-baseline">
-                        <span className="font-bold whitespace-nowrap w-24">Địa chỉ:</span>
-                        <span className="flex-1 text-gray-900 border-b border-dotted border-gray-600 pb-0.5">
-                          {customerAddress}
-                        </span>
-                      </div>
-                      <div className="flex items-baseline gap-2">
-                        <div className="flex-1 flex items-baseline">
-                          <span className="font-bold whitespace-nowrap w-24">Người nhận:</span>
-                          <span className="flex-1 text-gray-900 border-b border-dotted border-gray-600 pb-0.5">
-                            {recipientName || customerName}
-                          </span>
-                        </div>
-                        <div className="w-44 flex items-baseline">
-                          <span className="font-bold whitespace-nowrap mr-1">Số điện thoại:</span>
-                          <span className="flex-1 font-bold text-black border-b border-dotted border-gray-600 pb-0.5">
-                            {customerPhone}
-                          </span>
+                        {/* Right Column: Voucher Meta (Số phiếu, Người lập, Kho) */}
+                        <div className="col-span-4 pl-2 space-y-1 border-l border-gray-300">
+                          <div className="flex items-baseline">
+                            <span className="font-bold whitespace-nowrap w-20">Số phiếu:</span>
+                            <span className="flex-1 font-mono font-bold text-black border-b border-dotted border-gray-600 pb-0.5 text-right">
+                              {docNumber}
+                            </span>
+                          </div>
+                          <div className="flex items-baseline">
+                            <span className="font-bold whitespace-nowrap w-20">Người lập:</span>
+                            <span className="flex-1 font-bold text-black border-b border-dotted border-gray-600 pb-0.5 text-right">
+                              {creator}
+                            </span>
+                          </div>
+                          <div className="flex items-baseline">
+                            <span className="font-bold whitespace-nowrap w-20">Kho:</span>
+                            <span className="flex-1 font-bold text-black border-b border-dotted border-gray-600 pb-0.5 text-right">
+                              {warehouse}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-baseline">
-                        <span className="font-bold whitespace-nowrap w-24">Diễn giải:</span>
-                        <span className="flex-1 text-gray-900 font-semibold border-b border-dotted border-gray-600 pb-0.5">
-                          {explanationNote}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Right Column: Voucher Meta (Số phiếu, Người lập, Kho) */}
-                    <div className="col-span-4 pl-2 space-y-1 border-l border-gray-300">
-                      <div className="flex items-baseline">
-                        <span className="font-bold whitespace-nowrap w-20">Số phiếu:</span>
-                        <span className="flex-1 font-mono font-bold text-black border-b border-dotted border-gray-600 pb-0.5 text-right">
-                          {docNumber}
-                        </span>
-                      </div>
-                      <div className="flex items-baseline">
-                        <span className="font-bold whitespace-nowrap w-20">Người lập:</span>
-                        <span className="flex-1 font-bold text-black border-b border-dotted border-gray-600 pb-0.5 text-right">
-                          {creator}
-                        </span>
-                      </div>
-                      <div className="flex items-baseline">
-                        <span className="font-bold whitespace-nowrap w-20">Kho:</span>
-                        <span className="flex-1 font-bold text-black border-b border-dotted border-gray-600 pb-0.5 text-right">
-                          {warehouse}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+                    </>
+                  )}
 
                   {/* =========================================================================
                       Table Section: Render Exact Table Columns Based on Selected Doc Type
@@ -1746,11 +1928,98 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                         </>
                       )}
 
+                      {/* -------------------------------------------------------------
+                          CASE 13: BIÊN BẢN GIAO NHẬN HÀNG HÓA (goods_delivery_record - Theo Ảnh 1)
+                          ------------------------------------------------------------- */}
+                      {docType === 'goods_delivery_record' && (
+                        <>
+                          <thead>
+                            <tr className="excel-header-blue text-black font-bold text-center border-b border-black">
+                              <th className="border border-black px-1 py-1 w-8">STT</th>
+                              <th className="border border-black px-2 py-1 text-left">TÊN HÀNG</th>
+                              <th className="border border-black px-1.5 py-1 w-12 text-center">ĐVT</th>
+                              <th className="border border-black px-1.5 py-1 w-12 text-center">SL</th>
+                              <th className="border border-black px-2 py-1 text-right w-24">ĐƠN GIÁ</th>
+                              <th className="border border-black px-1.5 py-1 text-right w-20">GIẢM GIÁ</th>
+                              <th className="border border-black px-2 py-1 text-right w-28">THÀNH TIỀN</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {itemsList.map((it, idx) => (
+                              <tr key={idx} className="border-b border-black">
+                                <td className="border border-black px-1 py-1 text-center font-bold">{idx + 1}</td>
+                                <td className="border border-black px-2 py-1">
+                                  <div className="font-bold text-black">{it.productName}</div>
+                                  {it.serialNumber && (
+                                    <div className="text-[7pt] text-gray-700 font-mono italic">
+                                      (Serial No/Ghi chú: {it.serialNumber})
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="border border-black px-1 py-1 text-center">{it.unit || 'Cái'}</td>
+                                <td className="border border-black px-1 py-1 text-center font-bold">{it.quantity}</td>
+                                <td className="border border-black px-2 py-1 text-right font-mono">{formatVND(it.unitPrice).replace(' ₫', '')}</td>
+                                <td className="border border-black px-1.5 py-1 text-right font-mono text-gray-600">{(it as any).discount ? formatVND((it as any).discount).replace(' ₫', '') : '0'}</td>
+                                <td className="border border-black px-2 py-1 text-right font-mono font-bold text-black">{formatVND(it.total || it.quantity * it.unitPrice).replace(' ₫', '')}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </>
+                      )}
+
+                      {/* -------------------------------------------------------------
+                          CASE 14: PHIẾU HÀNG BÁN TRẢ LẠI MẪU 02-TT (sales_return - Theo Ảnh 2)
+                          ------------------------------------------------------------- */}
+                      {docType === 'sales_return' && (
+                        <>
+                          <thead>
+                            <tr className="excel-header-blue text-black font-bold text-center border-b border-black text-[7.5pt]">
+                              <th className="border border-black px-1 py-1 w-8" rowSpan={2}>STT</th>
+                              <th className="border border-black px-2 py-1 text-left" rowSpan={2}>Mặt hàng</th>
+                              <th className="border border-black px-2 py-1 w-20 text-center" rowSpan={2}>Mã số</th>
+                              <th className="border border-black px-1 py-1 w-10 text-center" rowSpan={2}>Đvt</th>
+                              <th className="border border-black px-1 py-0.5 text-center" colSpan={2}>Số lượng</th>
+                              <th className="border border-black px-2 py-1 text-right w-24" rowSpan={2}>Đơn giá</th>
+                              <th className="border border-black px-2 py-1 text-right w-28" rowSpan={2}>Thành tiền</th>
+                            </tr>
+                            <tr className="excel-header-blue text-black font-bold text-center border-b border-black text-[7pt]">
+                              <th className="border border-black px-1 py-0.5 w-14">Theo C.Từ</th>
+                              <th className="border border-black px-1 py-0.5 w-14">Thực nhập</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {itemsList.map((it, idx) => (
+                              <tr key={idx} className="border-b border-black">
+                                <td className="border border-black px-1 py-1 text-center font-bold">{idx + 1}</td>
+                                <td className="border border-black px-2 py-1">
+                                  <div className="font-bold text-black">{it.productName}</div>
+                                  {it.serialNumber && (
+                                    <div className="text-[7pt] text-gray-700 font-mono italic">
+                                      Serial thu hồi: {it.serialNumber}
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="border border-black px-2 py-1 font-mono text-[7.5pt] text-center font-bold text-gray-800">{it.sku}</td>
+                                <td className="border border-black px-1 py-1 text-center">{it.unit || 'Cái'}</td>
+                                <td className="border border-black px-1 py-1 text-center font-bold">{it.quantity}</td>
+                                <td className="border border-black px-1 py-1 text-center font-bold text-blue-900">{it.actualQuantity || it.quantity}</td>
+                                <td className="border border-black px-2 py-1 text-right font-mono">{formatVND(it.unitPrice).replace(' ₫', '')}</td>
+                                <td className="border border-black px-2 py-1 text-right font-mono font-bold text-black">{formatVND(it.total || it.quantity * it.unitPrice).replace(' ₫', '')}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </>
+                      )}
+
                       {/* Blank Grid Rows (Standard Vietnamese Ledger Padding) */}
                       {Array.from({ length: Math.max(0, emptyRowsCount) }).map((_, emptyIdx) => {
                         const totalCols =
                           docType === 'exchange_return'
                             ? 14
+                            : docType === 'sales_return'
+                            ? 8
+                            : docType === 'goods_delivery_record'
+                            ? 7
                             : docType === 'warranty_intake' || docType === 'warranty_return' || docType === 'sales_order'
                             ? 7
                             : 8;
@@ -1824,32 +2093,66 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                     </table>
                   </div>
 
-                  {/* 4 Standard Footnotes */}
-                  <div className={`mt-2 ${paperSize === 'A5' ? 'text-[7pt]' : 'text-[8pt]'} text-gray-900 leading-snug`}>
-                    <div className="font-bold underline mb-0.5">Ghi chú:</div>
-                    <ol className="list-none space-y-0.5 pl-0">
-                      <li>
-                        1. Giá trên bao gồm VAT {taxRate}%. Chưa bao gồm phí vận chuyển và cấu hình lắp đặt ( Liên hệ:{' '}
-                        <strong>0914 665 994 Mr. Thơm</strong>)
-                      </li>
-                      <li>2. Bảo hành 1 năm theo tiêu chuẩn nhà sản xuất tại Công Ty Gia Phúc</li>
-                      <li>
-                        3. Hình thức thanh toán:{' '}
-                        {docType === 'sales_order'
-                          ? 'Thanh toán 50% Tiền mặt/ chuyển khoản sau khi đặt hàng'
-                          : 'Tiền mặt/ chuyển khoản'}
-                      </li>
-                      <li>4. Vui lòng kiểm tra hàng trước khi rời khỏi công ty</li>
-                    </ol>
-                  </div>
+                  {/* -------------------------------------------------------------
+                      FOOTNOTES & REMARKS SECTION
+                      ------------------------------------------------------------- */}
+                  {docType === 'goods_delivery_record' ? (
+                    /* Ghi chú chuẩn Biên Bản Giao Nhận (Ảnh 1) */
+                    <div className="mt-2 text-[8pt] text-gray-900 leading-snug border-t border-gray-300 pt-1.5 space-y-1">
+                      <div className="font-bold underline">Ghi chú:</div>
+                      <div className="pl-2 space-y-0.5">
+                        <div>- Hàng hóa được giao nhận mới 100%, đầy đủ phụ kiện (adapter) kèm theo.</div>
+                        <div>- Hình thức thanh toán: Tiền Mặt / Chuyển Khoản / Thanh toán cho người giao hàng.</div>
+                        <div>- Bên Mua (bên B) kiểm tra hàng hóa trước khi nhận. Mọi sự thiếu sót về sau không được giải quyết.</div>
+                      </div>
+                    </div>
+                  ) : docType === 'sales_return' ? (
+                    /* Ghi chú & Đọc tiền bằng chữ chuẩn Mẫu 02-TT (Ảnh 2) */
+                    <div className="mt-2 text-[8pt] text-gray-900 leading-snug border-t border-gray-300 pt-1.5 space-y-1">
+                      <div>
+                        - <strong>Tổng số tiền (Viết bằng chữ):</strong>{' '}
+                        <span className="italic font-bold text-black">{numberToVietnameseWords(calculatedGrandTotal)}</span>
+                      </div>
+                      <div className="flex items-baseline">
+                        <span className="w-56">- Số chứng từ gốc kèm theo:</span>
+                        <span className="flex-1 border-b border-dotted border-gray-500 pb-0.5 text-gray-700">
+                          {docNumber} ({docDateStr})
+                        </span>
+                      </div>
+                      <div className="text-right italic text-[7.5pt] text-gray-700 pt-1">
+                        Ngày {new Date().getDate()} tháng {new Date().getMonth() + 1} năm {new Date().getFullYear()}
+                      </div>
+                    </div>
+                  ) : (
+                    /* 4 Standard Footnotes */
+                    <div className={`mt-2 ${paperSize === 'A5' ? 'text-[7pt]' : 'text-[8pt]'} text-gray-900 leading-snug`}>
+                      <div className="font-bold underline mb-0.5">Ghi chú:</div>
+                      <ol className="list-none space-y-0.5 pl-0">
+                        <li>
+                          1. Giá trên bao gồm VAT {taxRate}%. Chưa bao gồm phí vận chuyển và cấu hình lắp đặt ( Liên hệ:{' '}
+                          <strong>0914 665 994 Mr. Thơm</strong>)
+                        </li>
+                        <li>2. Bảo hành 1 năm theo tiêu chuẩn nhà sản xuất tại Công Ty Gia Phúc</li>
+                        <li>
+                          3. Hình thức thanh toán:{' '}
+                          {docType === 'sales_order'
+                            ? 'Thanh toán 50% Tiền mặt/ chuyển khoản sau khi đặt hàng'
+                            : 'Tiền mặt/ chuyển khoản'}
+                        </li>
+                        <li>4. Vui lòng kiểm tra hàng trước khi rời khỏi công ty</li>
+                      </ol>
+                    </div>
+                  )}
 
                   {/* Bottom Footer Section: Barcode/QR & Signatures */}
                   <div className="mt-auto pt-1 space-y-1">
                     {/* Delivery & Warranty Notes */}
-                    <div className={`${paperSize === 'A5' ? 'text-[7pt]' : 'text-[7.5pt]'} text-gray-700 italic space-y-0.5 border-t border-dotted border-gray-400 pt-1`}>
-                      {explanationNote && <div>• <strong>Ghi chú:</strong> {explanationNote}</div>}
-                      {settings?.receiptFooterNote && <div>• {settings.receiptFooterNote}</div>}
-                    </div>
+                    {docType !== 'goods_delivery_record' && docType !== 'sales_return' && (
+                      <div className={`${paperSize === 'A5' ? 'text-[7pt]' : 'text-[7.5pt]'} text-gray-700 italic space-y-0.5 border-t border-dotted border-gray-400 pt-1`}>
+                        {explanationNote && <div>• <strong>Ghi chú:</strong> {explanationNote}</div>}
+                        {settings?.receiptFooterNote && <div>• {settings.receiptFooterNote}</div>}
+                      </div>
+                    )}
 
                     {/* Barcode 1D & QR Code Tra Cứu Footer */}
                     {(showBarcode || showDocQr) && (codePlacement === 'footer' || codePlacement === 'split' || codePlacement === 'both') && (
@@ -1872,7 +2175,65 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                     )}
 
                     {/* Signatures Area */}
-                    {signatureStyle === 'two_blocks' ? (
+                    {docType === 'goods_delivery_record' ? (
+                      /* 2 Khối Chữ Ký Biên Bản Giao Nhận (Ảnh 1) */
+                      <div className="border-t border-gray-400 pt-2">
+                        <div className="grid grid-cols-2 gap-4 text-center">
+                          <div className="flex flex-col items-center justify-between min-h-[75px]">
+                            <div>
+                              <div className="font-black text-[9pt] uppercase text-black">ĐẠI DIỆN BÊN BÁN (BÊN A)</div>
+                              <div className="text-[7.5pt] text-gray-600 italic">(Ký và ghi rõ họ tên)</div>
+                            </div>
+                            <div className="font-bold text-black text-[8.5pt] pt-8">{creator}</div>
+                          </div>
+                          <div className="flex flex-col items-center justify-between min-h-[75px]">
+                            <div>
+                              <div className="font-black text-[9pt] uppercase text-black">ĐẠI DIỆN BÊN MUA (BÊN B)</div>
+                              <div className="text-[7.5pt] text-gray-600 italic">(Ký và ghi rõ họ tên)</div>
+                            </div>
+                            <div className="font-bold text-black text-[8.5pt] pt-8">{recipientName || customerName}</div>
+                          </div>
+                        </div>
+                        {/* Hotline CSKH cuối trang */}
+                        <div className="text-center text-[7.5pt] text-gray-700 italic border-t border-dotted border-gray-300 mt-2 pt-1">
+                          Nếu Quý khách chưa hài lòng về thái độ phục vụ của Nhân Viên Giao Hàng - Nhân Viên Kỹ Thuật
+                          <br />
+                          Xin Quý khách vui lòng liên hệ theo SĐT: <strong>{companyPhone}</strong>
+                        </div>
+                      </div>
+                    ) : docType === 'sales_return' ? (
+                      /* 4 Khối Chữ Ký Hàng Bán Trả Lại Mẫu 02-TT (Ảnh 2) */
+                      <div className="grid grid-cols-4 gap-2 text-center border-t border-gray-400 pt-2">
+                        <div className="flex flex-col items-center justify-between min-h-[70px]">
+                          <div>
+                            <div className="font-bold text-[8pt] text-black">Người lập phiếu</div>
+                            <div className="text-[6.5pt] italic text-gray-600">(Ký, họ tên)</div>
+                          </div>
+                          <div className="font-bold text-black text-[7.5pt] pt-8">{creator}</div>
+                        </div>
+                        <div className="flex flex-col items-center justify-between min-h-[70px]">
+                          <div>
+                            <div className="font-bold text-[8pt] text-black">Người giao hàng</div>
+                            <div className="text-[6.5pt] italic text-gray-600">(Ký, họ tên)</div>
+                          </div>
+                          <div className="font-bold text-black text-[7.5pt] pt-8">{customerName}</div>
+                        </div>
+                        <div className="flex flex-col items-center justify-between min-h-[70px]">
+                          <div>
+                            <div className="font-bold text-[8pt] text-black">Thủ kho</div>
+                            <div className="text-[6.5pt] italic text-gray-600">(Ký, họ tên)</div>
+                          </div>
+                          <div className="text-gray-400 text-[7pt] pt-8">....................</div>
+                        </div>
+                        <div className="flex flex-col items-center justify-between min-h-[70px]">
+                          <div>
+                            <div className="font-bold text-[8pt] text-black">Kế toán trưởng</div>
+                            <div className="text-[6.5pt] italic text-gray-600">(Ký, họ tên)</div>
+                          </div>
+                          <div className="text-gray-400 text-[7pt] pt-8">....................</div>
+                        </div>
+                      </div>
+                    ) : signatureStyle === 'two_blocks' ? (
                       /* 2 Blocks Signature Mode (Default) */
                       <div
                         className={`grid grid-cols-2 gap-4 text-center border-t border-gray-400 pt-1 ${
