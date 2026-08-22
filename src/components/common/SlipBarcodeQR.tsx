@@ -129,7 +129,6 @@ export const SlipBarcodeQR: React.FC<SlipBarcodeQRProps> = ({
             className="max-w-[220px] max-h-[50px] overflow-hidden"
             dangerouslySetInnerHTML={{ __html: barcodeSvgHtml }}
           />
-          <span className="text-[8pt] text-slate-500 font-mono">Mã chứng từ: {docCode}</span>
         </div>
       )}
 

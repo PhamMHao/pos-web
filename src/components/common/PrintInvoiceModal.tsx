@@ -577,6 +577,41 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
               </div>
             )}
 
+            {/* Quick Code Placement Selector in Top Toolbar */}
+            <div className="flex items-center bg-slate-800 rounded-xl p-0.5 border border-slate-700 text-xs">
+              <span className="text-[10px] text-slate-400 font-bold px-2">Vị trí mã:</span>
+              <button
+                type="button"
+                onClick={() => setCodePlacement('split')}
+                title="Mã vạch trên đầu (cân phiếu), Mã QR ở chân trang"
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  codePlacement === 'split' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Đầu trang (Cân phiếu)
+              </button>
+              <button
+                type="button"
+                onClick={() => setCodePlacement('footer')}
+                title="Toàn bộ mã ở chân trang"
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  codePlacement === 'footer' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Cuối trang (Đẹp)
+              </button>
+              <button
+                type="button"
+                onClick={() => setCodePlacement('both')}
+                title="Hiển thị cả ở đầu trang và chân trang"
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  codePlacement === 'both' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Cả 2
+              </button>
+            </div>
+
             {/* Toggle Editor Drawer */}
             <button
               type="button"
