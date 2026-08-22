@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   Plus,
@@ -20,6 +20,10 @@ import {
   Mail,
   Shield,
   Briefcase,
+  Upload,
+  Globe,
+  Trash2,
+  Eye,
 } from 'lucide-react';
 import {
   Product,
@@ -30,6 +34,8 @@ import {
   UOMOption,
 } from '../../types';
 import { formatVND } from '../../utils/vietqr';
+import { compressImageFile } from '../../utils/imageCompressor';
+import { WebImagePickerModal } from './WebImagePickerModal';
 
 export type MasterDataType =
   | 'product'
@@ -149,6 +155,42 @@ export const QuickAddMasterDataModal: React.FC<QuickAddMasterDataModalProps> = (
       generateNewSkuBarcode();
     }
   }, [isOpen, activeTab]);
+
+  // 1. PRODUCT IMAGE & PICKER STATE
+  const [showWebImagePicker, setShowWebImagePicker] = useState(false);
+  const imageFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const compressed = await compressImageFile(file);
+        setProductForm((prev) => ({ ...prev, image: compressed }));
+      } catch (err) {
+        console.error('Error compressing image:', err);
+      }
+    }
+  };
+
+  const handlePasteImage = async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        const file = items[i].getAsFile();
+        if (file) {
+          e.preventDefault();
+          try {
+            const compressed = await compressImageFile(file);
+            setProductForm((prev) => ({ ...prev, image: compressed }));
+          } catch (err) {
+            console.error('Error pasting image:', err);
+          }
+          break;
+        }
+      }
+    }
+  };
 
   // 2. UOM STATE
   const [uomName, setUomName] = useState('Thùng');
@@ -493,6 +535,97 @@ export const QuickAddMasterDataModal: React.FC<QuickAddMasterDataModalProps> = (
                       <option key={loc} value={loc}>{loc}</option>
                     ))}
                   </select>
+                </div>
+
+                {/* Product Image Section */}
+                <div className="sm:col-span-2">
+                  <div className="flex flex-wrap items-center justify-between gap-1.5 mb-1.5">
+                    <label className="text-slate-300 font-semibold text-xs flex items-center space-x-1.5">
+                      <span>Hình ảnh sản phẩm:</span>
+                    </label>
+
+                    <div className="flex items-center space-x-1.5">
+                      <input
+                        type="file"
+                        ref={imageFileInputRef}
+                        onChange={handleImageFileSelect}
+                        accept="image/*"
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => imageFileInputRef.current?.click()}
+                        className="px-2.5 py-1 bg-emerald-950/70 hover:bg-emerald-900 border border-emerald-600/50 text-emerald-300 hover:text-white rounded-lg text-[11px] font-bold flex items-center space-x-1 transition-all shadow-xs cursor-pointer active:scale-95"
+                        title="Tải ảnh từ ổ đĩa máy tính"
+                      >
+                        <Upload className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>+ Từ máy tính</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowWebImagePicker(true)}
+                        className="px-2.5 py-1 bg-indigo-950/70 hover:bg-indigo-900 border border-indigo-600/50 text-indigo-300 hover:text-white rounded-lg text-[11px] font-bold flex items-center space-x-1 transition-all shadow-xs cursor-pointer active:scale-95"
+                        title="Mở thư viện ảnh sản phẩm HD & Tìm kiếm Web"
+                      >
+                        <Globe className="w-3.5 h-3.5 text-indigo-400" />
+                        <span>+ Từ Web</span>
+                      </button>
+
+                      {productForm.image && (
+                        <button
+                          type="button"
+                          onClick={() => setProductForm((prev) => ({ ...prev, image: '' }))}
+                          className="px-2 py-1 bg-rose-950/60 hover:bg-rose-900 border border-rose-700/50 text-rose-300 hover:text-rose-100 rounded-lg text-[10px] font-semibold flex items-center space-x-0.5 transition-all cursor-pointer"
+                          title="Gỡ bỏ hình ảnh hiện tại"
+                        >
+                          <Trash2 className="w-3 h-3 text-rose-400" />
+                          <span>Gỡ ảnh</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Input with Live Thumbnail Preview Box */}
+                  <div
+                    onPaste={handlePasteImage}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={async (e) => {
+                      e.preventDefault();
+                      const file = e.dataTransfer.files?.[0];
+                      if (file && file.type.startsWith('image/')) {
+                        const compressed = await compressImageFile(file);
+                        setProductForm((prev) => ({ ...prev, image: compressed }));
+                      }
+                    }}
+                    className="flex items-center space-x-3"
+                  >
+                    <div
+                      onClick={() => imageFileInputRef.current?.click()}
+                      className="w-12 h-12 rounded-xl bg-slate-950 border-2 border-dashed border-slate-700 hover:border-cyan-400 overflow-hidden flex items-center justify-center shrink-0 shadow-inner cursor-pointer group transition-all"
+                      title="Bấm để chọn ảnh từ máy tính, kéo thả ảnh hoặc dán Ctrl+V vào đây"
+                    >
+                      {productForm.image ? (
+                        <img
+                          src={productForm.image}
+                          alt="Preview"
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-cover group-hover:opacity-80 transition-opacity"
+                        />
+                      ) : (
+                        <Eye className="w-5 h-5 text-slate-600 group-hover:text-cyan-400" />
+                      )}
+                    </div>
+
+                    <input
+                      type="url"
+                      value={productForm.image || ''}
+                      onChange={(e) => setProductForm({ ...productForm, image: e.target.value })}
+                      onPaste={handlePasteImage}
+                      className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:border-cyan-500 focus:outline-none font-mono"
+                      placeholder="Dán link ảnh (https://...) hoặc bấm Ctrl+V để dán ảnh chụp màn hình..."
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -903,6 +1036,16 @@ export const QuickAddMasterDataModal: React.FC<QuickAddMasterDataModalProps> = (
           </div>
         </form>
       </div>
+
+      {/* Web Image Picker Modal */}
+      {showWebImagePicker && (
+        <WebImagePickerModal
+          isOpen={showWebImagePicker}
+          onClose={() => setShowWebImagePicker(false)}
+          onSelectImage={(imageUrl) => setProductForm((prev) => ({ ...prev, image: imageUrl }))}
+          currentImageUrl={productForm.image}
+        />
+      )}
     </div>
   );
 };
