@@ -128,6 +128,15 @@ export interface Order {
   shippingFee: number;
   shippingPartner?: string;
   trackingCode?: string;
+  codAmount?: number; // Tiền thu hộ COD
+  recipientName?: string;
+  recipientPhone?: string;
+  recipientAddress?: string;
+  stockIssued?: boolean; // Đã thực hiện xuất kho trừ tồn
+  stockIssuedAt?: string;
+  stockIssuedBy?: string;
+  deliveryStatus?: 'pending_pickup' | 'in_transit' | 'delivered' | 'delivery_failed' | 'returned';
+  deliveryNotes?: string;
   total: number;
   totalCost: number;
   profit: number;
@@ -331,7 +340,9 @@ export type PrintDocType =
   | 'asset_handover' // PHIẾU BÀN GIAO & CUNG CẤP TÀI SẢN
   | 'asset_transfer' // PHIẾU ĐIỀU CHUYỂN TÀI SẢN / KHO
   | 'stock_disposal' // BIÊN BẢN TIÊU HỦY VẬT TƯ & TÀI SẢN
-  | 'liquidation_receipt'; // PHIẾU THU TIỀN THANH LÝ (THU HỒI VỐN)
+  | 'liquidation_receipt' // PHIẾU THU TIỀN THANH LÝ (THU HỒI VỐN)
+  | 'delivery_dispatch' // PHIẾU ĐIỀU PHỐI GIAO HÀNG & THU TIỀN COD
+  | 'shipping_label'; // TEM VẬN ĐƠN DÁN KIỆN HÀNG (K80 / A5)
 
 // Enterprise Module Types
 export interface AccountingRecord {
@@ -920,5 +931,9 @@ export interface PurchaseOrder {
   paymentStatus: 'unpaid' | 'partial' | 'paid';
   paymentMethod: 'transfer' | 'cash' | 'debt_30d';
   notes?: string;
+  receivedAt?: string;
+  receivedBy?: string;
+  receiptNote?: string;
+  actualItemsReceived?: Array<{ productId?: string; sku: string; productName: string; quantity: number; serials?: string[] }>;
   createdAt: string;
 }

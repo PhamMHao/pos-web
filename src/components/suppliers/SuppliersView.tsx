@@ -25,13 +25,19 @@ import {
   Trash2,
   Edit,
   AlertTriangle,
+  PackageCheck,
+  ArrowDownCircle,
+  X,
+  Boxes,
 } from 'lucide-react';
-import { Supplier, PurchaseOrder, Product, StoreSettings } from '../../types';
+import { Supplier, PurchaseOrder, Product, StoreSettings, InventoryLog } from '../../types';
 import { formatVND } from '../../utils/vietqr';
+import { sounds } from '../../utils/soundEffects';
 import { NewSupplierModal } from './NewSupplierModal';
 import { NewPurchaseOrderModal } from './NewPurchaseOrderModal';
 import { PurchaseOrderPrintModal } from './PurchaseOrderPrintModal';
 import { SupplierComparisonModal } from '../quotes/SupplierComparisonModal';
+import { PrintInvoiceModal, PrintItem } from '../common/PrintInvoiceModal';
 
 interface SuppliersViewProps {
   suppliers?: Supplier[];
@@ -42,6 +48,7 @@ interface SuppliersViewProps {
   onDeleteSupplier?: (id: string) => void;
   onSavePurchaseOrder?: (po: PurchaseOrder) => void;
   onDeletePurchaseOrder?: (id: string) => void;
+  onAdjustStock?: (log: Omit<InventoryLog, 'id' | 'timestamp'>) => void;
   onOpenDocOcrScanner?: (mode?: 'supplier_quote' | 'purchase_order') => void;
 }
 
@@ -54,6 +61,7 @@ export const SuppliersView: React.FC<SuppliersViewProps> = ({
   onDeleteSupplier,
   onSavePurchaseOrder,
   onDeletePurchaseOrder,
+  onAdjustStock,
   onOpenDocOcrScanner,
 }) => {
   const safeSuppliers = suppliers || [];
@@ -66,6 +74,17 @@ export const SuppliersView: React.FC<SuppliersViewProps> = ({
   const [showComparisonModal, setShowComparisonModal] = useState(false);
   const [showPrintPOModal, setShowPrintPOModal] = useState(false);
   const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
+
+  // Receive PO Modal State
+  const [receivingPO, setReceivingPO] = useState<PurchaseOrder | null>(null);
+  const [receiveQuantities, setReceiveQuantities] = useState<Record<string, number>>({});
+  const [receiveSerials, setReceiveSerials] = useState<Record<string, string>>({});
+  const [receivingNote, setReceivingNote] = useState<string>('Kiểm đếm nhập đủ hàng theo đơn');
+  const [showGoodsReceiptPrint, setShowGoodsReceiptPrint] = useState<{
+    isOpen: boolean;
+    po: PurchaseOrder;
+    items: PrintItem[];
+  } | null>(null);
 
   const activeSupplier = safeSuppliers.find((s) => s.id === selectedSupplierId) || safeSuppliers[0];
 
@@ -587,23 +606,77 @@ export const SuppliersView: React.FC<SuppliersViewProps> = ({
                             <td className="p-3 text-slate-300">{po.warehouseName}</td>
                             <td className="p-3 text-right font-mono font-bold text-emerald-400">{formatVND(po.totalAmount)}</td>
                             <td className="p-3 text-center">
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                                {po.status === 'completed' ? 'Đã Nhập Kho' : 'Đã Gửi PO'}
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                  po.status === 'completed'
+                                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                                    : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                                }`}
+                              >
+                                {po.status === 'completed' ? '✓ Đã Nhập Kho' : '⏳ Chờ Nhập Hàng'}
                               </span>
                             </td>
                             <td className="p-3 text-center">
-                              <div className="flex items-center justify-center space-x-2">
+                              <div className="flex items-center justify-center space-x-1.5">
+                                {po.status !== 'completed' ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const initQ: Record<string, number> = {};
+                                      const initS: Record<string, string> = {};
+                                      po.items.forEach((it, idx) => {
+                                        initQ[it.productId || it.sku || `item-${idx}`] = it.quantity;
+                                        initS[it.productId || it.sku || `item-${idx}`] = '';
+                                      });
+                                      setReceiveQuantities(initQ);
+                                      setReceiveSerials(initS);
+                                      setReceivingPO(po);
+                                    }}
+                                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold flex items-center space-x-1 transition-all shadow-md shadow-emerald-600/20 cursor-pointer"
+                                    title="Kiểm đếm và nhập kho thực tế"
+                                  >
+                                    <PackageCheck className="w-3.5 h-3.5" />
+                                    <span>📥 Nhập Kho</span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setShowGoodsReceiptPrint({
+                                        isOpen: true,
+                                        po,
+                                        items: po.items.map((it, idx) => ({
+                                          id: `gr-${idx}`,
+                                          sku: it.sku,
+                                          productName: it.productName,
+                                          unit: it.unit,
+                                          quantity: it.quantity,
+                                          unitPrice: it.unitPrice,
+                                          total: it.total,
+                                        })),
+                                      });
+                                    }}
+                                    className="px-2 py-1 bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-400 border border-emerald-800/60 rounded-lg text-xs font-bold flex items-center space-x-1 transition-colors cursor-pointer"
+                                    title="In Phiếu Nhập Kho Nhà Cung Cấp"
+                                  >
+                                    <Printer className="w-3.5 h-3.5" />
+                                    <span>Phiếu Nhập</span>
+                                  </button>
+                                )}
+
                                 <button
                                   type="button"
                                   onClick={() => {
                                     setSelectedPO(po);
                                     setShowPrintPOModal(true);
                                   }}
-                                  className="px-2.5 py-1 bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 rounded-lg text-xs font-bold flex items-center space-x-1 transition-colors cursor-pointer"
+                                  className="px-2 py-1 bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 rounded-lg text-xs font-bold flex items-center space-x-1 transition-colors cursor-pointer"
+                                  title="In Đơn Đặt Hàng PO"
                                 >
                                   <Printer className="w-3.5 h-3.5" />
                                   <span>In PO</span>
                                 </button>
+
                                 {onDeletePurchaseOrder && (
                                   <button
                                     type="button"
@@ -709,6 +782,256 @@ export const SuppliersView: React.FC<SuppliersViewProps> = ({
           isOpen={showPrintPOModal}
           onClose={() => setShowPrintPOModal(false)}
           order={selectedPO}
+          settings={settings}
+        />
+      )}
+
+      {/* Receive PO Modal (Kiểm đếm hàng về & Nhập kho trừ tăng tồn) */}
+      {receivingPO && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-slate-900 border border-slate-700 w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-4 md:p-6 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+                  <PackageCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base md:text-lg font-black text-white flex items-center space-x-2">
+                    <span>Kiểm Đếm & Nhập Kho Thực Tế Theo Đơn Mua ({receivingPO.code})</span>
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    NCC: <strong className="text-slate-200">{receivingPO.supplierName}</strong> | Kho tiếp nhận: <strong className="text-slate-200">{receivingPO.warehouseName}</strong>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReceivingPO(null)}
+                className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4 md:p-6 space-y-4 overflow-y-auto flex-1 text-xs">
+              <div className="p-3 bg-emerald-950/30 border border-emerald-500/30 rounded-xl text-emerald-300 flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Boxes className="w-4 h-4 text-emerald-400" />
+                  <span>Xác nhận số lượng thực tế nhận và gán Serial để tự động cộng tăng tồn kho ERP.</span>
+                </div>
+                <span className="text-[11px] font-bold font-mono">
+                  Ngày đặt: {new Date(receivingPO.orderDate).toLocaleDateString('vi-VN')}
+                </span>
+              </div>
+
+              {/* Items Table */}
+              <div className="bg-slate-950 rounded-xl border border-slate-800 overflow-hidden">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-900 text-slate-400 border-b border-slate-800 text-[10px] uppercase font-bold">
+                    <tr>
+                      <th className="p-3 w-8">#</th>
+                      <th className="p-3">Mã SKU / Tên Sản Phẩm</th>
+                      <th className="p-3 text-center w-16">ĐVT</th>
+                      <th className="p-3 text-center w-20">SL Đặt</th>
+                      <th className="p-3 text-center w-28">SL Thực Nhận</th>
+                      <th className="p-3 w-56">Số Serial / IMEI (Nếu có)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800">
+                    {receivingPO.items.map((it, idx) => {
+                      const itemKey = it.productId || it.sku || `item-${idx}`;
+                      const curQty = receiveQuantities[itemKey] ?? it.quantity;
+                      const curSerial = receiveSerials[itemKey] ?? '';
+
+                      return (
+                        <tr key={idx} className="hover:bg-slate-900/50">
+                          <td className="p-3 text-center font-bold text-slate-500">{idx + 1}</td>
+                          <td className="p-3">
+                            <div className="font-mono font-bold text-amber-400">{it.sku}</div>
+                            <div className="font-semibold text-white">{it.productName}</div>
+                          </td>
+                          <td className="p-3 text-center text-slate-400">{it.unit || 'Cái'}</td>
+                          <td className="p-3 text-center font-mono font-bold text-slate-300">{it.quantity}</td>
+                          <td className="p-3 text-center">
+                            <input
+                              type="number"
+                              min="0"
+                              value={curQty}
+                              onChange={(e) => {
+                                const val = Math.max(0, parseInt(e.target.value) || 0);
+                                setReceiveQuantities({ ...receiveQuantities, [itemKey]: val });
+                              }}
+                              className="w-20 px-2 py-1 bg-slate-900 border border-emerald-500/50 rounded-lg text-emerald-400 font-mono font-bold text-center focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                            />
+                          </td>
+                          <td className="p-3">
+                            <input
+                              type="text"
+                              placeholder="VD: SN1001, SN1002,..."
+                              value={curSerial}
+                              onChange={(e) => {
+                                setReceiveSerials({ ...receiveSerials, [itemKey]: e.target.value });
+                              }}
+                              className="w-full px-2.5 py-1 bg-slate-900 border border-slate-800 rounded-lg text-slate-200 placeholder-slate-600 focus:outline-none focus:border-slate-600"
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Note */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 mb-1">Ghi Chú Kiểm Nhập Kho:</label>
+                <input
+                  type="text"
+                  value={receivingNote}
+                  onChange={(e) => setReceivingNote(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 text-xs focus:outline-none focus:border-slate-700"
+                  placeholder="Ghi chú tình trạng bao bì, niêm phong, kiểm đếm..."
+                />
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 md:p-6 bg-slate-950 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setReceivingPO(null)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-semibold cursor-pointer"
+              >
+                Hủy Bỏ
+              </button>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const printItems: PrintItem[] = receivingPO.items.map((it, idx) => {
+                      const itemKey = it.productId || it.sku || `item-${idx}`;
+                      const rQty = receiveQuantities[itemKey] ?? it.quantity;
+                      const rSerial = receiveSerials[itemKey] || '';
+                      return {
+                        id: `rcv-${idx}`,
+                        sku: it.sku,
+                        productName: it.productName,
+                        unit: it.unit,
+                        quantity: rQty,
+                        unitPrice: it.unitPrice,
+                        total: rQty * it.unitPrice,
+                        serialNumber: rSerial,
+                      };
+                    });
+
+                    setShowGoodsReceiptPrint({
+                      isOpen: true,
+                      po: receivingPO,
+                      items: printItems,
+                    });
+                  }}
+                  className="px-4 py-2.5 bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/40 rounded-xl font-bold flex items-center space-x-1.5 cursor-pointer transition-all"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>🖨️ In Phiếu Nhập Kho</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Update Stock for each received item
+                    receivingPO.items.forEach((it, idx) => {
+                      const itemKey = it.productId || it.sku || `item-${idx}`;
+                      const rQty = receiveQuantities[itemKey] ?? it.quantity;
+                      if (rQty > 0 && onAdjustStock) {
+                        const existingProd = products.find((p) => p.id === it.productId || p.sku === it.sku);
+                        const oldStk = existingProd?.stock || 0;
+                        onAdjustStock({
+                          productId: existingProd?.id || it.productId || `prod-${it.sku}`,
+                          productName: it.productName,
+                          sku: it.sku,
+                          type: 'import',
+                          quantityChange: rQty,
+                          oldStock: oldStk,
+                          newStock: oldStk + rQty,
+                          unitPrice: it.unitPrice,
+                          reason: `Nhập kho theo đơn mua hàng PO ${receivingPO.code} từ NCC ${receivingPO.supplierName}`,
+                          performedBy: 'Thủ Kho Gia Phúc',
+                        });
+                      }
+                    });
+
+                    // Update PO Status to completed
+                    const updatedPO: PurchaseOrder = {
+                      ...receivingPO,
+                      status: 'completed',
+                      receivedAt: new Date().toISOString(),
+                      receivedBy: 'Thủ Kho Gia Phúc',
+                      receiptNote: receivingNote,
+                    };
+
+                    if (onSavePurchaseOrder) {
+                      onSavePurchaseOrder(updatedPO);
+                    }
+
+                    sounds.playSuccessChime();
+                    alert(`Đã kiểm đếm và hoàn tất nhập kho theo đơn PO ${receivingPO.code}! Tồn kho các sản phẩm đã được cộng tăng tự động.`);
+
+                    // Open Goods Receipt print preview
+                    setShowGoodsReceiptPrint({
+                      isOpen: true,
+                      po: updatedPO,
+                      items: receivingPO.items.map((it, idx) => {
+                        const itemKey = it.productId || it.sku || `item-${idx}`;
+                        const rQty = receiveQuantities[itemKey] ?? it.quantity;
+                        const rSerial = receiveSerials[itemKey] || '';
+                        return {
+                          id: `rcv-${idx}`,
+                          sku: it.sku,
+                          productName: it.productName,
+                          unit: it.unit,
+                          quantity: rQty,
+                          unitPrice: it.unitPrice,
+                          total: rQty * it.unitPrice,
+                          serialNumber: rSerial,
+                        };
+                      }),
+                    });
+
+                    setReceivingPO(null);
+                  }}
+                  className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl font-bold shadow-lg shadow-emerald-600/30 flex items-center space-x-1.5 cursor-pointer transition-all active:scale-95"
+                >
+                  <PackageCheck className="w-4 h-4" />
+                  <span>✓ Xác Nhận Nhập Kho & Tăng Tồn</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Goods Receipt Print Modal */}
+      {showGoodsReceiptPrint?.isOpen && (
+        <PrintInvoiceModal
+          isOpen={showGoodsReceiptPrint.isOpen}
+          onClose={() => setShowGoodsReceiptPrint(null)}
+          initialDocType="goods_receipt"
+          items={showGoodsReceiptPrint.items}
+          orderCode={showGoodsReceiptPrint.po.code}
+          creatorName="Thủ Kho Gia Phúc"
+          warehouseName={showGoodsReceiptPrint.po.warehouseName}
+          deliveryNote={`Nhập kho theo đơn mua hàng PO ${showGoodsReceiptPrint.po.code}`}
+          customer={{
+            name: showGoodsReceiptPrint.po.supplierName,
+            phone: showGoodsReceiptPrint.po.supplierPhone,
+            address: showGoodsReceiptPrint.po.supplierAddress,
+          }}
+          subtotal={showGoodsReceiptPrint.po.subtotal}
+          total={showGoodsReceiptPrint.po.totalAmount}
           settings={settings}
         />
       )}

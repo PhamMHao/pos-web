@@ -150,6 +150,18 @@ const DOC_TYPE_LABELS: Record<PrintDocType, { label: string; desc: string; defau
     defaultSize: 'A4',
     defaultOrientation: 'portrait',
   },
+  delivery_dispatch: {
+    label: '16. Phiếu Điều Phối Giao Hàng & Thu COD',
+    desc: 'Phiếu giao hàng cho đơn vị vận chuyển / xe ôm công nghệ / chành xe kèm thu tiền COD',
+    defaultSize: 'A5',
+    defaultOrientation: 'portrait',
+  },
+  shipping_label: {
+    label: '17. Tem Vận Đơn Dán Kiện Hàng (K80 / A5)',
+    desc: 'Nhãn dán bưu kiện vận chuyển có mã vạch vận đơn và mã QR tra cứu hành trình',
+    defaultSize: 'K80',
+    defaultOrientation: 'portrait',
+  },
 };
 
 export const SettingsView: React.FC<SettingsViewProps> = ({

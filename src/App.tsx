@@ -1417,7 +1417,11 @@ export function App() {
           {activeTab === 'orders' && (
             <OrdersView
               orders={orders}
+              products={products}
+              customers={customers}
               onUpdateOrderStatus={handleUpdateOrderStatus}
+              onSaveOrder={handleSaveOrder}
+              onAdjustStock={handleAdjustStock}
               settings={settings}
             />
           )}
@@ -1496,6 +1500,7 @@ export function App() {
               onDeleteSupplier={handleDeleteSupplier}
               onSavePurchaseOrder={handleSavePurchaseOrder}
               onDeletePurchaseOrder={handleDeletePurchaseOrder}
+              onAdjustStock={handleAdjustStock}
               onOpenDocOcrScanner={(mode) => handleOpenDocOcrScanner(mode || 'supplier_quote')}
             />
           )}

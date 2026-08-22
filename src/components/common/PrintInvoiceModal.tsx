@@ -429,6 +429,10 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
         return 'BIÊN BẢN KIỂM KÊ & TIÊU HỦY VẬT TƯ, TÀI SẢN';
       case 'liquidation_receipt':
         return 'PHIẾU THU TIỀN THANH LÝ VẬT TƯ / TÀI SẢN';
+      case 'delivery_dispatch':
+        return 'PHIẾU ĐIỀU PHỐI GIAO HÀNG & THU TIỀN COD';
+      case 'shipping_label':
+        return 'TEM VẬN ĐƠN DÁN KIỆN HÀNG';
       default:
         return 'HÓA ĐƠN BÁN HÀNG';
     }
@@ -543,6 +547,10 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                 <option value="asset_transfer">12. Phiếu Điều Chuyển Tài Sản / Kho</option>
                 <option value="stock_disposal">13. Biên Bản Tiêu Hủy Vật Tư / Tài Sản Hư Hỏng</option>
                 <option value="liquidation_receipt">14. Phiếu Thu Tiền Thanh Lý (Thu Hồi Vốn)</option>
+              </optgroup>
+              <optgroup label="🚚 Điều Phối Vận Chuyển & Giao Hàng">
+                <option value="delivery_dispatch">15. Phiếu Điều Phối Giao Hàng & Thu COD</option>
+                <option value="shipping_label">16. Tem Vận Đơn Dán Kiện Hàng (K80 / A5)</option>
               </optgroup>
             </select>
 
@@ -1672,6 +1680,66 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                                 <td className="border border-black px-1 py-1 text-center font-bold">{it.quantity}</td>
                                 <td className="border border-black px-2 py-1 text-right font-mono">{formatVND(it.unitPrice).replace(' ₫', '')}</td>
                                 <td className="border border-black px-2 py-1 text-right font-mono font-bold text-blue-900">{formatVND(it.total || it.quantity * it.unitPrice).replace(' ₫', '')}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </>
+                      )}
+
+                      {/* -------------------------------------------------------------
+                          CASE 11: PHIẾU ĐIỀU PHỐI GIAO HÀNG & THU COD (delivery_dispatch)
+                          ------------------------------------------------------------- */}
+                      {docType === 'delivery_dispatch' && (
+                        <>
+                          <thead>
+                            <tr className="excel-header-blue text-black font-bold text-center border-b border-black">
+                              <th className="border border-black px-1 py-1 w-8">STT</th>
+                              <th className="border border-black px-2 py-1 w-24">MÃ SẢN PHẨM</th>
+                              <th className="border border-black px-2 py-1 text-left">TÊN SẢN PHẨM / KIỆN HÀNG</th>
+                              <th className="border border-black px-2 py-1 w-32">SERIAL / IMEI</th>
+                              <th className="border border-black px-1.5 py-1 w-12">ĐVT</th>
+                              <th className="border border-black px-1.5 py-1 w-12">SL</th>
+                              <th className="border border-black px-2 py-1 text-right w-28">TIỀN THU COD</th>
+                              <th className="border border-black px-2 py-1 text-center w-24">GHI CHÚ</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {itemsList.map((it, idx) => (
+                              <tr key={idx} className="border-b border-black">
+                                <td className="border border-black px-1 py-1 text-center font-bold">{idx + 1}</td>
+                                <td className="border border-black px-2 py-1 font-mono font-bold text-blue-900">{it.sku || `SP-${idx + 1}`}</td>
+                                <td className="border border-black px-2 py-1 font-bold text-black">{it.productName}</td>
+                                <td className="border border-black px-2 py-1 font-mono text-[7.5pt] text-gray-800">{it.serialNumber || '---'}</td>
+                                <td className="border border-black px-1 py-1 text-center">{it.unit || 'Cái'}</td>
+                                <td className="border border-black px-1 py-1 text-center font-bold">{it.quantity}</td>
+                                <td className="border border-black px-2 py-1 text-right font-mono font-bold text-rose-900">{formatVND(it.total || it.quantity * it.unitPrice).replace(' ₫', '')}</td>
+                                <td className="border border-black px-1.5 py-1 text-center text-[7pt] text-gray-700">{it.note || 'Cho xem hàng'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </>
+                      )}
+
+                      {/* -------------------------------------------------------------
+                          CASE 12: TEM VẬN ĐƠN DÁN KIỆN HÀNG (shipping_label)
+                          ------------------------------------------------------------- */}
+                      {docType === 'shipping_label' && (
+                        <>
+                          <thead>
+                            <tr className="excel-header-blue text-black font-bold text-center border-b border-black">
+                              <th className="border border-black px-1 py-1 w-8">STT</th>
+                              <th className="border border-black px-2 py-1 text-left">NỘI DUNG HÀNG HÓA TRONG KIỆN</th>
+                              <th className="border border-black px-1.5 py-1 w-14">SỐ LƯỢNG</th>
+                              <th className="border border-black px-2 py-1 text-center w-28">SERIAL MÁY</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {itemsList.map((it, idx) => (
+                              <tr key={idx} className="border-b border-black">
+                                <td className="border border-black px-1 py-1 text-center font-bold">{idx + 1}</td>
+                                <td className="border border-black px-2 py-1 font-bold text-black">{it.productName}</td>
+                                <td className="border border-black px-1 py-1 text-center font-bold">{it.quantity} {it.unit || 'Cái'}</td>
+                                <td className="border border-black px-2 py-1 font-mono text-[7.5pt] text-center text-gray-800">{it.serialNumber || '---'}</td>
                               </tr>
                             ))}
                           </tbody>
