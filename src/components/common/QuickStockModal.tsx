@@ -540,6 +540,22 @@ export const QuickStockModal: React.FC<QuickStockModalProps> = ({
                 placeholder="VD: Kệ A1 - Tầng 1, Tủ Kỹ Thuật..."
                 className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-500"
               />
+              <div className="flex flex-wrap items-center gap-1 mt-1">
+                {['Kệ A1 - T1', 'Kệ A2 - T2', 'Kệ B1 - T1', 'Tủ C1', 'Kệ Trưng Bày'].map((loc) => (
+                  <button
+                    key={loc}
+                    type="button"
+                    onClick={() => setSelectedLocation(loc)}
+                    className={`px-1.5 py-0.5 text-[9px] rounded-md border font-medium transition-all ${
+                      selectedLocation === loc
+                        ? 'bg-blue-600 text-white border-blue-500 font-bold'
+                        : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100 hover:text-slate-800'
+                    }`}
+                  >
+                    {loc}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div>

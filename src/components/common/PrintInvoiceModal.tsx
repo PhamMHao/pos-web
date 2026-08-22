@@ -1152,6 +1152,26 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                           </span>
                         </div>
                       </div>
+
+                      {/* Right: Top-Right Barcode & QR Box (Cân đối đầu trang - Đúng vị trí khoanh đỏ Ảnh 1) */}
+                      {showBarcode && (codePlacement === 'split' || codePlacement === 'header' || codePlacement === 'both') && (
+                        <div className="flex-shrink-0 flex flex-col items-end justify-start pl-2 pt-0.5">
+                          <SlipBarcodeQR
+                            docCode={docNumber}
+                            docType={docType}
+                            date={docDateStr}
+                            customerName={customerName}
+                            totalAmount={calculatedGrandTotal}
+                            paperSize={paperSize}
+                            showBarcode={true}
+                            showQr={codePlacement === 'header' || codePlacement === 'both'}
+                            renderMode={codePlacement === 'split' ? 'barcode_only' : 'both'}
+                            align="right"
+                            layout="column"
+                            className="my-0"
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1237,26 +1257,6 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                           {warehouse}
                         </span>
                       </div>
-
-                      {/* Header Barcode 1D (Góc trên bên phải để quét nhanh số phiếu) */}
-                      {showBarcode && (codePlacement === 'split' || codePlacement === 'header' || codePlacement === 'both') && (
-                        <div className="pt-1 flex justify-end">
-                          <SlipBarcodeQR
-                            docCode={docNumber}
-                            docType={docType}
-                            date={docDateStr}
-                            customerName={customerName}
-                            totalAmount={calculatedGrandTotal}
-                            paperSize={paperSize}
-                            showBarcode={true}
-                            showQr={codePlacement === 'header' || codePlacement === 'both'}
-                            renderMode={codePlacement === 'split' ? 'barcode_only' : 'both'}
-                            align="right"
-                            layout="column"
-                            className="my-0"
-                          />
-                        </div>
-                      )}
                     </div>
                   </div>
 

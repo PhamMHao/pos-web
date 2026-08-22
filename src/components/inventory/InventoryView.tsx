@@ -92,6 +92,31 @@ const CATEGORIES: ProductCategory[] = [
   'Thời trang & Phụ kiện',
 ];
 
+const COMMON_UOM_CHIPS = ['Cái', 'Hộp', 'Bộ', 'Thùng', 'Cuộn', 'Mét', 'Kg', 'Gói', 'Lốc', 'Cây', 'Chai', 'Vỉ', 'Bao', 'Lon'];
+
+const COMMON_LOCATION_CHIPS = [
+  'Kệ A1 - Tầng 1',
+  'Kệ A2 - Tầng 2',
+  'Kệ B1 - Tầng 1',
+  'Dãy B - Tầng 3',
+  'Tủ C1 (Linh kiện)',
+  'Kệ Trưng Bày 01',
+  'Kho Sau',
+];
+
+const PRODUCT_IMAGE_PRESETS = [
+  { label: '🖥️ Màn hình', url: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=600&auto=format&fit=crop&q=80' },
+  { label: '💻 Laptop', url: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=600&auto=format&fit=crop&q=80' },
+  { label: '⚡ SSD/RAM', url: 'https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?w=600&auto=format&fit=crop&q=80' },
+  { label: '🎮 VGA Card', url: 'https://images.unsplash.com/photo-1587202372775-e229f172b9d7?w=600&auto=format&fit=crop&q=80' },
+  { label: '⌨️ Phím/Chuột', url: 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=600&auto=format&fit=crop&q=80' },
+  { label: '📷 Camera', url: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=600&auto=format&fit=crop&q=80' },
+  { label: '🌾 Nông sản', url: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=600&auto=format&fit=crop&q=80' },
+  { label: '🥤 Giải khát', url: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=600&auto=format&fit=crop&q=80' },
+  { label: '📱 Điện thoại', url: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&auto=format&fit=crop&q=80' },
+  { label: '🎧 Tai nghe', url: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80' },
+];
+
 export const InventoryView: React.FC<InventoryViewProps> = ({
   products = [],
   onSaveProduct,
@@ -115,6 +140,16 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   const [warehouseFilter, setWarehouseFilter] = useState<string>('all');
   const [stockFilter, setStockFilter] = useState<'all' | 'low' | 'out'>('all');
   const [quickAddType, setQuickAddType] = useState<MasterDataType | null>(null);
+  const [categoriesList, setCategoriesList] = useState<string[]>(CATEGORIES);
+  const [warehouseList, setWarehouseList] = useState<string[]>(
+    settings.warehouseList || [
+      'Kho Chính Gia Phúc Computer',
+      'Kho Kỹ Thuật & Showroom',
+      'Kho Chi Nhánh TP.HCM',
+      'Kho Chi Nhánh Bình Dương',
+      'Kho Bảo Hành & Linh Kiện',
+    ]
+  );
   const [lifecycleStageFilter, setLifecycleStageFilter] = useState<string>('all');
   const [showInboundModal, setShowInboundModal] = useState(false);
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
@@ -133,6 +168,28 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showProductModal, setShowProductModal] = useState(false);
   const [isAiGenerating, setIsAiGenerating] = useState(false);
+
+  const handleAddCategoryQuick = () => {
+    const name = prompt('Nhập tên Danh mục ngành hàng mới:');
+    if (name && name.trim()) {
+      const trimmed = name.trim();
+      if (!categoriesList.includes(trimmed)) {
+        setCategoriesList((prev) => [...prev, trimmed]);
+      }
+      setFormData((prev) => ({ ...prev, category: trimmed as any }));
+    }
+  };
+
+  const handleAddWarehouseQuick = () => {
+    const name = prompt('Nhập tên Kho lưu trữ mới:');
+    if (name && name.trim()) {
+      const trimmed = name.trim();
+      if (!warehouseList.includes(trimmed)) {
+        setWarehouseList((prev) => [...prev, trimmed]);
+      }
+      setFormData((prev) => ({ ...prev, warehouse: trimmed }));
+    }
+  };
 
   // Form state
   const [formData, setFormData] = useState<Partial<Product>>({
@@ -1363,9 +1420,18 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">
-                    Danh mục:
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-slate-300 font-semibold text-xs">Danh mục:</label>
+                    <button
+                      type="button"
+                      onClick={handleAddCategoryQuick}
+                      className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-700/50 px-2 py-0.5 rounded-lg flex items-center space-x-1 cursor-pointer transition shadow-xs"
+                      title="Thêm danh mục ngành hàng mới"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Thêm Danh Mục</span>
+                    </button>
+                  </div>
                   <select
                     value={formData.category || 'Thiết bị điện tử'}
                     onChange={(e) =>
@@ -1374,9 +1440,9 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                         category: e.target.value as ProductCategory,
                       })
                     }
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500 text-xs"
                   >
-                    {CATEGORIES.map((c) => (
+                    {categoriesList.map((c) => (
                       <option key={c} value={c}>
                         {c}
                       </option>
@@ -1385,16 +1451,49 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">
-                    Đơn vị tính (ĐVT):
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-slate-300 font-semibold text-xs">Đơn vị tính (ĐVT):</label>
+                    <button
+                      type="button"
+                      onClick={() => setQuickAddType('uom')}
+                      className="text-[10px] font-bold text-cyan-400 hover:text-cyan-300 bg-cyan-950/60 hover:bg-cyan-900 border border-cyan-700/50 px-2 py-0.5 rounded-lg flex items-center space-x-1 cursor-pointer transition shadow-xs"
+                      title="Mở cấu hình thêm ĐVT và tỷ lệ quy đổi"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Thêm ĐVT</span>
+                    </button>
+                  </div>
                   <input
                     type="text"
+                    list="common-uom-datalist"
                     value={formData.unit || 'Cái'}
                     onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500 text-xs font-bold"
                     placeholder="Cái, Hộp, Gói, Kg..."
                   />
+                  <datalist id="common-uom-datalist">
+                    {COMMON_UOM_CHIPS.map((u) => (
+                      <option key={u} value={u} />
+                    ))}
+                  </datalist>
+
+                  {/* Quick-select chips */}
+                  <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                    {COMMON_UOM_CHIPS.slice(0, 10).map((uom) => (
+                      <button
+                        key={uom}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, unit: uom })}
+                        className={`px-1.5 py-0.5 text-[10px] rounded-md border font-semibold transition-all cursor-pointer ${
+                          formData.unit === uom
+                            ? 'bg-emerald-500 text-slate-950 border-emerald-400 font-bold shadow-xs'
+                            : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white hover:border-slate-600'
+                        }`}
+                      >
+                        {uom}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div>
@@ -1455,21 +1554,24 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">
-                    Kho hàng lưu trữ:
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-slate-300 font-semibold text-xs">Kho hàng lưu trữ:</label>
+                    <button
+                      type="button"
+                      onClick={handleAddWarehouseQuick}
+                      className="text-[10px] font-bold text-amber-400 hover:text-amber-300 bg-amber-950/60 hover:bg-amber-900 border border-amber-700/50 px-2 py-0.5 rounded-lg flex items-center space-x-1 cursor-pointer transition shadow-xs"
+                      title="Thêm kho lưu trữ mới"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Thêm Kho</span>
+                    </button>
+                  </div>
                   <select
                     value={formData.warehouse || settings.defaultWarehouse || 'Kho Chính Gia Phúc Computer'}
                     onChange={(e) => setFormData({ ...formData, warehouse: e.target.value })}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500 text-xs"
                   >
-                    {(settings.warehouseList || [
-                      'Kho Chính Gia Phúc Computer',
-                      'Kho Kỹ Thuật & Showroom',
-                      'Kho Chi Nhánh TP.HCM',
-                      'Kho Chi Nhánh Bình Dương',
-                      'Kho Bảo Hành & Linh Kiện',
-                    ]).map((wh) => (
+                    {warehouseList.map((wh) => (
                       <option key={wh} value={wh}>
                         {wh}
                       </option>
@@ -1478,29 +1580,103 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">
-                    Vị trí kệ / dãy / ô:
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-slate-300 font-semibold text-xs">Vị trí kệ / dãy / ô:</label>
+                    <button
+                      type="button"
+                      onClick={() => setQuickAddType('location')}
+                      className="text-[10px] font-bold text-sky-400 hover:text-sky-300 bg-sky-950/60 hover:bg-sky-900 border border-sky-700/50 px-2 py-0.5 rounded-lg flex items-center space-x-1 cursor-pointer transition shadow-xs"
+                      title="Mở thêm vị trí kệ chuẩn hóa"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Thêm Vị Trí</span>
+                    </button>
+                  </div>
                   <input
                     type="text"
+                    list="common-location-datalist"
                     value={formData.storageLocation || ''}
                     onChange={(e) => setFormData({ ...formData, storageLocation: e.target.value })}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 text-xs"
                     placeholder="VD: Kệ A1 - Tầng 1, Tủ C1..."
                   />
+                  <datalist id="common-location-datalist">
+                    {COMMON_LOCATION_CHIPS.map((loc) => (
+                      <option key={loc} value={loc} />
+                    ))}
+                  </datalist>
+
+                  {/* Quick-select chips */}
+                  <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                    {COMMON_LOCATION_CHIPS.map((loc) => (
+                      <button
+                        key={loc}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, storageLocation: loc })}
+                        className={`px-1.5 py-0.5 text-[9.5px] rounded-md border font-medium transition-all cursor-pointer ${
+                          formData.storageLocation === loc
+                            ? 'bg-sky-500 text-slate-950 border-sky-400 font-bold shadow-xs'
+                            : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white hover:border-slate-600'
+                        }`}
+                      >
+                        {loc}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="block text-slate-300 font-semibold mb-1">
-                    Link hình ảnh sản phẩm (URL):
-                  </label>
-                  <input
-                    type="url"
-                    value={formData.image || ''}
-                    onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
-                    placeholder="https://..."
-                  />
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-slate-300 font-semibold text-xs flex items-center space-x-1.5">
+                      <span>Link hình ảnh sản phẩm (URL):</span>
+                      <span className="text-[10px] text-slate-400 font-normal">(Chọn nhanh ảnh mẫu HD hoặc dán link online)</span>
+                    </label>
+                  </div>
+
+                  {/* Quick Image Preset Chips */}
+                  <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                    {PRODUCT_IMAGE_PRESETS.map((preset) => (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={() => setFormData((prev) => ({ ...prev, image: preset.url }))}
+                        className={`px-2 py-1 text-[10.5px] rounded-lg border font-medium flex items-center space-x-1 transition-all cursor-pointer ${
+                          formData.image === preset.url
+                            ? 'bg-blue-600 text-white border-blue-400 shadow-sm font-bold scale-105'
+                            : 'bg-slate-800/90 text-slate-300 border-slate-700 hover:bg-slate-700 hover:text-white'
+                        }`}
+                      >
+                        <span>{preset.label}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Input Field with Live Image Thumbnail Preview Box */}
+                  <div className="flex items-center space-x-3">
+                    <div className="w-12 h-12 rounded-xl bg-slate-800 border-2 border-dashed border-slate-600 overflow-hidden flex items-center justify-center shrink-0 shadow-inner">
+                      {formData.image ? (
+                        <img
+                          src={formData.image}
+                          alt="Preview"
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as any).src = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80';
+                          }}
+                        />
+                      ) : (
+                        <Eye className="w-5 h-5 text-slate-500" />
+                      )}
+                    </div>
+
+                    <input
+                      type="url"
+                      value={formData.image || ''}
+                      onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                      className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500 text-xs font-mono"
+                      placeholder="https://images.unsplash.com/... hoặc dán link ảnh trực tiếp"
+                    />
+                  </div>
                 </div>
 
                 {/* Multi-UOM Conversion Configuration Section */}
