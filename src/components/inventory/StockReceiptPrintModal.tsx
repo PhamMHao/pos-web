@@ -33,6 +33,7 @@ export const StockReceiptPrintModal: React.FC<StockReceiptPrintModalProps> = ({
 }) => {
   const printRef = useRef<HTMLDivElement>(null);
   const [paperSize, setPaperSize] = useState<'A4' | 'A5'>('A4');
+  const [codePlacement, setCodePlacement] = useState<'split' | 'footer' | 'header'>('split');
   const [showGiaPhucModal, setShowGiaPhucModal] = useState<boolean>(false);
 
   const handlePrint = () => {
@@ -120,6 +121,28 @@ export const StockReceiptPrintModal: React.FC<StockReceiptPrintModalProps> = ({
                 </button>
               </div>
 
+              {/* Code Placement Selector */}
+              <div className="flex items-center bg-slate-200 rounded-xl p-0.5 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setCodePlacement('split')}
+                  className={`px-2.5 py-1.5 rounded-lg font-bold text-[10px] transition-all ${
+                    codePlacement === 'split' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Mã trên/QR dưới
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCodePlacement('footer')}
+                  className={`px-2.5 py-1.5 rounded-lg font-bold text-[10px] transition-all ${
+                    codePlacement === 'footer' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Chân trang
+                </button>
+              </div>
+
               {/* Open Gia Phuc Excel Print Format */}
               <button
                 type="button"
@@ -188,6 +211,24 @@ export const StockReceiptPrintModal: React.FC<StockReceiptPrintModalProps> = ({
                   <p className="font-bold text-slate-700">Mẫu số: 01 - VT</p>
                   <p>(Ban hành theo TT số 200/2014/TT-BTC)</p>
                   <p className="mt-1 text-emerald-700 font-semibold">Kho: {receipt.warehouseName}</p>
+                  {(codePlacement === 'split' || codePlacement === 'header') && (
+                    <div className="pt-1 flex justify-end">
+                      <SlipBarcodeQR
+                        docCode={receipt.code}
+                        docType="goods_receipt"
+                        date={receipt.date}
+                        customerName={receipt.supplierName}
+                        totalAmount={receipt.grandTotal}
+                        paperSize={paperSize}
+                        showBarcode={true}
+                        showQr={codePlacement === 'header'}
+                        renderMode={codePlacement === 'split' ? 'barcode_only' : 'both'}
+                        align="right"
+                        layout="column"
+                        className="my-0"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -334,19 +375,22 @@ export const StockReceiptPrintModal: React.FC<StockReceiptPrintModalProps> = ({
               </p>
 
               {/* Barcode & ERP QR Code Tra Cứu */}
-              <div className="py-2 border-t border-dotted border-slate-300">
-                <SlipBarcodeQR
-                  docCode={receipt.code}
-                  docType="goods_receipt"
-                  date={receipt.date}
-                  customerName={receipt.supplierName}
-                  totalAmount={receipt.grandTotal}
-                  paperSize={paperSize}
-                  showBarcode={true}
-                  showQr={true}
-                  align="between"
-                />
-              </div>
+              {(codePlacement === 'footer' || codePlacement === 'split') && (
+                <div className="py-2 border-t border-dotted border-slate-300">
+                  <SlipBarcodeQR
+                    docCode={receipt.code}
+                    docType="goods_receipt"
+                    date={receipt.date}
+                    customerName={receipt.supplierName}
+                    totalAmount={receipt.grandTotal}
+                    paperSize={paperSize}
+                    showBarcode={codePlacement === 'footer'}
+                    showQr={true}
+                    renderMode={codePlacement === 'split' ? 'qr_only' : 'both'}
+                    align={codePlacement === 'split' ? 'center' : 'between'}
+                  />
+                </div>
+              )}
 
               {/* Signatures 4 columns */}
               <div className="grid grid-cols-4 gap-2 text-center text-[10px] mt-6 pt-3 border-t border-slate-200">

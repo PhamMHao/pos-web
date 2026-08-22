@@ -38,6 +38,7 @@ import {
   StockGoodsReceipt,
   StoreSettings,
   UOMOption,
+  Employee,
 } from '../../types';
 import { formatVND } from '../../utils/vietqr';
 import { COMMON_UNITS, solveUomChain, getUomEquivalentsSummary } from '../../utils/uomConverter';
@@ -48,6 +49,7 @@ import { BarcodeLabelPreviewModal, PrintLabelItem } from '../common/BarcodeLabel
 import { ProductLifecycleModal } from './ProductLifecycleModal';
 import { INITIAL_STORE_SETTINGS } from '../../data/initialData';
 import { productsApi } from '../../features/products/api/productsApi';
+import { QuickAddMasterDataModal, MasterDataType } from '../common/QuickAddMasterDataModal';
 
 const LIFECYCLE_STAGE_BADGES: Record<string, { label: string; badge: string }> = {
   new_inbound: { label: 'Nhập Mới', badge: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
@@ -74,6 +76,8 @@ interface InventoryViewProps {
   setStockReceipts?: (receipts: StockGoodsReceipt[] | ((prev: StockGoodsReceipt[]) => StockGoodsReceipt[])) => void;
   onRefreshDb?: () => void;
   onOpenDocOcrScanner?: (mode?: 'stock_in') => void;
+  onSavePartner?: (partner: any) => void | Promise<void>;
+  onSaveEmployee?: (employee: Employee) => void | Promise<void>;
 }
 
 const CATEGORIES: ProductCategory[] = [
@@ -102,12 +106,15 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   setStockReceipts = () => {},
   onRefreshDb,
   onOpenDocOcrScanner,
+  onSavePartner,
+  onSaveEmployee,
 }) => {
   const [activeTab, setActiveTab] = useState<'catalog' | 'logs'>('catalog');
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [warehouseFilter, setWarehouseFilter] = useState<string>('all');
   const [stockFilter, setStockFilter] = useState<'all' | 'low' | 'out'>('all');
+  const [quickAddType, setQuickAddType] = useState<MasterDataType | null>(null);
   const [lifecycleStageFilter, setLifecycleStageFilter] = useState<string>('all');
   const [showInboundModal, setShowInboundModal] = useState(false);
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
@@ -762,10 +769,82 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           </button>
           <button
             onClick={openAddModal}
-            className="flex items-center space-x-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold rounded-xl transition-all shadow-lg shadow-emerald-500/20"
+            className="flex items-center space-x-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold rounded-xl transition-all shadow-lg shadow-emerald-500/20 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>+ Thêm Sản Phẩm Mới</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Quick-Add Master Data Interactive Toolbar Banner */}
+      <div className="p-3 bg-gradient-to-r from-slate-900 via-slate-900/90 to-cyan-950/40 rounded-2xl border border-slate-800 flex flex-wrap items-center justify-between gap-2.5">
+        <div className="flex items-center space-x-2">
+          <div className="w-7 h-7 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-xs border border-cyan-500/30">
+            ⚡
+          </div>
+          <div>
+            <span className="text-xs font-extrabold text-white">Thêm Nhanh Danh Mục Gốc (Quick-Add Master Data):</span>
+            <p className="text-[11px] text-slate-400">Tạo trực tiếp tại chỗ không cần chuyển trang cài đặt</p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5 text-xs">
+          <button
+            type="button"
+            onClick={() => setQuickAddType('product')}
+            className="px-2.5 py-1.5 rounded-xl bg-cyan-950/60 hover:bg-cyan-900 text-cyan-300 border border-cyan-700/50 font-bold flex items-center space-x-1 transition cursor-pointer shadow-xs"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>+ SP Mới</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setQuickAddType('uom')}
+            className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold flex items-center space-x-1 transition cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>+ ĐVT</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setQuickAddType('partner')}
+            className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold flex items-center space-x-1 transition cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>+ NCC / Đối Tác</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setQuickAddType('location')}
+            className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold flex items-center space-x-1 transition cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>+ Vị Trí Kệ</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setQuickAddType('color')}
+            className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold flex items-center space-x-1 transition cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>+ Màu Sắc</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setQuickAddType('department')}
+            className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold flex items-center space-x-1 transition cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>+ Phòng Ban</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setQuickAddType('employee')}
+            className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold flex items-center space-x-1 transition cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>+ Nhân Sự</span>
           </button>
         </div>
       </div>
@@ -2043,6 +2122,24 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           onSaveProduct={(updatedProduct) => {
             onSaveProduct(updatedProduct);
             setLifecycleModalProduct(updatedProduct);
+          }}
+        />
+      )}
+
+      {/* Quick-Add Master Data Modal */}
+      {quickAddType && (
+        <QuickAddMasterDataModal
+          isOpen={!!quickAddType}
+          onClose={() => setQuickAddType(null)}
+          initialType={quickAddType}
+          settings={settings}
+          onSaveProduct={onSaveProduct}
+          onSavePartner={onSavePartner}
+          onSaveEmployee={onSaveEmployee}
+          onSuccess={(item, type) => {
+            if (type === 'product') {
+              onSaveProduct(item);
+            }
           }}
         />
       )}

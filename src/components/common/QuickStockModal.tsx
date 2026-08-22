@@ -13,9 +13,13 @@ import {
   DollarSign,
   Layers,
   Sparkles,
+  Plus,
+  Palette,
+  MapPin,
 } from 'lucide-react';
-import { Product, InventoryLog } from '../../types';
+import { Product, InventoryLog, StoreSettings, Employee } from '../../types';
 import { formatVND } from '../../utils/vietqr';
+import { QuickAddMasterDataModal, MasterDataType } from './QuickAddMasterDataModal';
 
 interface QuickStockModalProps {
   isOpen: boolean;
@@ -23,6 +27,10 @@ interface QuickStockModalProps {
   products: Product[];
   onAdjustStock: (log: Omit<InventoryLog, 'id' | 'timestamp'>) => void;
   initialType?: 'import' | 'export' | 'audit_adjustment';
+  settings?: StoreSettings;
+  onSaveProduct?: (product: Product) => void | Promise<void>;
+  onSavePartner?: (partner: any) => void | Promise<void>;
+  onSaveEmployee?: (employee: Employee) => void | Promise<void>;
 }
 
 export const QuickStockModal: React.FC<QuickStockModalProps> = ({
@@ -31,6 +39,10 @@ export const QuickStockModal: React.FC<QuickStockModalProps> = ({
   products = [],
   onAdjustStock,
   initialType = 'import',
+  settings,
+  onSaveProduct,
+  onSavePartner,
+  onSaveEmployee,
 }) => {
   const [stockType, setStockType] = useState<'import' | 'export' | 'audit_adjustment'>(initialType);
   const [searchTerm, setSearchTerm] = useState('');
@@ -41,6 +53,9 @@ export const QuickStockModal: React.FC<QuickStockModalProps> = ({
   const [partnerName, setPartnerName] = useState('Công ty Phân Phối Tổng Hợp');
   const [performer, setPerformer] = useState('Quản lý Kho');
   const [reason, setReason] = useState('Nhập hàng bổ sung đợt mới');
+  const [selectedColor, setSelectedColor] = useState<string>('');
+  const [selectedLocation, setSelectedLocation] = useState<string>('Kệ A1 - Tầng 1');
+  const [quickAddType, setQuickAddType] = useState<MasterDataType | null>(null);
 
   // Sync initial type when opened
   React.useEffect(() => {
@@ -243,18 +258,30 @@ export const QuickStockModal: React.FC<QuickStockModalProps> = ({
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           {/* Step 1: Select Product */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
-              <span>1. Chọn sản phẩm trong danh mục ({products.length} mặt hàng)</span>
-              {selectedProduct && (
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-bold text-slate-700">
+                1. Chọn sản phẩm trong danh mục ({products.length} mặt hàng)
+              </label>
+              <div className="flex items-center space-x-2">
                 <button
                   type="button"
-                  onClick={() => setSelectedProduct(null)}
-                  className="text-[11px] text-blue-600 hover:underline font-semibold"
+                  onClick={() => setQuickAddType('product')}
+                  className="text-[11px] font-bold text-cyan-600 hover:text-cyan-700 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 px-2 py-0.5 rounded-lg flex items-center space-x-1 cursor-pointer shadow-xs"
                 >
-                  Đổi sản phẩm khác
+                  <Plus className="w-3 h-3" />
+                  <span>Thêm Sản Phẩm Mới</span>
                 </button>
-              )}
-            </label>
+                {selectedProduct && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedProduct(null)}
+                    className="text-[11px] text-blue-600 hover:underline font-semibold"
+                  >
+                    Đổi sản phẩm khác
+                  </button>
+                )}
+              </div>
+            </div>
 
             {!selectedProduct ? (
               <div className="space-y-2">
@@ -342,9 +369,17 @@ export const QuickStockModal: React.FC<QuickStockModalProps> = ({
           {/* Step 2: Unit, Quantity & Values */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Đơn vị tính (ĐVT):
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-bold text-slate-700">Đơn vị tính (ĐVT):</label>
+                <button
+                  type="button"
+                  onClick={() => setQuickAddType('uom')}
+                  className="text-[10px] text-blue-600 hover:underline font-bold flex items-center space-x-0.5"
+                >
+                  <Plus className="w-2.5 h-2.5" />
+                  <span>Thêm ĐVT</span>
+                </button>
+              </div>
               {selectedProduct?.uomConversions && selectedProduct.uomConversions.length > 1 ? (
                 <select
                   value={selectedUnit}
@@ -442,30 +477,88 @@ export const QuickStockModal: React.FC<QuickStockModalProps> = ({
             </div>
           )}
 
-          {/* Step 3: Partner, Performer & Reason */}
+          {/* Step 3: Partner, Performer, Location & Color */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Đối tác / Nhà cung cấp:
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-bold text-slate-700">Đối tác / Nhà cung cấp:</label>
+                <button
+                  type="button"
+                  onClick={() => setQuickAddType('partner')}
+                  className="text-[10px] text-blue-600 hover:underline font-bold flex items-center space-x-0.5"
+                >
+                  <Plus className="w-2.5 h-2.5" />
+                  <span>Thêm NCC</span>
+                </button>
+              </div>
               <input
                 type="text"
                 value={partnerName}
                 onChange={(e) => setPartnerName(e.target.value)}
-                placeholder="VD: Tổng kho Vinamilk, Đại lý Cáp..."
+                placeholder="VD: Tổng kho FPT Synnex, DGW..."
                 className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-500"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Người thực hiện:
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-bold text-slate-700">Người thực hiện:</label>
+                <button
+                  type="button"
+                  onClick={() => setQuickAddType('employee')}
+                  className="text-[10px] text-blue-600 hover:underline font-bold flex items-center space-x-0.5"
+                >
+                  <Plus className="w-2.5 h-2.5" />
+                  <span>Thêm Nhân Sự</span>
+                </button>
+              </div>
               <input
                 type="text"
                 value={performer}
                 onChange={(e) => setPerformer(e.target.value)}
-                placeholder="VD: Quản lý kho, Thủ kho A..."
+                placeholder="VD: Quản lý kho, Mr. Thơm..."
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-bold text-slate-700">Vị trí kệ lưu kho:</label>
+                <button
+                  type="button"
+                  onClick={() => setQuickAddType('location')}
+                  className="text-[10px] text-blue-600 hover:underline font-bold flex items-center space-x-0.5"
+                >
+                  <Plus className="w-2.5 h-2.5" />
+                  <span>Thêm Kệ Mới</span>
+                </button>
+              </div>
+              <input
+                type="text"
+                value={selectedLocation}
+                onChange={(e) => setSelectedLocation(e.target.value)}
+                placeholder="VD: Kệ A1 - Tầng 1, Tủ Kỹ Thuật..."
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-bold text-slate-700">Màu sắc / Biến thể:</label>
+                <button
+                  type="button"
+                  onClick={() => setQuickAddType('color')}
+                  className="text-[10px] text-blue-600 hover:underline font-bold flex items-center space-x-0.5"
+                >
+                  <Plus className="w-2.5 h-2.5" />
+                  <span>Thêm Màu Sắc</span>
+                </button>
+              </div>
+              <input
+                type="text"
+                value={selectedColor}
+                onChange={(e) => setSelectedColor(e.target.value)}
+                placeholder="VD: Space Gray, Titan, Đen bóng..."
                 className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-500"
               />
             </div>
@@ -479,7 +572,7 @@ export const QuickStockModal: React.FC<QuickStockModalProps> = ({
               type="text"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="VD: Nhập thêm 20 thùng nước ngọt phục vụ cuối tuần..."
+              placeholder="VD: Nhập thêm hàng mới từ nhà cung cấp..."
               className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-500"
             />
           </div>
@@ -489,7 +582,7 @@ export const QuickStockModal: React.FC<QuickStockModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
             >
               Hủy bỏ
             </button>
@@ -497,7 +590,7 @@ export const QuickStockModal: React.FC<QuickStockModalProps> = ({
             <button
               type="submit"
               disabled={!selectedProduct}
-              className={`px-5 py-2.5 text-xs font-bold rounded-xl shadow-lg flex items-center space-x-2 transition-all disabled:opacity-50 ${
+              className={`px-5 py-2.5 text-xs font-bold rounded-xl shadow-lg flex items-center space-x-2 transition-all cursor-pointer disabled:opacity-50 ${
                 stockType === 'import'
                   ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/20'
                   : stockType === 'export'
@@ -515,6 +608,34 @@ export const QuickStockModal: React.FC<QuickStockModalProps> = ({
           </div>
         </form>
       </div>
+
+      {/* Quick-Add Master Data Child Modal */}
+      {quickAddType && (
+        <QuickAddMasterDataModal
+          isOpen={!!quickAddType}
+          onClose={() => setQuickAddType(null)}
+          initialType={quickAddType}
+          settings={settings}
+          onSaveProduct={onSaveProduct}
+          onSavePartner={onSavePartner}
+          onSaveEmployee={onSaveEmployee}
+          onSuccess={(item, type) => {
+            if (type === 'product') {
+              setSelectedProduct(item);
+            } else if (type === 'uom') {
+              setSelectedUnit(item.unit);
+            } else if (type === 'partner') {
+              setPartnerName(item.name);
+            } else if (type === 'color') {
+              setSelectedColor(item.name);
+            } else if (type === 'location') {
+              setSelectedLocation(item.name);
+            } else if (type === 'employee') {
+              setPerformer(item.name);
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

@@ -15,6 +15,8 @@ export interface SlipBarcodeQRProps {
   qrPayloadMode?: 'erp_smart' | 'vietqr' | 'both';
   className?: string;
   align?: 'center' | 'left' | 'right' | 'between';
+  renderMode?: 'both' | 'barcode_only' | 'qr_only';
+  layout?: 'row' | 'column';
 }
 
 export const SlipBarcodeQR: React.FC<SlipBarcodeQRProps> = ({
@@ -30,10 +32,14 @@ export const SlipBarcodeQR: React.FC<SlipBarcodeQRProps> = ({
   qrPayloadMode = 'erp_smart',
   className = '',
   align = 'center',
+  renderMode = 'both',
+  layout = 'row',
 }) => {
+  const shouldShowBarcode = showBarcode && renderMode !== 'qr_only';
+  const shouldShowQr = showQr && renderMode !== 'barcode_only';
   // Generate Pure Vector SVG Barcode
   const barcodeSvgHtml = useMemo(() => {
-    if (!showBarcode || !docCode) return '';
+    if (!shouldShowBarcode || !docCode) return '';
     const isThermalSmall = paperSize === 'K58';
     const isThermalK80 = paperSize === 'K80';
     const height = isThermalSmall ? 28 : isThermalK80 ? 32 : paperSize === 'A5' ? 34 : 40;
@@ -46,19 +52,19 @@ export const SlipBarcodeQR: React.FC<SlipBarcodeQRProps> = ({
       barWidth,
       showText: true,
     });
-  }, [showBarcode, docCode, paperSize]);
+  }, [shouldShowBarcode, docCode, paperSize]);
 
   // ERP Smart QR Payload for instant lookup in F7 center
   const erpQrUrl = useMemo(() => {
-    if (!showQr || !docCode) return '';
+    if (!shouldShowQr || !docCode) return '';
     const payload = `GP-ERP://doc?type=${encodeURIComponent(docType)}&code=${encodeURIComponent(
       docCode
     )}&cust=${encodeURIComponent(customerName)}&total=${totalAmount || 0}&date=${encodeURIComponent(date)}`;
     const size = paperSize === 'K58' ? 90 : paperSize === 'K80' ? 110 : 130;
     return getQRCodeUrl(payload, size);
-  }, [showQr, docCode, docType, customerName, totalAmount, date, paperSize]);
+  }, [shouldShowQr, docCode, docType, customerName, totalAmount, date, paperSize]);
 
-  if (!showBarcode && !showQr) return null;
+  if (!shouldShowBarcode && !shouldShowQr) return null;
 
   const isThermal = paperSize === 'K58' || paperSize === 'K80';
 
@@ -66,7 +72,7 @@ export const SlipBarcodeQR: React.FC<SlipBarcodeQRProps> = ({
     return (
       <div className={`w-full flex flex-col items-center justify-center gap-2 text-center my-2 ${className}`}>
         {/* Barcode 1D */}
-        {showBarcode && barcodeSvgHtml && (
+        {shouldShowBarcode && barcodeSvgHtml && (
           <div
             className={`w-full flex justify-center overflow-hidden ${
               paperSize === 'K58' ? 'max-w-[200px]' : 'max-w-[240px]'
@@ -76,7 +82,7 @@ export const SlipBarcodeQR: React.FC<SlipBarcodeQRProps> = ({
         )}
 
         {/* QR Code 2D */}
-        {showQr && (
+        {shouldShowQr && (
           <div className="flex flex-col items-center justify-center">
             {qrPayloadMode === 'vietqr' && vietQrUrl ? (
               <div className="p-1 bg-white border border-slate-300 rounded shadow-xs">
@@ -106,7 +112,7 @@ export const SlipBarcodeQR: React.FC<SlipBarcodeQRProps> = ({
   // A4 / A5 Office Layout
   return (
     <div
-      className={`flex items-center ${
+      className={`flex ${layout === 'column' ? 'flex-col items-center' : 'items-center'} ${
         align === 'between'
           ? 'justify-between'
           : align === 'left'
@@ -117,7 +123,7 @@ export const SlipBarcodeQR: React.FC<SlipBarcodeQRProps> = ({
       } gap-4 my-2 select-none ${className}`}
     >
       {/* Barcode 1D */}
-      {showBarcode && barcodeSvgHtml && (
+      {shouldShowBarcode && barcodeSvgHtml && (
         <div className="flex flex-col items-center">
           <div
             className="max-w-[220px] max-h-[50px] overflow-hidden"
@@ -128,7 +134,7 @@ export const SlipBarcodeQR: React.FC<SlipBarcodeQRProps> = ({
       )}
 
       {/* QR Code 2D */}
-      {showQr && (
+      {shouldShowQr && (
         <div className="flex items-center gap-2">
           {qrPayloadMode === 'vietqr' && vietQrUrl ? (
             <div className="p-1 bg-white border border-slate-300 rounded flex flex-col items-center">

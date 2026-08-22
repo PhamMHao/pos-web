@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   X,
   Printer,
@@ -30,6 +30,7 @@ export const PurchaseOrderPrintModal: React.FC<PurchaseOrderPrintModalProps> = (
   settings,
 }) => {
   const printableRef = useRef<HTMLDivElement>(null);
+  const [codePlacement, setCodePlacement] = useState<'split' | 'footer' | 'header'>('split');
 
   if (!isOpen || !order) return null;
 
@@ -71,6 +72,28 @@ export const PurchaseOrderPrintModal: React.FC<PurchaseOrderPrintModalProps> = (
           </div>
 
           <div className="flex items-center space-x-2">
+            {/* Code Placement toggle */}
+            <div className="flex items-center bg-slate-800 rounded-xl p-0.5 text-xs">
+              <button
+                type="button"
+                onClick={() => setCodePlacement('split')}
+                className={`px-2.5 py-1.5 rounded-lg font-bold text-[10px] transition-all ${
+                  codePlacement === 'split' ? 'bg-amber-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Mã trên/QR dưới
+              </button>
+              <button
+                type="button"
+                onClick={() => setCodePlacement('footer')}
+                className={`px-2.5 py-1.5 rounded-lg font-bold text-[10px] transition-all ${
+                  codePlacement === 'footer' ? 'bg-amber-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Chân trang
+              </button>
+            </div>
+
             <PrinterSelectDropdown />
             <button
               type="button"
@@ -108,12 +131,30 @@ export const PurchaseOrderPrintModal: React.FC<PurchaseOrderPrintModalProps> = (
                     <p className="text-[11px] text-slate-600">☎️ Hotline: <strong>{companyPhone}</strong> | MST: <strong>{companyTaxCode}</strong></p>
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="text-right flex flex-col items-end">
                   <span className="px-2.5 py-1 bg-amber-100 text-amber-900 border border-amber-300 rounded font-mono font-bold text-xs">
                     MÃ PO: {order.code}
                   </span>
                   <p className="text-[10px] text-slate-500 mt-1">Ngày lập: {new Date(order.orderDate).toLocaleDateString('vi-VN')}</p>
                   <p className="text-[10px] text-slate-500">Giao trước: {new Date(order.expectedDeliveryDate).toLocaleDateString('vi-VN')}</p>
+                  {(codePlacement === 'split' || codePlacement === 'header') && (
+                    <div className="pt-1">
+                      <SlipBarcodeQR
+                        docCode={order.code}
+                        docType="sales_order"
+                        date={order.orderDate}
+                        customerName={order.supplierName}
+                        totalAmount={order.totalAmount}
+                        paperSize="A4"
+                        showBarcode={true}
+                        showQr={codePlacement === 'header'}
+                        renderMode={codePlacement === 'split' ? 'barcode_only' : 'both'}
+                        align="right"
+                        layout="column"
+                        className="my-0"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -204,19 +245,22 @@ export const PurchaseOrderPrintModal: React.FC<PurchaseOrderPrintModalProps> = (
               </p>
 
               {/* Barcode Code128 & ERP QR */}
-              <div className="py-2 border-t border-dotted border-slate-300">
-                <SlipBarcodeQR
-                  docCode={order.code}
-                  docType="sales_order"
-                  date={order.orderDate}
-                  customerName={order.supplierName}
-                  totalAmount={order.totalAmount}
-                  paperSize="A4"
-                  showBarcode={true}
-                  showQr={true}
-                  align="between"
-                />
-              </div>
+              {(codePlacement === 'footer' || codePlacement === 'split') && (
+                <div className="py-2 border-t border-dotted border-slate-300">
+                  <SlipBarcodeQR
+                    docCode={order.code}
+                    docType="sales_order"
+                    date={order.orderDate}
+                    customerName={order.supplierName}
+                    totalAmount={order.totalAmount}
+                    paperSize="A4"
+                    showBarcode={codePlacement === 'footer'}
+                    showQr={true}
+                    renderMode={codePlacement === 'split' ? 'qr_only' : 'both'}
+                    align={codePlacement === 'split' ? 'center' : 'between'}
+                  />
+                </div>
+              )}
 
               {/* Terms */}
               <div className="p-3 bg-slate-50 rounded border border-slate-200 text-[10px] text-slate-600 space-y-1 mt-2">

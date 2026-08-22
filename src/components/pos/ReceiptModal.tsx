@@ -22,6 +22,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
   const [paperSize, setPaperSize] = useState<'K80' | 'K58'>(
     settings.defaultPrintPaperSize === 'K58' ? 'K58' : 'K80'
   );
+  const [codePlacement, setCodePlacement] = useState<'split' | 'footer' | 'header'>('split');
 
   const handlePrint = () => {
     window.print();
@@ -89,6 +90,40 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                 K58 (58mm)
               </button>
             </div>
+            
+            {/* Code Placement toggle */}
+            <div className="flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700 text-xs">
+              <button
+                type="button"
+                onClick={() => setCodePlacement('split')}
+                title="Mã vạch trên đầu, QR ở chân trang"
+                className={`px-2 py-1 rounded-md font-bold text-[10px] transition-all ${
+                  codePlacement === 'split' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Mã trên/QR dưới
+              </button>
+              <button
+                type="button"
+                onClick={() => setCodePlacement('footer')}
+                title="Toàn bộ mã ở chân trang"
+                className={`px-2 py-1 rounded-md font-bold text-[10px] transition-all ${
+                  codePlacement === 'footer' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Chân trang
+              </button>
+              <button
+                type="button"
+                onClick={() => setCodePlacement('header')}
+                title="Toàn bộ mã ở đầu phiếu"
+                className={`px-2 py-1 rounded-md font-bold text-[10px] transition-all ${
+                  codePlacement === 'header' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Đầu phiếu
+              </button>
+            </div>
 
             <PrinterSelectDropdown
               onSelectPrinter={(p) => {
@@ -148,6 +183,25 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
               </span>
             </div>
           </div>
+
+          {/* Top Barcode 1D (when split or header) */}
+          {(codePlacement === 'split' || codePlacement === 'header') && (
+            <div className="py-2 border-b border-dashed border-slate-300 flex justify-center">
+              <SlipBarcodeQR
+                docCode={order.code}
+                docType="retail_receipt"
+                customerName={order.customer?.name}
+                totalAmount={order.total}
+                date={new Date(order.createdAt).toISOString()}
+                paperSize={paperSize}
+                vietQrUrl={qrUrl}
+                qrPayloadMode="vietqr"
+                showBarcode={true}
+                showQr={codePlacement === 'header'}
+                renderMode={codePlacement === 'split' ? 'barcode_only' : 'both'}
+              />
+            </div>
+          )}
 
           {/* Bill Metadata */}
           <div className="py-3 space-y-1 text-[11px] border-b border-dashed border-slate-300">
@@ -307,20 +361,23 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
           </div>
 
           {/* Barcode Code128 & VietQR payment code */}
-          <div className="py-3 text-center">
-            <SlipBarcodeQR
-              docCode={order.code}
-              docType="retail_receipt"
-              customerName={order.customer?.name}
-              totalAmount={order.total}
-              date={new Date(order.createdAt).toISOString()}
-              paperSize={paperSize}
-              vietQrUrl={qrUrl}
-              qrPayloadMode="vietqr"
-              showBarcode={true}
-              showQr={true}
-            />
-          </div>
+          {(codePlacement === 'footer' || codePlacement === 'split') && (
+            <div className="py-3 text-center">
+              <SlipBarcodeQR
+                docCode={order.code}
+                docType="retail_receipt"
+                customerName={order.customer?.name}
+                totalAmount={order.total}
+                date={new Date(order.createdAt).toISOString()}
+                paperSize={paperSize}
+                vietQrUrl={qrUrl}
+                qrPayloadMode="vietqr"
+                showBarcode={codePlacement === 'footer'}
+                showQr={true}
+                renderMode={codePlacement === 'split' ? 'qr_only' : 'both'}
+              />
+            </div>
+          )}
 
           {/* Footer Note */}
           <div className="text-center pt-1 space-y-1 text-[10px] text-slate-500">

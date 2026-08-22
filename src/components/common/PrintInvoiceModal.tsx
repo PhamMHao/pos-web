@@ -121,6 +121,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
   const [showEditor, setShowEditor] = useState<boolean>(false);
   const [showBarcode, setShowBarcode] = useState<boolean>(true);
   const [showDocQr, setShowDocQr] = useState<boolean>(true);
+  const [codePlacement, setCodePlacement] = useState<'footer' | 'header' | 'split' | 'both'>('split');
   const [showVietQR, setShowVietQR] = useState<boolean>(
     settings.printDocConfigs?.[initialDocType]?.showVietQR !== undefined
       ? settings.printDocConfigs[initialDocType]!.showVietQR
@@ -885,6 +886,57 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                     />
                     <span>Hiện Mã QR Thanh Toán Ngân Hàng (VietQR)</span>
                   </label>
+
+                  {/* Code Placement Options */}
+                  <div className="pt-1">
+                    <label className="block text-slate-400 mb-1 font-bold">Vị trí in Mã vạch & QR:</label>
+                    <div className="grid grid-cols-2 gap-1 bg-slate-950 p-1 rounded-xl border border-slate-700">
+                      <button
+                        type="button"
+                        onClick={() => setCodePlacement('split')}
+                        className={`px-2 py-1.5 rounded-lg text-[10px] font-bold text-center transition-all ${
+                          codePlacement === 'split'
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        Cân đối (Mã trên / QR dưới)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCodePlacement('footer')}
+                        className={`px-2 py-1.5 rounded-lg text-[10px] font-bold text-center transition-all ${
+                          codePlacement === 'footer'
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        Chân trang (Dưới cùng)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCodePlacement('header')}
+                        className={`px-2 py-1.5 rounded-lg text-[10px] font-bold text-center transition-all ${
+                          codePlacement === 'header'
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        Đầu phiếu (Trên cùng)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCodePlacement('both')}
+                        className={`px-2 py-1.5 rounded-lg text-[10px] font-bold text-center transition-all ${
+                          codePlacement === 'both'
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        Cả hai vị trí
+                      </button>
+                    </div>
+                  </div>
                   <div>
                     <label className="block text-slate-400 mb-1">Khối chữ ký:</label>
                     <select
@@ -1185,6 +1237,26 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                           {warehouse}
                         </span>
                       </div>
+
+                      {/* Header Barcode 1D (Góc trên bên phải để quét nhanh số phiếu) */}
+                      {showBarcode && (codePlacement === 'split' || codePlacement === 'header' || codePlacement === 'both') && (
+                        <div className="pt-1 flex justify-end">
+                          <SlipBarcodeQR
+                            docCode={docNumber}
+                            docType={docType}
+                            date={docDateStr}
+                            customerName={customerName}
+                            totalAmount={calculatedGrandTotal}
+                            paperSize={paperSize}
+                            showBarcode={true}
+                            showQr={codePlacement === 'header' || codePlacement === 'both'}
+                            renderMode={codePlacement === 'split' ? 'barcode_only' : 'both'}
+                            align="right"
+                            layout="column"
+                            className="my-0"
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1527,7 +1599,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                     </div>
 
                     {/* Barcode 1D & QR Code Tra Cứu Footer */}
-                    {(showBarcode || showDocQr) && (
+                    {(showBarcode || showDocQr) && (codePlacement === 'footer' || codePlacement === 'split' || codePlacement === 'both') && (
                       <div className="py-1 border-t border-dotted border-gray-300">
                         <SlipBarcodeQR
                           docCode={docNumber}
@@ -1535,12 +1607,13 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                           date={docDateStr}
                           customerName={customerName}
                           totalAmount={calculatedGrandTotal}
-                          showBarcode={showBarcode}
+                          showBarcode={codePlacement === 'footer' || codePlacement === 'both'}
                           showQr={showDocQr}
+                          renderMode={codePlacement === 'split' ? 'qr_only' : 'both'}
                           paperSize={paperSize}
                           vietQrUrl={qrUrl}
                           qrPayloadMode={showVietQR ? 'vietqr' : 'erp_smart'}
-                          align="between"
+                          align={codePlacement === 'split' ? 'center' : 'between'}
                         />
                       </div>
                     )}

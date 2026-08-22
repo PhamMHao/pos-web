@@ -1524,6 +1524,8 @@ export function App() {
               setStockReceipts={setStockReceipts}
               onRefreshDb={fetchFreshDataFromDb}
               onOpenDocOcrScanner={(mode) => handleOpenDocOcrScanner(mode || 'stock_in')}
+              onSavePartner={handleSaveSupplier}
+              onSaveEmployee={handleSaveEmployee}
             />
           )}
 
@@ -1701,6 +1703,10 @@ export function App() {
           products={products}
           onAdjustStock={handleAdjustStock}
           initialType={quickStockType}
+          settings={settings}
+          onSaveProduct={handleSaveProduct}
+          onSavePartner={handleSaveSupplier}
+          onSaveEmployee={handleSaveEmployee}
         />
 
         {/* Desktop Hardware Device Manager Modal (Máy in bill K80, máy quét mã vạch 2D, POS quẹt thẻ, cân điện tử, két tiền) */}

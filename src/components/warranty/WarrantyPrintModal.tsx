@@ -35,6 +35,7 @@ export const WarrantyPrintModal: React.FC<WarrantyPrintModalProps> = ({
   printMode = 'receipt',
 }) => {
   const [paperSize, setPaperSize] = useState<PaperSize>('A4');
+  const [codePlacement, setCodePlacement] = useState<'split' | 'footer' | 'header'>('split');
 
   if (!isOpen || !ticket) return null;
 
@@ -87,6 +88,29 @@ export const WarrantyPrintModal: React.FC<WarrantyPrintModalProps> = ({
                 A5
               </button>
             </div>
+
+            {/* Code Placement toggle */}
+            <div className="flex items-center bg-slate-800 rounded-xl p-0.5 text-xs">
+              <button
+                type="button"
+                onClick={() => setCodePlacement('split')}
+                className={`px-2.5 py-1 rounded-lg font-bold text-[10px] transition-all ${
+                  codePlacement === 'split' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Mã trên/QR dưới
+              </button>
+              <button
+                type="button"
+                onClick={() => setCodePlacement('footer')}
+                className={`px-2.5 py-1 rounded-lg font-bold text-[10px] transition-all ${
+                  codePlacement === 'footer' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Chân trang
+              </button>
+            </div>
+
             <button
               onClick={handlePrint}
               className="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 transition-all shadow-md active:scale-95 cursor-pointer"
@@ -120,17 +144,22 @@ export const WarrantyPrintModal: React.FC<WarrantyPrintModalProps> = ({
             </div>
 
             <div className="text-right flex flex-col items-end">
-              <SlipBarcodeQR
-                docCode={ticket.code}
-                docType="warranty_intake"
-                date={ticket.receivedDate}
-                customerName={ticket.customerName}
-                totalAmount={ticket.totalFee || 0}
-                paperSize={paperSize}
-                showBarcode={false}
-                showQr={true}
-                qrPayloadMode="erp_smart"
-              />
+              {(codePlacement === 'split' || codePlacement === 'header') && (
+                <SlipBarcodeQR
+                  docCode={ticket.code}
+                  docType="warranty_intake"
+                  date={ticket.receivedDate}
+                  customerName={ticket.customerName}
+                  totalAmount={ticket.totalFee || 0}
+                  paperSize={paperSize}
+                  showBarcode={true}
+                  showQr={codePlacement === 'header'}
+                  renderMode={codePlacement === 'split' ? 'barcode_only' : 'both'}
+                  align="right"
+                  layout="column"
+                  className="my-0"
+                />
+              )}
             </div>
           </div>
 
@@ -294,6 +323,25 @@ export const WarrantyPrintModal: React.FC<WarrantyPrintModalProps> = ({
               <li>Quý khách vui lòng kiểm tra tình trạng máy và ký nhận đầy đủ trước khi rời khỏi quầy kỹ thuật.</li>
             </ul>
           </div>
+
+          {/* Footer Barcode / QR Code */}
+          {(codePlacement === 'footer' || codePlacement === 'split') && (
+            <div className="py-2 border-t border-dotted border-slate-300 flex justify-center">
+              <SlipBarcodeQR
+                docCode={ticket.code}
+                docType="warranty_intake"
+                date={ticket.receivedDate}
+                customerName={ticket.customerName}
+                totalAmount={ticket.totalFee || 0}
+                paperSize={paperSize}
+                showBarcode={codePlacement === 'footer'}
+                showQr={true}
+                qrPayloadMode="erp_smart"
+                renderMode={codePlacement === 'split' ? 'qr_only' : 'both'}
+                align="center"
+              />
+            </div>
+          )}
 
           {/* Signatures */}
           <div className="grid grid-cols-3 gap-4 text-center pt-4 pb-2 text-[11px]">
