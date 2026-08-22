@@ -327,7 +327,11 @@ export type PrintDocType =
   | 'warranty_receipt' // PHIẾU BÁN HÀNG & BẢO HÀNH
   | 'payment_receipt' // PHIẾU THU TIỀN
   | 'einvoice_vat' // HÓA ĐƠN GTGT TT78
-  | 'quote';
+  | 'quote'
+  | 'asset_handover' // PHIẾU BÀN GIAO & CUNG CẤP TÀI SẢN
+  | 'asset_transfer' // PHIẾU ĐIỀU CHUYỂN TÀI SẢN / KHO
+  | 'stock_disposal' // BIÊN BẢN TIÊU HỦY VẬT TƯ & TÀI SẢN
+  | 'liquidation_receipt'; // PHIẾU THU TIỀN THANH LÝ (THU HỒI VỐN)
 
 // Enterprise Module Types
 export interface AccountingRecord {

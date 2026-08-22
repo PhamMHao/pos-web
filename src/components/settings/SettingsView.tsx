@@ -126,6 +126,30 @@ const DOC_TYPE_LABELS: Record<PrintDocType, { label: string; desc: string; defau
     defaultSize: 'A4',
     defaultOrientation: 'portrait',
   },
+  asset_handover: {
+    label: '12. Phiếu Bàn Giao & Cung Cấp Tài Sản',
+    desc: 'Biên bản bàn giao thiết bị sử dụng cho nhân viên / phòng ban',
+    defaultSize: 'A4',
+    defaultOrientation: 'portrait',
+  },
+  asset_transfer: {
+    label: '13. Phiếu Điều Chuyển Tài Sản / Kho',
+    desc: 'Điều chuyển vật tư thiết bị giữa các kho chi nhánh',
+    defaultSize: 'A4',
+    defaultOrientation: 'portrait',
+  },
+  stock_disposal: {
+    label: '14. Biên Bản Tiêu Hủy Vật Tư & Tài Sản Hư Hỏng',
+    desc: 'Kiểm kê và tiêu hủy linh kiện hỏng, hết hạn',
+    defaultSize: 'A4',
+    defaultOrientation: 'portrait',
+  },
+  liquidation_receipt: {
+    label: '15. Phiếu Thu Tiền Thanh Lý (Thu Hồi Vốn)',
+    desc: 'Thu tiền bán thanh lý thiết bị cũ thu hồi vốn',
+    defaultSize: 'A4',
+    defaultOrientation: 'portrait',
+  },
 };
 
 export const SettingsView: React.FC<SettingsViewProps> = ({

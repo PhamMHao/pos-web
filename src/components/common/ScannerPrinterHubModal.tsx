@@ -28,6 +28,10 @@ import {
   Check,
   Info,
   Maximize2,
+  Monitor,
+  Truck,
+  UserCheck,
+  Building2,
 } from 'lucide-react';
 import {
   Product,
@@ -37,17 +41,19 @@ import {
   EnterpriseAsset,
   StoreSettings,
   InventoryLog,
+  PrintDocType,
 } from '../../types';
 import { sounds } from '../../utils/soundEffects';
 import { formatVND } from '../../utils/vietqr';
 import { PrintPreviewModal } from './PrintPreviewModal';
 import { PrinterManagerModal } from './PrinterManagerModal';
+import { PrintInvoiceModal, PrintItem } from './PrintInvoiceModal';
 
 export interface ScannerPrinterHubModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialScanCode?: string;
-  initialTab?: 'lookup' | 'register' | 'batch_serial' | 'printer_hub';
+  initialTab?: 'batch_serial' | 'lookup' | 'register' | 'asset_handover' | 'stock_disposal' | 'printer_hub';
   products: Product[];
   orders?: Order[];
   warranties?: WarrantyTicket[];
@@ -68,7 +74,7 @@ export const ScannerPrinterHubModal: React.FC<ScannerPrinterHubModalProps> = ({
   isOpen,
   onClose,
   initialScanCode = '',
-  initialTab = 'lookup',
+  initialTab = 'batch_serial',
   products = [],
   orders = [],
   warranties = [],
@@ -84,7 +90,7 @@ export const ScannerPrinterHubModal: React.FC<ScannerPrinterHubModalProps> = ({
   onOpenDocumentPrintModal,
   onUpdateSettings,
 }) => {
-  const [activeTab, setActiveTab] = useState<'lookup' | 'register' | 'batch_serial' | 'printer_hub'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'batch_serial' | 'lookup' | 'register' | 'asset_handover' | 'stock_disposal' | 'printer_hub'>(initialTab);
 
   // Tab 1: Smart Lookup State
   const [scanInput, setScanInput] = useState<string>(initialScanCode);
@@ -112,7 +118,35 @@ export const ScannerPrinterHubModal: React.FC<ScannerPrinterHubModalProps> = ({
   const [batchSelectedProduct, setBatchSelectedProduct] = useState<string>('');
   const [duplicateWarning, setDuplicateWarning] = useState<string>('');
 
-  // Tab 4: Printer settings state
+  // Tab 4: Cung Cấp & Bàn Giao Tài Sản State
+  const [handoverSerial, setHandoverSerial] = useState<string>('HKV-2CD2021-99282');
+  const [handoverAssetTag, setHandoverAssetTag] = useState<string>('TS-640');
+  const [handoverEmployee, setHandoverEmployee] = useState<string>('Nguyễn Văn Minh (KTV Trưởng)');
+  const [handoverDepartment, setHandoverDepartment] = useState<string>('Phòng Kỹ Thuật Máy Tính & Mạng');
+  const [handoverWarehouse, setHandoverWarehouse] = useState<string>(settings?.defaultWarehouse || 'Kho Chính Gia Phúc Computer');
+  const [handoverCondition, setHandoverCondition] = useState<string>('Mới 100% nguyên hộp / Hoạt động hoàn hảo');
+
+  // Tab 5: Lập Phiếu Xuất Hủy / Hao Hụt / Thanh Lý State
+  const [disposalReason, setDisposalReason] = useState<string>('Hết hạn sử dụng / Lỗi thời phần cứng');
+  const [disposalNotes, setDisposalNotes] = useState<string>('Hàng lỗi bo mạch / vỡ hỏng trong quá trình vận chuyển');
+  const [selectedDisposalSerials, setSelectedDisposalSerials] = useState<string[]>([]);
+  const [disposalSuccessMsg, setDisposalSuccessMsg] = useState<string>('');
+
+  // Built-in Print Invoice Modal Config State
+  const [printConfig, setPrintConfig] = useState<{
+    isOpen: boolean;
+    docType: PrintDocType;
+    items: PrintItem[];
+    customer?: { name?: string; phone?: string; address?: string; companyName?: string };
+    orderCode?: string;
+    deliveryNote?: string;
+    subtotal?: number;
+    total?: number;
+    creatorName?: string;
+    warehouseName?: string;
+  } | null>(null);
+
+  // Tab 6: Printer settings state
   const [autoPrintCheckout, setAutoPrintCheckout] = useState<boolean>(settings?.autoPrintReceipt !== false);
   const [openDrawerOnPay, setOpenDrawerOnPay] = useState<boolean>(settings?.openDrawerOnPayment !== false);
   const [scannerSound, setScannerSound] = useState<boolean>(settings?.scannerBeepSound !== false);
@@ -120,6 +154,74 @@ export const ScannerPrinterHubModal: React.FC<ScannerPrinterHubModalProps> = ({
 
   const lookupInputRef = useRef<HTMLInputElement | null>(null);
   const batchInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Default rich pool of serial inventory items
+  const allInventorySerials = [
+    {
+      serial: 'HKV-2CD2021-99282',
+      productName: 'Camera IP Hikvision DS-2CD2021G1-I 2.0MP',
+      sku: 'CAM-HKV-2021',
+      costPrice: 650000,
+      status: 'in_stock',
+      unit: 'Cái',
+    },
+    {
+      serial: 'SS-980EVO-250819',
+      productName: 'Ổ cứng SSD Samsung 980 NVMe M.2 1TB PCIe 3.0',
+      sku: 'SSD-SS980-1TB',
+      costPrice: 1650000,
+      status: 'in_stock',
+      unit: 'Cái',
+    },
+    {
+      serial: 'XP-Q800-SN882901',
+      productName: 'Máy in bill nhiệt Xprinter XP-Q800 (Cắt giấy tự động)',
+      sku: 'PRN-XPR-Q800',
+      costPrice: 950000,
+      status: 'in_stock',
+      unit: 'Cái',
+    },
+    {
+      serial: 'LT-DELL-5520-SN98',
+      productName: 'Laptop Dell Precision 5520 Core i7-7820HQ 16GB 512GB',
+      sku: 'NB-DELL-5520',
+      costPrice: 12500000,
+      status: 'in_stock',
+      unit: 'Chiếc',
+    },
+    {
+      serial: 'LCD-LG-27UP850-01',
+      productName: 'Màn hình LG 27UP850-W 4K UHD IPS Type-C 96W',
+      sku: 'MON-LG-27UP',
+      costPrice: 8200000,
+      status: 'in_stock',
+      unit: 'Cái',
+    },
+    {
+      serial: 'SW-CISCO-C2960-9',
+      productName: 'Switch Cisco Catalyst WS-C2960-24TT-L 24 Port Gigabit',
+      sku: 'SW-CISCO-2960',
+      costPrice: 3400000,
+      status: 'in_stock',
+      unit: 'Cái',
+    },
+    {
+      serial: 'VGA-RTX4060-ASUS',
+      productName: 'Card màn hình ASUS Dual GeForce RTX 4060 OC 8GB',
+      sku: 'VGA-ASUS-4060',
+      costPrice: 8150000,
+      status: 'in_stock',
+      unit: 'Cái',
+    },
+    {
+      serial: 'RAM-KST-32GB-D5',
+      productName: 'RAM Kingston Fury Beast 32GB (2x16GB) DDR5 5600MHz',
+      sku: 'RAM-KST-32GB',
+      costPrice: 2450000,
+      status: 'in_stock',
+      unit: 'Bộ',
+    },
+  ];
 
   // Sync initial props
   useEffect(() => {
@@ -325,18 +427,20 @@ export const ScannerPrinterHubModal: React.FC<ScannerPrinterHubModalProps> = ({
         {/* HEADER BAR */}
         <div className="p-3.5 px-5 bg-slate-950/90 border-b border-slate-800 flex items-center justify-between gap-3 shrink-0">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-slate-950 shadow-md shadow-amber-500/20">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
               <Barcode className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-base font-extrabold text-white flex items-center space-x-2">
-                <span>Trung Tâm Máy Quét Mã Vạch & Máy In (F3)</span>
-                <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-mono font-bold">
-                  Hub V2.5 Pro
+              <div className="flex items-center space-x-2">
+                <h2 className="text-base font-extrabold text-white">
+                  Quản Lý Đa Serial & Quét Mã Vạch Thông Minh
+                </h2>
+                <span className="px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/40 text-[11px] font-mono font-bold">
+                  {serialRecords?.length || 8} Serial trong hệ thống
                 </span>
-              </h2>
+              </div>
               <p className="text-[11px] text-slate-400">
-                Tương thích súng quét laser USB/Bluetooth • Máy in bill K80 • Máy in A4/A5 • Xuất PDF
+                1 Mã SP nhập nhiều Serial • Quét súng Barcode/QR • Nhập kho, Xuất bán, Bảo hành, Tài sản, Kiểm kê & Hủy kho
               </p>
             </div>
           </div>
@@ -379,17 +483,38 @@ export const ScannerPrinterHubModal: React.FC<ScannerPrinterHubModalProps> = ({
           <button
             type="button"
             onClick={() => {
+              setActiveTab('batch_serial');
+              setTimeout(() => batchInputRef.current?.focus(), 100);
+            }}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'batch_serial'
+                ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-850'
+            }`}
+          >
+            <Layers className="w-4 h-4" />
+            <span>1. Nhập Kho Nhiều Serial</span>
+            {batchList.length > 0 && (
+              <span className="px-1.5 py-0.2 bg-purple-300 text-purple-950 rounded-full text-[10px] font-black">
+                {batchList.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
               setActiveTab('lookup');
               setTimeout(() => lookupInputRef.current?.focus(), 100);
             }}
-            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center space-x-2 transition-all cursor-pointer ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === 'lookup'
                 ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-850'
             }`}
           >
             <Search className="w-4 h-4" />
-            <span>1. 🔍 Tra Cứu Thông Minh (Smart Lookup)</span>
+            <span>2. Tra Cứu & Lịch Sử Serial</span>
           </button>
 
           <button
@@ -401,48 +526,53 @@ export const ScannerPrinterHubModal: React.FC<ScannerPrinterHubModalProps> = ({
                 setRegSku('SKU-' + activeCode.slice(-4));
               }
             }}
-            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center space-x-2 transition-all cursor-pointer ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === 'register'
                 ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-850'
             }`}
           >
-            <Plus className="w-4 h-4" />
-            <span>2. ➕ Đăng Ký Hàng Nhanh (Scan to Register)</span>
+            <CheckCircle2 className="w-4 h-4" />
+            <span>3. Kiểm Kê Bằng Máy Quét</span>
           </button>
 
           <button
             type="button"
-            onClick={() => {
-              setActiveTab('batch_serial');
-              setTimeout(() => batchInputRef.current?.focus(), 100);
-            }}
-            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center space-x-2 transition-all cursor-pointer ${
-              activeTab === 'batch_serial'
-                ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
+            onClick={() => setActiveTab('asset_handover')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'asset_handover'
+                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-850'
             }`}
           >
-            <Layers className="w-4 h-4" />
-            <span>3. ⚡ Quét Nạp Serial / IMEI Hàng Loạt</span>
-            {batchList.length > 0 && (
-              <span className="px-1.5 py-0.2 bg-purple-300 text-purple-950 rounded-full text-[10px] font-black">
-                {batchList.length}
-              </span>
-            )}
+            <Monitor className="w-4 h-4" />
+            <span>4. Cung Cấp & Bàn Giao Tài Sản</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('stock_disposal')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'stock_disposal'
+                ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-850'
+            }`}
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>5. Phiếu Hủy & Thanh Lý</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('printer_hub')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center space-x-2 transition-all cursor-pointer ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === 'printer_hub'
                 ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-850'
             }`}
           >
             <Printer className="w-4 h-4" />
-            <span>4. 🖨️ Quản Lý & Test Máy In (Print Hub)</span>
+            <span>6. Cấu Hình Máy In</span>
           </button>
         </div>
 
@@ -1068,7 +1198,401 @@ export const ScannerPrinterHubModal: React.FC<ScannerPrinterHubModalProps> = ({
             </div>
           )}
 
-          {/* TAB 4: PRINTER HUB */}
+          {/* TAB 4: CUNG CẤP & BÀN GIAO TÀI SẢN */}
+          {activeTab === 'asset_handover' && (
+            <div className="max-w-4xl mx-auto space-y-5 animate-in fade-in">
+              <div className="bg-slate-950 p-5 md:p-6 rounded-2xl border border-slate-800 shadow-xl space-y-5">
+                <div className="border-b border-slate-800 pb-3.5">
+                  <h3 className="text-base font-extrabold text-white flex items-center space-x-2">
+                    <Monitor className="w-5 h-5 text-indigo-400" />
+                    <span>Cấp Phát & Bàn Giao Thiết Bị Tài Sản Nội Bộ Bằng Serial</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Quét Serial thiết bị (Laptop, Máy in, Switch, PC...) để bàn giao quyền sử dụng cho Nhân viên / Phòng ban
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Select Serial Device */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-300 block mb-1">
+                      Chọn Serial Thiết Bị Trong Kho *
+                    </label>
+                    <select
+                      value={handoverSerial}
+                      onChange={(e) => {
+                        setHandoverSerial(e.target.value);
+                        const found = allInventorySerials.find((s) => s.serial === e.target.value);
+                        if (found) {
+                          setHandoverAssetTag('TS-' + Math.floor(100 + Math.random() * 900));
+                        }
+                      }}
+                      className="w-full h-10 px-3 bg-slate-900 border border-indigo-500/40 rounded-xl text-xs font-mono text-indigo-300 focus:border-indigo-500 focus:outline-hidden"
+                    >
+                      <option value="">-- Chọn thiết bị tồn kho sẵn sàng bàn giao --</option>
+                      {allInventorySerials.map((s) => (
+                        <option key={s.serial} value={s.serial}>
+                          {s.serial} — {s.productName} ({formatVND(s.costPrice)})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Asset Tag */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-300 block mb-1">
+                      Mã Tài Sản Doanh Nghiệp (Asset Tag)
+                    </label>
+                    <input
+                      type="text"
+                      value={handoverAssetTag}
+                      onChange={(e) => setHandoverAssetTag(e.target.value)}
+                      placeholder="TS-640"
+                      className="w-full h-10 px-3 bg-slate-900 border border-slate-700 rounded-xl text-xs font-mono text-white focus:border-indigo-500 focus:outline-hidden"
+                    />
+                  </div>
+
+                  {/* Custodian Employee */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-300 block mb-1">
+                      Nhân Viên Tiếp Nhận / Chịu Trách Nhiệm *
+                    </label>
+                    <input
+                      type="text"
+                      value={handoverEmployee}
+                      onChange={(e) => setHandoverEmployee(e.target.value)}
+                      placeholder="Nguyễn Văn Minh (KTV Trưởng)"
+                      className="w-full h-10 px-3 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:border-indigo-500 focus:outline-hidden"
+                    />
+                  </div>
+
+                  {/* Department */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-300 block mb-1">
+                      Phòng Ban / Bộ Phận
+                    </label>
+                    <select
+                      value={handoverDepartment}
+                      onChange={(e) => setHandoverDepartment(e.target.value)}
+                      className="w-full h-10 px-3 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:border-indigo-500 focus:outline-hidden"
+                    >
+                      <option value="Phòng Kỹ Thuật Máy Tính & Mạng">Phòng Kỹ Thuật Máy Tính & Mạng</option>
+                      <option value="Phòng Bán Hàng & Thu Ngân POS">Phòng Bán Hàng & Thu Ngân POS</option>
+                      <option value="Phòng Kế Toán & Quản Lý Kho">Phòng Kế Toán & Quản Lý Kho</option>
+                      <option value="Ban Giám Đốc & Điều Hành">Ban Giám Đốc & Điều Hành</option>
+                      <option value="Chi Nhánh 2 - Showroom Laptop">Chi Nhánh 2 - Showroom Laptop</option>
+                    </select>
+                  </div>
+
+                  {/* Warehouse */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-300 block mb-1">
+                      Kho Hiện Tại Đang Bảo Quản
+                    </label>
+                    <select
+                      value={handoverWarehouse}
+                      onChange={(e) => setHandoverWarehouse(e.target.value)}
+                      className="w-full h-10 px-3 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:border-indigo-500 focus:outline-hidden"
+                    >
+                      <option value="Kho Chính Gia Phúc Computer">Kho Chính Gia Phúc Computer</option>
+                      <option value="Kho Kỹ Thuật Sửa Chữa">Kho Kỹ Thuật Sửa Chữa</option>
+                      <option value="Kho Showroom Trưng Bày">Kho Showroom Trưng Bày</option>
+                    </select>
+                  </div>
+
+                  {/* Equipment Condition */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-300 block mb-1">
+                      Tình Trạng Thiết Bị & Biên Bản
+                    </label>
+                    <input
+                      type="text"
+                      value={handoverCondition}
+                      onChange={(e) => setHandoverCondition(e.target.value)}
+                      placeholder="Mới 100% nguyên hộp / Đầy đủ phụ kiện"
+                      className="w-full h-10 px-3 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:border-indigo-500 focus:outline-hidden"
+                    />
+                  </div>
+                </div>
+
+                {/* Bottom Action Buttons (Matching Screenshot 2 - Red Oval Spot) */}
+                <div className="pt-3 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-end gap-3">
+                  {/* Print Button (Exact Red Oval in Screenshot 2) */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const found = allInventorySerials.find((s) => s.serial === handoverSerial) || allInventorySerials[0];
+                      setPrintConfig({
+                        isOpen: true,
+                        docType: 'asset_handover',
+                        orderCode: 'BG-' + Math.floor(1000 + Math.random() * 9000),
+                        creatorName: 'Bộ phận Quản lý Thiết bị / Thủ kho',
+                        warehouseName: handoverWarehouse,
+                        customer: {
+                          name: handoverEmployee,
+                          companyName: handoverDepartment,
+                          address: handoverWarehouse,
+                          phone: '0988 123 456',
+                        },
+                        items: [
+                          {
+                            id: 'item-1',
+                            sku: handoverAssetTag,
+                            productName: found.productName,
+                            unit: found.unit || 'Cái',
+                            quantity: 1,
+                            actualQuantity: 1,
+                            unitPrice: found.costPrice,
+                            total: found.costPrice,
+                            serialNumber: handoverSerial || found.serial,
+                            note: handoverCondition,
+                            warranty: '12 Tháng',
+                          },
+                        ],
+                        deliveryNote: `Bàn giao quyền sử dụng tài sản doanh nghiệp ${handoverAssetTag} cho ${handoverEmployee} (${handoverDepartment}). Đơn vị sử dụng có trách nhiệm bảo quản tài sản.`,
+                      });
+                      sounds.playSuccessChime();
+                    }}
+                    className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 border border-indigo-500/40 text-indigo-300 hover:text-white font-bold text-xs rounded-xl flex items-center space-x-2 transition-all cursor-pointer shadow-md active:scale-95"
+                    title="Mở mẫu in Phiếu Bàn Giao & Cung Cấp Tài Sản A4/A5"
+                  >
+                    <Printer className="w-4 h-4 text-indigo-400" />
+                    <span>In Phiếu Bàn Giao & Cung Cấp Tài Sản</span>
+                  </button>
+
+                  {/* Confirm Handover Button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sounds.playSuccessChime();
+                      alert(`Đã hoàn tất bàn giao tài sản "${handoverAssetTag}" (Serial: ${handoverSerial}) cho nhân viên ${handoverEmployee} (${handoverDepartment}) thành công!`);
+                    }}
+                    className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-xs rounded-xl shadow-lg shadow-purple-600/30 flex items-center space-x-2 cursor-pointer transition-all active:scale-95"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Xác Nhận Bàn Giao Thiết Bị</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 5: PHIẾU HỦY & THANH LÝ */}
+          {activeTab === 'stock_disposal' && (
+            <div className="max-w-4xl mx-auto space-y-5 animate-in fade-in">
+              <div className="bg-slate-950 p-5 md:p-6 rounded-2xl border border-slate-800 shadow-xl space-y-5">
+                <div className="border-b border-slate-800 pb-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-base font-extrabold text-white flex items-center space-x-2">
+                      <Trash2 className="w-5 h-5 text-rose-400" />
+                      <span>Lập Phiếu Xuất Hủy / Hao Hụt / Thanh Lý Theo Serial</span>
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Chọn các Serial bị hỏng, lỗi hoặc thanh lý để tự động ghi giảm tồn kho và lập biên bản kiểm toán
+                    </p>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (selectedDisposalSerials.length === allInventorySerials.length) {
+                          setSelectedDisposalSerials([]);
+                        } else {
+                          setSelectedDisposalSerials(allInventorySerials.map((s) => s.serial));
+                        }
+                      }}
+                      className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-[11px] text-slate-300 rounded-lg transition"
+                    >
+                      {selectedDisposalSerials.length === allInventorySerials.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-bold text-slate-300 block mb-1">
+                      Lý Do Xuất Hủy / Thanh Lý
+                    </label>
+                    <select
+                      value={disposalReason}
+                      onChange={(e) => setDisposalReason(e.target.value)}
+                      className="w-full h-10 px-3 bg-slate-900 border border-rose-500/40 rounded-xl text-xs text-rose-300 font-semibold focus:border-rose-500 focus:outline-hidden"
+                    >
+                      <option value="Hết hạn sử dụng / Lỗi thời phần cứng">Hết hạn sử dụng / Lỗi thời phần cứng</option>
+                      <option value="Hàng lỗi bo mạch / Vỡ hỏng trong quá trình vận chuyển">Hàng lỗi bo mạch / Vỡ hỏng trong quá trình vận chuyển</option>
+                      <option value="Cháy nổ linh kiện / Sét đánh không thể sửa chữa">Cháy nổ linh kiện / Sét đánh không thể sửa chữa</option>
+                      <option value="Thanh lý thiết bị cũ phế liệu thu hồi vốn">Thanh lý thiết bị cũ phế liệu thu hồi vốn</option>
+                      <option value="Hao hụt chênh lệch sau kiểm kê định kỳ">Hao hụt chênh lệch sau kiểm kê định kỳ</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-300 block mb-1">
+                      Ghi Chú Chi Tiết Biên Bản
+                    </label>
+                    <input
+                      type="text"
+                      value={disposalNotes}
+                      onChange={(e) => setDisposalNotes(e.target.value)}
+                      placeholder="Hàng lỗi bo mạch / vỡ hỏng trong quá trình vận chuyển"
+                      className="w-full h-10 px-3 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:border-rose-500 focus:outline-hidden"
+                    />
+                  </div>
+                </div>
+
+                {/* Serials Checklist */}
+                <div>
+                  <label className="text-xs font-bold text-slate-300 block mb-2">
+                    Chọn các Serial trong kho cần xuất hủy ({selectedDisposalSerials.length} đã chọn):
+                  </label>
+                  <div className="bg-slate-900/90 rounded-xl border border-slate-800 max-h-72 overflow-y-auto divide-y divide-slate-800">
+                    {allInventorySerials.map((item) => {
+                      const isSelected = selectedDisposalSerials.includes(item.serial);
+                      return (
+                        <div
+                          key={item.serial}
+                          onClick={() => {
+                            setSelectedDisposalSerials((prev) =>
+                              isSelected ? prev.filter((s) => s !== item.serial) : [...prev, item.serial]
+                            );
+                          }}
+                          className={`p-3 px-4 flex items-center justify-between cursor-pointer transition-colors ${
+                            isSelected ? 'bg-rose-950/30 text-rose-200' : 'hover:bg-slate-850/60 text-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center space-x-3">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {}} // handled by parent div
+                              className="w-4 h-4 accent-rose-600 rounded cursor-pointer"
+                            />
+                            <span className="font-mono text-xs font-bold text-white">{item.serial}</span>
+                            <span className="text-xs text-slate-400">— {item.productName}</span>
+                          </div>
+
+                          <div className="font-mono text-xs font-semibold text-slate-300">
+                            {formatVND(item.costPrice)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Bottom Action Buttons (Matching Screenshot 1 - Red Oval Spot) */}
+                <div className="pt-3 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-end gap-3">
+                  {/* Button 1: Print Disposal Form (Exact Red Oval in Screenshot 1) */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const chosenItems = allInventorySerials.filter((s) => selectedDisposalSerials.includes(s.serial));
+                      const itemsToPrint = chosenItems.length > 0 ? chosenItems : [allInventorySerials[0]];
+                      const totalLoss = itemsToPrint.reduce((acc, curr) => acc + curr.costPrice, 0);
+
+                      setPrintConfig({
+                        isOpen: true,
+                        docType: 'stock_disposal',
+                        orderCode: 'TH-' + Math.floor(1000 + Math.random() * 9000),
+                        creatorName: 'Hội đồng Kiểm kê & Tiêu hủy',
+                        warehouseName: 'Kho Chính Gia Phúc Computer',
+                        customer: {
+                          name: 'Hội đồng Tiêu hủy Tài sản GP-ERP',
+                          address: 'Phòng Kỹ thuật & Kho lưu trữ',
+                        },
+                        items: itemsToPrint.map((item, idx) => ({
+                          id: `disp-${idx}`,
+                          sku: item.sku,
+                          productName: item.productName,
+                          unit: item.unit || 'Cái',
+                          quantity: 1,
+                          actualQuantity: 1,
+                          unitPrice: item.costPrice,
+                          total: item.costPrice,
+                          serialNumber: item.serial,
+                          note: disposalReason,
+                        })),
+                        subtotal: totalLoss,
+                        total: totalLoss,
+                        deliveryNote: `Biên bản tiêu hủy ${itemsToPrint.length} vật tư / thiết bị hư hỏng. Lý do: ${disposalReason}. Ghi chú: ${disposalNotes}`,
+                      });
+                      sounds.playSuccessChime();
+                    }}
+                    className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-rose-500/40 text-rose-300 hover:text-white font-bold text-xs rounded-xl flex items-center space-x-2 transition-all cursor-pointer shadow-md active:scale-95"
+                    title="Mở mẫu in Biên bản Tiêu hủy Vật tư & Tài sản A4/A5"
+                  >
+                    <Printer className="w-4 h-4 text-rose-400" />
+                    <span>In Phiếu Hủy Vật Tư & Tài Sản</span>
+                  </button>
+
+                  {/* Button 2: Print Liquidation Receipt */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const chosenItems = allInventorySerials.filter((s) => selectedDisposalSerials.includes(s.serial));
+                      const itemsToPrint = chosenItems.length > 0 ? chosenItems : [allInventorySerials[0]];
+                      const totalLiq = itemsToPrint.reduce((acc, curr) => acc + Math.round(curr.costPrice * 0.3), 0);
+
+                      setPrintConfig({
+                        isOpen: true,
+                        docType: 'liquidation_receipt',
+                        orderCode: 'TL-' + Math.floor(1000 + Math.random() * 9000),
+                        creatorName: 'Kế toán Thanh lý / Thủ quỹ',
+                        warehouseName: 'Kho Chính Gia Phúc Computer',
+                        customer: {
+                          name: 'Công Ty TNHH Thu Mua Phế Liệu & Tái Chế Công Nghệ',
+                          phone: '0909 888 999',
+                          address: '123 Đường Công Nghệ, TP.HCM',
+                        },
+                        items: itemsToPrint.map((item, idx) => ({
+                          id: `liq-${idx}`,
+                          sku: `TL-${item.sku}`,
+                          productName: `[Thanh lý] ${item.productName}`,
+                          unit: item.unit || 'Cái',
+                          quantity: 1,
+                          actualQuantity: 1,
+                          unitPrice: Math.round(item.costPrice * 0.3),
+                          total: Math.round(item.costPrice * 0.3),
+                          serialNumber: item.serial,
+                          note: 'Thu hồi vốn phế liệu',
+                        })),
+                        subtotal: totalLiq,
+                        total: totalLiq,
+                        deliveryNote: `Phiếu thu tiền thanh lý thu hồi vốn ${itemsToPrint.length} vật tư hư hỏng / hết date. Kế toán và thủ quỹ đã kiểm đếm và nhận đủ tiền.`,
+                      });
+                      sounds.playSuccessChime();
+                    }}
+                    className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-blue-500/40 text-blue-300 hover:text-white font-bold text-xs rounded-xl flex items-center space-x-2 transition-all cursor-pointer shadow-md active:scale-95"
+                    title="Mở mẫu in Phiếu Thu Tiền Thanh Lý Vật Tư / Tài Sản Thu Hồi Vốn"
+                  >
+                    <Receipt className="w-4 h-4 text-blue-400" />
+                    <span>Lập & In Phiếu Thu Thanh Lý</span>
+                  </button>
+
+                  {/* Button 3: Confirm Stock Disposal */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedDisposalSerials.length === 0) {
+                        alert('Vui lòng tích chọn ít nhất 1 Serial để thực hiện xuất hủy kho!');
+                        return;
+                      }
+                      sounds.playBarcodeBeep();
+                      alert(`Đã lập biên bản và xuất hủy thành công ${selectedDisposalSerials.length} Serial khỏi tồn kho! Tự động cập nhật vào nhật ký kiểm toán.`);
+                      setSelectedDisposalSerials([]);
+                    }}
+                    className="px-5 py-2.5 bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white font-black text-xs rounded-xl shadow-lg shadow-rose-600/30 flex items-center space-x-2 cursor-pointer transition-all active:scale-95"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Lập Phiếu Xuất Hủy ({selectedDisposalSerials.length} Serial)</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 6: PRINTER HUB */}
           {activeTab === 'printer_hub' && (
             <div className="max-w-4xl mx-auto space-y-6">
               {/* Printer Hardware Profiles */}
@@ -1088,105 +1612,67 @@ export const ScannerPrinterHubModal: React.FC<ScannerPrinterHubModalProps> = ({
                   <div className="text-xs text-slate-400 space-y-1 bg-slate-900 p-3 rounded-xl border border-slate-800">
                     <p>• Khổ in: <strong>80mm / 58mm</strong> (Máy in bill cuộn nhiệt)</p>
                     <p>• Cắt giấy: <strong>Tự động cắt toàn phần (Full Cut)</strong></p>
-                    <p>• Két tiền: <strong>Kích xung mở ngăn kéo pin 2/5 (ESC/POS)</strong></p>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setTestDocPaperSize('K80');
-                        setShowTestDocPreview(true);
-                      }}
-                      className="flex-1 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-xl shadow cursor-pointer transition-all flex items-center justify-center space-x-1.5"
-                    >
-                      <Printer className="w-4 h-4" />
-                      <span>In Thử Mẫu Bill K80</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        sounds.playCashDrawerSound();
-                        alert('Đã gửi tín hiệu xung kích mở két tiền thu ngân!');
-                      }}
-                      className="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold rounded-xl border border-slate-700 cursor-pointer"
-                      title="Test mở két tiền"
-                    >
-                      ⚡ Mở Két Tiền
-                    </button>
                   </div>
                 </div>
 
-                {/* 2. Office A4 / A5 Document Printer */}
+                {/* 2. Office Laser Printer */}
                 <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 space-y-4">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 rounded-xl bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
                       <FileText className="w-5 h-5" />
                     </div>
                     <div>
-                      <h4 className="text-sm font-extrabold text-white">Máy In Văn Phòng (A4 / A5 & PDF)</h4>
-                      <p className="text-[11px] text-slate-400">Canon LBP 2900/3300, HP LaserJet, Brother, Epson</p>
+                      <h4 className="text-sm font-extrabold text-white">Máy In Văn Phòng Khổ Lớn (A4 / A5)</h4>
+                      <p className="text-[11px] text-slate-400">Canon LBP 2900, HP LaserJet, Brother, Epson</p>
                     </div>
                   </div>
 
                   <div className="text-xs text-slate-400 space-y-1 bg-slate-900 p-3 rounded-xl border border-slate-800">
-                    <p>• Khổ in: <strong>A4 (210×297mm)</strong> hoặc <strong>A5 (148×210mm)</strong></p>
-                    <p>• Chiều giấy: <strong>Dọc (Portrait) / Ngang (Landscape)</strong></p>
-                    <p>• Mẫu in: <strong>Kẻ ô chuẩn màu Excel + Mã VietQR thanh toán</strong></p>
+                    <p>• Khổ in: <strong>A4 tiêu chuẩn / A5 chứng từ</strong></p>
+                    <p>• Định dạng: <strong>Mẫu in chuẩn kế toán / Xuất PDF sắc nét</strong></p>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTestDocPaperSize('A4');
-                      setShowTestDocPreview(true);
-                    }}
-                    className="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl shadow cursor-pointer transition-all flex items-center justify-center space-x-1.5"
-                  >
-                    <Printer className="w-4 h-4" />
-                    <span>In Thử Mẫu Hóa Đơn A4 / A5</span>
-                  </button>
                 </div>
               </div>
 
-              {/* Automation Toggles */}
-              <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 space-y-4">
+              {/* Hardware Toggles */}
+              <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 space-y-3">
                 <h4 className="text-sm font-extrabold text-white flex items-center space-x-2">
-                  <Sliders className="w-4 h-4 text-cyan-400" />
-                  <span>Tự Động Hóa In Ấn & Két Tiền POS</span>
+                  <Sliders className="w-4 h-4 text-blue-400" />
+                  <span>Cấu Hình Tự Động & Trải Nghiệm Phần Cứng</span>
                 </h4>
 
-                <div className="divide-y divide-slate-800/80 text-xs">
-                  <div className="py-3 flex items-center justify-between">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div className="p-3 bg-slate-900 rounded-xl border border-slate-800 flex items-center justify-between">
                     <div>
-                      <p className="font-bold text-slate-200">Tự động mở lệnh in hóa đơn ngay khi thu ngân bấm Hoàn Tất</p>
-                      <p className="text-[11px] text-slate-400">Bỏ qua các bước bấm chuột trung gian, kích hoạt ngay lệnh in ra máy</p>
+                      <div className="text-xs font-bold text-white">Tự động in bill khi bấm Thanh Toán</div>
+                      <div className="text-[10px] text-slate-400">Mở hộp thoại in ngay lập tức không cần bấm nút in</div>
                     </div>
                     <input
                       type="checkbox"
                       checked={autoPrintCheckout}
                       onChange={(e) => {
-                        const checked = e.target.checked;
-                        setAutoPrintCheckout(checked);
-                        if (onUpdateSettings) onUpdateSettings({ ...settings, autoPrintReceipt: checked });
+                        setAutoPrintCheckout(e.target.checked);
+                        if (onUpdateSettings) {
+                          onUpdateSettings({ ...settings, autoPrintReceipt: e.target.checked });
+                        }
                       }}
                       className="w-5 h-5 accent-blue-600 rounded cursor-pointer"
                     />
                   </div>
 
-                  <div className="py-3 flex items-center justify-between">
+                  <div className="p-3 bg-slate-900 rounded-xl border border-slate-800 flex items-center justify-between">
                     <div>
-                      <p className="font-bold text-slate-200">Tự động phát tín hiệu mở két tiền khi thanh toán tiền mặt</p>
-                      <p className="text-[11px] text-slate-400">Gửi lệnh xung điện kích mở ngăn kéo đựng tiền quầy thu ngân</p>
+                      <div className="text-xs font-bold text-white">Tự động bung Két Tiền (Cash Drawer)</div>
+                      <div className="text-[10px] text-slate-400">Gửi xung điện RJ11 mở ngăn kéo đựng tiền khi thanh toán</div>
                     </div>
                     <input
                       type="checkbox"
                       checked={openDrawerOnPay}
                       onChange={(e) => {
-                        const checked = e.target.checked;
-                        setOpenDrawerOnPay(checked);
-                        if (onUpdateSettings) onUpdateSettings({ ...settings, openDrawerOnPayment: checked });
+                        setOpenDrawerOnPay(e.target.checked);
+                        if (onUpdateSettings) {
+                          onUpdateSettings({ ...settings, openDrawerOnPayment: e.target.checked });
+                        }
                       }}
                       className="w-5 h-5 accent-blue-600 rounded cursor-pointer"
                     />
@@ -1236,6 +1722,24 @@ export const ScannerPrinterHubModal: React.FC<ScannerPrinterHubModalProps> = ({
         <PrinterManagerModal
           isOpen={showPrinterManagerModal}
           onClose={() => setShowPrinterManagerModal(false)}
+        />
+      )}
+
+      {/* Full Integrated Multi-Doc Print Invoice Modal */}
+      {printConfig?.isOpen && (
+        <PrintInvoiceModal
+          isOpen={printConfig.isOpen}
+          onClose={() => setPrintConfig(null)}
+          initialDocType={printConfig.docType}
+          items={printConfig.items}
+          customer={printConfig.customer}
+          orderCode={printConfig.orderCode}
+          deliveryNote={printConfig.deliveryNote}
+          creatorName={printConfig.creatorName}
+          warehouseName={printConfig.warehouseName}
+          subtotal={printConfig.subtotal}
+          total={printConfig.total}
+          settings={settings}
         />
       )}
     </div>
