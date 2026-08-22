@@ -14,6 +14,7 @@ import { formatVND, generateVietQRUrl } from '../../utils/vietqr';
 import { numberToVietnameseWords } from '../../utils/numberToWords';
 import { GiaPhucLogo } from '../common/GiaPhucLogo';
 import { PrinterSelectDropdown } from '../common/PrinterSelectDropdown';
+import { SlipBarcodeQR } from '../common/SlipBarcodeQR';
 
 interface PurchaseOrderPrintModalProps {
   isOpen: boolean;
@@ -202,8 +203,23 @@ export const PurchaseOrderPrintModal: React.FC<PurchaseOrderPrintModalProps> = (
                 Số tiền bằng chữ: <strong>{numberToVietnameseWords(order.totalAmount)}</strong>
               </p>
 
+              {/* Barcode Code128 & ERP QR */}
+              <div className="py-2 border-t border-dotted border-slate-300">
+                <SlipBarcodeQR
+                  docCode={order.code}
+                  docType="sales_order"
+                  date={order.orderDate}
+                  customerName={order.supplierName}
+                  totalAmount={order.totalAmount}
+                  paperSize="A4"
+                  showBarcode={true}
+                  showQr={true}
+                  align="between"
+                />
+              </div>
+
               {/* Terms */}
-              <div className="p-3 bg-slate-50 rounded border border-slate-200 text-[10px] text-slate-600 space-y-1">
+              <div className="p-3 bg-slate-50 rounded border border-slate-200 text-[10px] text-slate-600 space-y-1 mt-2">
                 <p className="font-bold uppercase text-slate-900">ĐIỀU KHOẢN GIAO NHẬN & BẢO HÀNH:</p>
                 <p>1. Hàng hóa cung cấp phải mới 100%, nguyên đai nguyên kiện, đúng thông số kỹ thuật và có đầy đủ CO/CQ từ nhà sản xuất.</p>
                 <p>2. Thời hạn thanh toán: Áp dụng phương thức <strong>{order.paymentMethod === 'debt_30d' ? 'Công nợ gối đầu 30 ngày' : 'Chuyển khoản ngay sau khi nghiệm thu'}</strong>.</p>

@@ -43,6 +43,7 @@ interface NavbarProps {
   onRefreshDb?: () => void;
   onOpenScannerPrinterHub?: () => void;
   onOpenDocOcrScanner?: () => void;
+  onOpenUniversalSearch?: () => void;
   isSyncingDb?: boolean;
   lastSyncTime?: string;
 }
@@ -68,6 +69,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onRefreshDb,
   onOpenScannerPrinterHub,
   onOpenDocOcrScanner,
+  onOpenUniversalSearch,
   isSyncingDb,
   lastSyncTime,
 }) => {
@@ -233,6 +235,19 @@ export const Navbar: React.FC<NavbarProps> = ({
 
 
 
+
+        {/* Universal Search & QR Barcode Hub (F7) */}
+        {onOpenUniversalSearch && (
+          <button
+            type="button"
+            onClick={onOpenUniversalSearch}
+            className="flex items-center space-x-1.5 px-3 h-9 bg-cyan-950/50 hover:bg-cyan-900/70 text-cyan-300 hover:text-cyan-200 text-xs font-bold rounded-xl shadow-lg shadow-cyan-950/30 border border-cyan-500/40 transition-all cursor-pointer whitespace-nowrap active:scale-95"
+            title="Trung Tâm Tra Cứu, Quét Mã Vạch / QR & Dòng Đời Sản Phẩm (Phím F7)"
+          >
+            <Barcode className="w-4 h-4 text-cyan-400" />
+            <span>Tra Cứu & QR (F7)</span>
+          </button>
+        )}
 
         {/* AI Document OCR & Excel Button */}
         <button

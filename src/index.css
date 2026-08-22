@@ -670,6 +670,19 @@ html.theme-light {
   font-size: 9pt;
 }
 
+.paper-size-K58 {
+  width: 58mm;
+  max-width: 58mm;
+  min-height: 100mm;
+  padding: 2mm 3mm;
+  margin: 0 auto;
+  background: #ffffff;
+  color: #000000;
+  box-sizing: border-box;
+  font-size: 7.5pt;
+  line-height: 1.25;
+}
+
 .excel-grid-table {
   border-collapse: collapse;
   width: 100%;

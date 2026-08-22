@@ -25,6 +25,17 @@ export const DEFAULT_PRINTER_PROFILES: PrinterProfile[] = [
     description: 'Cắt giấy tự động, khổ bill 80mm, in mã VietQR sắc nét',
   },
   {
+    id: 'ptr-k58-usb',
+    name: 'Máy In Hóa Đơn Nhiệt Xprinter XP-58IIH / POS-58 (K58)',
+    type: 'thermal_receipt',
+    connection: 'USB',
+    defaultPaperSize: 'K58',
+    defaultOrientation: 'portrait',
+    isDefault: false,
+    status: 'online',
+    description: 'Máy in bill nhiệt mini 58mm (Xprinter, POS-58, Bluetooth di động), in 2 dòng gọn đẹp',
+  },
+  {
     id: 'ptr-canon-a4',
     name: 'Máy In Văn Phòng Canon LBP 2900 / 3300 (A4/A5)',
     type: 'office_laser',

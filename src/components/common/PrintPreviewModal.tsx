@@ -24,8 +24,9 @@ import { numberToVietnameseWords } from '../../utils/numberToWords';
 import { GiaPhucLogo } from './GiaPhucLogo';
 import { PrinterSelectDropdown } from './PrinterSelectDropdown';
 import { PrinterProfile } from '../../utils/printerStorage';
+import { PaperSize } from '../../types';
 
-export type PaperSize = 'A4' | 'A5' | 'K80';
+export type { PaperSize };
 export type PaperOrientation = 'portrait' | 'landscape';
 
 export interface DocumentSampleItem {
@@ -125,6 +126,7 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
 
   // Determine active CSS class based on paper size and orientation
   const getPaperSizeClass = () => {
+    if (paperSize === 'K58') return 'paper-size-K58';
     if (paperSize === 'K80') return 'paper-size-K80';
     if (paperSize === 'A5') {
       return orientation === 'landscape' ? 'paper-size-A5-landscape' : 'paper-size-A5-portrait';
@@ -184,6 +186,19 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
     description: defaultDoc.docCode || 'HD-GP',
   });
 
+  const dynamicPageStyle = `
+    @page {
+      size: ${
+        paperSize === 'K58'
+          ? '58mm auto'
+          : paperSize === 'K80'
+          ? '80mm auto'
+          : `${paperSize} ${orientation}`
+      };
+      margin: ${paperSize === 'K58' ? '2mm' : paperSize === 'K80' ? '4mm' : orientation === 'landscape' ? '8mm' : '10mm'};
+    }
+  `;
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -195,6 +210,9 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
           transition={{ duration: 0.25, ease: 'easeOut' }}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-2 md:p-4 overflow-hidden"
         >
+          {/* Dynamic Page Injected Style for Accurate Browser Print Output */}
+          <style dangerouslySetInnerHTML={{ __html: dynamicPageStyle }} />
+
           <motion.div
             key="print-preview-dialog"
             initial={{ opacity: 0, scale: 0.97 }}
@@ -219,11 +237,11 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
               <h3 className="text-sm md:text-base font-extrabold text-white flex items-center space-x-2">
                 <span>{title}</span>
                 <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px] font-mono font-bold">
-                  {paperSize} {paperSize !== 'K80' ? (orientation === 'landscape' ? 'Ngang' : 'Dọc') : 'Bill 80mm'}
+                  {paperSize} {paperSize !== 'K80' && paperSize !== 'K58' ? (orientation === 'landscape' ? 'Ngang' : 'Dọc') : 'Thermal'}
                 </span>
               </h3>
               <p className="text-[11px] text-slate-400">
-                Áp dụng chuẩn lớp CSS khổ giấy ({paperSize === 'K80' ? '.paper-size-K80' : `.paper-size-${paperSize}-${orientation}`})
+                Áp dụng chuẩn lớp CSS khổ giấy ({paperSize === 'K58' ? '.paper-size-K58' : paperSize === 'K80' ? '.paper-size-K80' : `.paper-size-${paperSize}-${orientation}`})
               </p>
             </div>
           </div>
@@ -261,11 +279,23 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
               }`}
             >
               <Receipt className="w-3.5 h-3.5" />
-              <span>K80 (Bill Nhiệt)</span>
+              <span>K80 (80mm)</span>
+            </button>
+
+            {/* K58 Thermal Bill */}
+            <button
+              type="button"
+              onClick={() => setPaperSize('K58')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1 transition-all cursor-pointer ${
+                paperSize === 'K58' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Receipt className="w-3.5 h-3.5" />
+              <span>K58 (58mm)</span>
             </button>
 
             {/* Orientation Toggler (For A4 & A5 only) */}
-            {paperSize !== 'K80' && (
+            {paperSize !== 'K80' && paperSize !== 'K58' && (
               <div className="flex items-center space-x-1 pl-2 border-l border-slate-800">
                 <button
                   type="button"

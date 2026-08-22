@@ -18,6 +18,7 @@ import { numberToVietnameseWords } from '../../utils/numberToWords';
 import { GiaPhucLogo } from '../common/GiaPhucLogo';
 import { PrintInvoiceModal } from '../common/PrintInvoiceModal';
 import { PrinterSelectDropdown } from '../common/PrinterSelectDropdown';
+import { SlipBarcodeQR } from '../common/SlipBarcodeQR';
 
 interface StockReceiptPrintModalProps {
   receipt: StockGoodsReceipt;
@@ -327,10 +328,25 @@ export const StockReceiptPrintModal: React.FC<StockReceiptPrintModalProps> = ({
               </div>
 
               {/* Total In Words */}
-              <p className="italic text-[11px] text-slate-700 mb-4">
+              <p className="italic text-[11px] text-slate-700 mb-2">
                 <span className="font-semibold not-italic text-slate-900">Số tiền bằng chữ:</span>{' '}
                 {numberToVietnameseWords(receipt.grandTotal)}
               </p>
+
+              {/* Barcode & ERP QR Code Tra Cứu */}
+              <div className="py-2 border-t border-dotted border-slate-300">
+                <SlipBarcodeQR
+                  docCode={receipt.code}
+                  docType="goods_receipt"
+                  date={receipt.date}
+                  customerName={receipt.supplierName}
+                  totalAmount={receipt.grandTotal}
+                  paperSize={paperSize}
+                  showBarcode={true}
+                  showQr={true}
+                  align="between"
+                />
+              </div>
 
               {/* Signatures 4 columns */}
               <div className="grid grid-cols-4 gap-2 text-center text-[10px] mt-6 pt-3 border-t border-slate-200">

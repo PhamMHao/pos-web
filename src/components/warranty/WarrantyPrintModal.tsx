@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   X,
   Printer,
@@ -15,8 +15,9 @@ import {
   FileText,
   BadgeCheck,
 } from 'lucide-react';
-import { WarrantyTicket, StoreSettings } from '../../types';
+import { WarrantyTicket, StoreSettings, PaperSize } from '../../types';
 import { formatVND } from '../../utils/vietqr';
+import { SlipBarcodeQR } from '../common/SlipBarcodeQR';
 
 interface WarrantyPrintModalProps {
   isOpen: boolean;
@@ -33,6 +34,8 @@ export const WarrantyPrintModal: React.FC<WarrantyPrintModalProps> = ({
   settings,
   printMode = 'receipt',
 }) => {
+  const [paperSize, setPaperSize] = useState<PaperSize>('A4');
+
   if (!isOpen || !ticket) return null;
 
   const handlePrint = () => {
@@ -41,23 +44,17 @@ export const WarrantyPrintModal: React.FC<WarrantyPrintModalProps> = ({
 
   const isHandover = printMode === 'handover' || ticket.status === 'returned' || ticket.status === 'ready_to_return';
 
-  // QR Code generator url for the ticket & serial
-  const qrCodeData = `https://vietqr.me/warranty?code=${ticket.code}&sn=${ticket.serialNumber}`;
-  const qrImageSrc = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
-    qrCodeData
-  )}`;
-
   return (
     <div
       className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
       onClick={onClose}
     >
       <div
-        className="bg-white text-slate-900 rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[94vh]"
+        className={`bg-white text-slate-900 rounded-2xl ${paperSize === 'A5' ? 'max-w-xl' : 'max-w-3xl'} w-full shadow-2xl overflow-hidden flex flex-col max-h-[94vh]`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Control Bar */}
-        <div className="px-6 py-3.5 bg-slate-900 text-white flex items-center justify-between no-print">
+        <div className="px-6 py-3.5 bg-slate-900 text-white flex items-center justify-between no-print flex-wrap gap-2">
           <div className="flex items-center space-x-2.5">
             <Printer className="w-5 h-5 text-cyan-400" />
             <div>
@@ -70,16 +67,36 @@ export const WarrantyPrintModal: React.FC<WarrantyPrintModalProps> = ({
             </div>
           </div>
           <div className="flex items-center space-x-2">
+            <div className="flex items-center bg-slate-800 rounded-xl p-0.5 text-xs">
+              <button
+                type="button"
+                onClick={() => setPaperSize('A4')}
+                className={`px-3 py-1 rounded-lg font-bold transition-all ${
+                  paperSize === 'A4' ? 'bg-cyan-500 text-slate-950' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                A4
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaperSize('A5')}
+                className={`px-3 py-1 rounded-lg font-bold transition-all ${
+                  paperSize === 'A5' ? 'bg-cyan-500 text-slate-950' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                A5
+              </button>
+            </div>
             <button
               onClick={handlePrint}
-              className="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 transition-all shadow-md active:scale-95"
+              className="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 transition-all shadow-md active:scale-95 cursor-pointer"
             >
               <Printer className="w-4 h-4" />
               <span>In Ngay</span>
             </button>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -103,16 +120,17 @@ export const WarrantyPrintModal: React.FC<WarrantyPrintModalProps> = ({
             </div>
 
             <div className="text-right flex flex-col items-end">
-              {/* QR Code for Online Tracking */}
-              <div className="p-1.5 bg-white border border-slate-300 rounded-lg shadow-sm">
-                <img
-                  src={qrImageSrc}
-                  alt="QR Tra Cứu Tiến Độ"
-                  className="w-16 h-16 object-contain"
-                  crossOrigin="anonymous"
-                />
-              </div>
-              <span className="text-[9px] text-slate-500 mt-1 font-mono">Quét QR tra tiến độ</span>
+              <SlipBarcodeQR
+                docCode={ticket.code}
+                docType="warranty_intake"
+                date={ticket.receivedDate}
+                customerName={ticket.customerName}
+                totalAmount={ticket.totalFee || 0}
+                paperSize={paperSize}
+                showBarcode={false}
+                showQr={true}
+                qrPayloadMode="erp_smart"
+              />
             </div>
           </div>
 

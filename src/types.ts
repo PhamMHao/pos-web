@@ -206,6 +206,8 @@ export interface CashShift {
   status: 'open' | 'closed';
 }
 
+export type PaperSize = 'A4' | 'A5' | 'K80' | 'K58';
+
 export interface StoreSettings {
   storeName: string;
   tagline: string;
@@ -237,7 +239,7 @@ export interface StoreSettings {
   warehouseList?: string[]; // Danh sách các kho
   storageLocations?: string[]; // Danh sách các vị trí lưu kho kệ/ô
   customCategories?: string[]; // Danh sách nhóm hàng bổ sung
-  defaultPrintPaperSize?: 'A4' | 'A5' | 'K80';
+  defaultPrintPaperSize?: PaperSize;
   defaultPrintOrientation?: 'portrait' | 'landscape';
   defaultEmptyRowsCount?: number;
   defaultSignatureStyle?: 'two_blocks' | 'five_blocks';
@@ -249,7 +251,7 @@ export interface StoreSettings {
     Record<
       PrintDocType,
       {
-        paperSize: 'A4' | 'A5' | 'K80';
+        paperSize: PaperSize;
         orientation: 'portrait' | 'landscape';
         emptyRowsCount: number;
         signatureStyle: 'two_blocks' | 'five_blocks';

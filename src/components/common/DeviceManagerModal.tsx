@@ -49,6 +49,16 @@ const DEFAULT_DEVICES: HardwareDevice[] = [
     details: 'Cắt giấy tự động, tốc độ in 260mm/s, in mã QR VietQR',
   },
   {
+    id: 'dev-1b',
+    name: 'Máy in bill nhiệt mini khổ 58mm (K58)',
+    type: 'printer',
+    model: 'Xprinter XP-58IIH / POS-58 (USB/Bluetooth)',
+    connection: 'USB',
+    status: 'connected',
+    paperSize: '58mm',
+    details: 'Khổ giấy 58mm nhiệt, tốc độ 90mm/s, in 2 dòng nhỏ gọn cho quầy mini',
+  },
+  {
     id: 'dev-2',
     name: 'Đầu đọc mã vạch & QR Code 2D',
     type: 'scanner',

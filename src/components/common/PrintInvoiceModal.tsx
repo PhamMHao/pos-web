@@ -19,12 +19,13 @@ import {
   CreditCard,
   ShieldCheck,
 } from 'lucide-react';
-import { Order, StoreSettings, PrintDocType } from '../../types';
+import { Order, StoreSettings, PrintDocType, PaperSize } from '../../types';
 import { formatVND, generateVietQRUrl } from '../../utils/vietqr';
 import { numberToVietnameseWords } from '../../utils/numberToWords';
 import { GiaPhucLogo } from './GiaPhucLogo';
 import { PrinterSelectDropdown } from './PrinterSelectDropdown';
 import { PrinterProfile } from '../../utils/printerStorage';
+import { SlipBarcodeQR } from './SlipBarcodeQR';
 
 export interface PrintItem {
   id?: string;
@@ -100,7 +101,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
 }) => {
   // Document Configuration State
   const [docType, setDocType] = useState<PrintDocType>(initialDocType);
-  const [paperSize, setPaperSize] = useState<'A4' | 'A5' | 'K80'>(
+  const [paperSize, setPaperSize] = useState<PaperSize>(
     settings.printDocConfigs?.[initialDocType]?.paperSize || settings.defaultPrintPaperSize || 'A4'
   );
   const [orientation, setOrientation] = useState<'portrait' | 'landscape'>(
@@ -118,6 +119,8 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
 
   // Customization Drawer State
   const [showEditor, setShowEditor] = useState<boolean>(false);
+  const [showBarcode, setShowBarcode] = useState<boolean>(true);
+  const [showDocQr, setShowDocQr] = useState<boolean>(true);
   const [showVietQR, setShowVietQR] = useState<boolean>(
     settings.printDocConfigs?.[initialDocType]?.showVietQR !== undefined
       ? settings.printDocConfigs[initialDocType]!.showVietQR
@@ -464,7 +467,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
   // Determine dynamic @page style for print
   const dynamicPageStyle = `
     @page {
-      size: ${paperSize === 'K80' ? '80mm auto' : `${paperSize} ${orientation}`};
+      size: ${paperSize === 'K58' ? '58mm auto' : paperSize === 'K80' ? '80mm auto' : `${paperSize} ${orientation}`};
       margin: 0;
     }
   `;
@@ -491,14 +494,14 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
             <div>
               <div className="flex items-center space-x-2">
                 <h3 className="text-base font-bold text-white tracking-tight">
-                  In Phiếu Chuẩn A4 / A5 / K80
+                  In Phiếu Chuẩn A4 / A5 / K80 / K58
                 </h3>
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                  Khổ {paperSize} • {orientation === 'portrait' ? 'Dọc' : 'Ngang'}
+                  Khổ {paperSize} {paperSize !== 'K80' && paperSize !== 'K58' ? `• ${orientation === 'portrait' ? 'Dọc' : 'Ngang'}` : '• In Nhiệt'}
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                Form mẫu chuẩn Excel Gia Phúc Computer & Thuế BTC • Tối ưu in sắc nét, không nhảy trang.
+                Form mẫu chuẩn Excel Gia Phúc & Máy in Bill nhiệt • Tích hợp Barcode 1D & QR Code Tra cứu F7.
               </p>
             </div>
           </div>
@@ -528,9 +531,9 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
               </optgroup>
             </select>
 
-            {/* Paper Size Picker (A4, A5, K80) */}
+            {/* Paper Size Picker (A4, A5, K80, K58) */}
             <div className="flex items-center bg-slate-800 rounded-xl p-0.5 border border-slate-700 text-xs">
-              {(['A4', 'A5', 'K80'] as const).map((sz) => (
+              {(['A4', 'A5', 'K80', 'K58'] as const).map((sz) => (
                 <button
                   key={sz}
                   type="button"
@@ -548,7 +551,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
             </div>
 
             {/* Orientation (Portrait / Landscape) */}
-            {paperSize !== 'K80' && (
+            {paperSize !== 'K80' && paperSize !== 'K58' && (
               <div className="flex items-center bg-slate-800 rounded-xl p-0.5 border border-slate-700 text-xs">
                 <button
                   type="button"
@@ -858,11 +861,29 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                   <label className="flex items-center space-x-2 cursor-pointer text-slate-300">
                     <input
                       type="checkbox"
+                      checked={showBarcode}
+                      onChange={(e) => setShowBarcode(e.target.checked)}
+                      className="rounded bg-slate-950 border-slate-700 text-blue-600"
+                    />
+                    <span>Hiện Mã Vạch 1D (Code128 Barcode)</span>
+                  </label>
+                  <label className="flex items-center space-x-2 cursor-pointer text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={showDocQr}
+                      onChange={(e) => setShowDocQr(e.target.checked)}
+                      className="rounded bg-slate-950 border-slate-700 text-blue-600"
+                    />
+                    <span>Hiện Mã QR Tra Cứu ERP (Phím F7)</span>
+                  </label>
+                  <label className="flex items-center space-x-2 cursor-pointer text-slate-300">
+                    <input
+                      type="checkbox"
                       checked={showVietQR}
                       onChange={(e) => setShowVietQR(e.target.checked)}
                       className="rounded bg-slate-950 border-slate-700 text-blue-600"
                     />
-                    <span>Hiện Mã QR Thanh Toán VietQR</span>
+                    <span>Hiện Mã QR Thanh Toán Ngân Hàng (VietQR)</span>
                   </label>
                   <div>
                     <label className="block text-slate-400 mb-1">Khối chữ ký:</label>
@@ -997,7 +1018,9 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
             <div
               id="printable-area"
               className={`printable-document shadow-2xl transition-all duration-150 font-sans text-black bg-white ${
-                paperSize === 'K80'
+                paperSize === 'K58'
+                  ? 'paper-size-K58'
+                  : paperSize === 'K80'
                   ? 'paper-size-K80'
                   : paperSize === 'A5'
                   ? orientation === 'landscape'
@@ -1009,13 +1032,13 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
               }`}
               style={{
                 fontFamily: 'Arial, "Times New Roman", -apple-system, sans-serif',
-                lineHeight: paperSize === 'A5' ? '1.25' : '1.35',
+                lineHeight: paperSize === 'K58' ? '1.2' : paperSize === 'A5' ? '1.25' : '1.35',
               }}
             >
               {/* =========================================================================
                   A4 / A5 Form Layout (Exact Pixel-Perfect Match to 6 Real Images)
                   ========================================================================= */}
-              {paperSize !== 'K80' ? (
+              {paperSize !== 'K80' && paperSize !== 'K58' ? (
                 <div className="w-full text-black flex flex-col justify-between h-full">
                   {/* Top Header: Company Legal Profile + Logo */}
                   <div className="border-b border-black pb-1.5 mb-1.5">
@@ -1476,7 +1499,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                     </table>
                   </div>
 
-                  {/* 4 Standard Footnotes (Exact Match to Images 1 to 6) */}
+                  {/* 4 Standard Footnotes */}
                   <div className={`mt-2 ${paperSize === 'A5' ? 'text-[7pt]' : 'text-[8pt]'} text-gray-900 leading-snug`}>
                     <div className="font-bold underline mb-0.5">Ghi chú:</div>
                     <ol className="list-none space-y-0.5 pl-0">
@@ -1495,37 +1518,46 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                     </ol>
                   </div>
 
-                  {/* QR & Bank Information (Optional) */}
-                  {showVietQR && qrUrl && (
-                    <div className="flex items-center justify-between gap-2 mt-1.5 pt-1 border-t border-dashed border-gray-400">
-                      <div className={`${paperSize === 'A5' ? 'text-[7pt]' : 'text-[7.5pt]'} text-gray-700 italic`}>
-                        * Số tiền bằng chữ: <strong>{amountInWords}</strong>
-                        {settings.bankAccount && (
-                          <div className="not-italic text-black mt-0.5">
-                            Ngân hàng: <strong>{settings.bankName}</strong> | STK: <strong className="font-mono">{settings.bankAccount}</strong> ({settings.bankAccountName || brandTitle})
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <img src={qrUrl} alt="VietQR" referrerPolicy="no-referrer" className="w-12 h-12 object-contain" />
-                        <span className="text-[6.5pt] font-bold text-blue-900">Quét VietQR</span>
-                      </div>
+                  {/* Bottom Footer Section: Barcode/QR & Signatures */}
+                  <div className="mt-auto pt-1 space-y-1">
+                    {/* Delivery & Warranty Notes */}
+                    <div className={`${paperSize === 'A5' ? 'text-[7pt]' : 'text-[7.5pt]'} text-gray-700 italic space-y-0.5 border-t border-dotted border-gray-400 pt-1`}>
+                      {explanationNote && <div>• <strong>Ghi chú:</strong> {explanationNote}</div>}
+                      {settings?.receiptFooterNote && <div>• {settings.receiptFooterNote}</div>}
                     </div>
-                  )}
 
-                  {/* Signatures Section: 2 Blocks (Default) or 5 Blocks */}
-                  <div className="mt-3 pt-1">
+                    {/* Barcode 1D & QR Code Tra Cứu Footer */}
+                    {(showBarcode || showDocQr) && (
+                      <div className="py-1 border-t border-dotted border-gray-300">
+                        <SlipBarcodeQR
+                          docCode={docNumber}
+                          docType={docType}
+                          date={docDateStr}
+                          customerName={customerName}
+                          totalAmount={calculatedGrandTotal}
+                          showBarcode={showBarcode}
+                          showQr={showDocQr}
+                          paperSize={paperSize}
+                          vietQrUrl={qrUrl}
+                          qrPayloadMode={showVietQR ? 'vietqr' : 'erp_smart'}
+                          align="between"
+                        />
+                      </div>
+                    )}
+
+                    {/* Signatures Area */}
                     {signatureStyle === 'two_blocks' ? (
+                      /* 2 Blocks Signature Mode (Default) */
                       <div
-                        className={`grid grid-cols-2 text-center border-t border-gray-400 pt-1.5 ${
+                        className={`grid grid-cols-2 gap-4 text-center border-t border-gray-400 pt-1 ${
                           paperSize === 'A5' ? 'text-[7.5pt]' : 'text-[8.5pt]'
                         }`}
                       >
-                        {/* 1. Xác nhận khách hàng */}
+                        {/* 1. Khách hàng */}
                         <div className="flex flex-col items-center justify-between min-h-[70px]">
                           <div>
                             <div className="font-bold text-black">
-                              {docType === 'goods_receipt' ? 'Người giao hàng / Đại diện NCC' : 'Xác nhận khách hàng'}
+                              {docType === 'goods_receipt' ? 'Người giao hàng' : 'Khách hàng / Người nhận'}
                             </div>
                             <div className="text-[7pt] text-gray-600 italic">(Ký và ghi rõ họ tên)</div>
                           </div>
@@ -1593,23 +1625,23 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                 </div>
               ) : (
                 /* =========================================================================
-                   K80 Thermal Receipt Roll Layout (80mm)
+                   Thermal Receipt Roll Layout (K80 80mm / K58 58mm)
                    ========================================================================= */
-                <div className="w-full text-black text-[8.5pt] font-mono leading-tight space-y-2">
-                  <div className="text-center pb-2 border-b border-dashed border-black">
-                    <div className="font-bold text-[11pt] uppercase">{brandTitle}</div>
-                    <div className="text-[7.5pt] text-gray-700">{companyName}</div>
-                    <div className="text-[7.5pt] text-gray-700">{companyAddress}</div>
-                    <div className="text-[8pt] font-bold">Hotline: {companyPhone}</div>
+                <div className={`w-full text-black ${paperSize === 'K58' ? 'text-[7.5pt]' : 'text-[8.5pt]'} font-mono leading-tight space-y-2`}>
+                  <div className="text-center pb-1.5 border-b border-dashed border-black">
+                    <div className={`font-bold ${paperSize === 'K58' ? 'text-[9.5pt]' : 'text-[11pt]'} uppercase`}>{brandTitle}</div>
+                    <div className={`${paperSize === 'K58' ? 'text-[6.5pt]' : 'text-[7.5pt]'} text-gray-700`}>{companyName}</div>
+                    <div className={`${paperSize === 'K58' ? 'text-[6.5pt]' : 'text-[7.5pt]'} text-gray-700`}>{companyAddress}</div>
+                    <div className={`${paperSize === 'K58' ? 'text-[7pt]' : 'text-[8pt]'} font-bold`}>Hotline: {companyPhone}</div>
                   </div>
 
-                  <div className="text-center py-1">
-                    <div className="font-bold text-[11pt] uppercase tracking-wider">{getDocTitle()}</div>
-                    <div className="text-[7.5pt] text-gray-600">{docDateStr}</div>
-                    <div className="text-[8pt] font-bold">Số: {docNumber}</div>
+                  <div className="text-center py-0.5">
+                    <div className={`font-bold ${paperSize === 'K58' ? 'text-[9.5pt]' : 'text-[11pt]'} uppercase tracking-wider`}>{getDocTitle()}</div>
+                    <div className={`${paperSize === 'K58' ? 'text-[6.5pt]' : 'text-[7.5pt]'} text-gray-600`}>{docDateStr}</div>
+                    <div className={`${paperSize === 'K58' ? 'text-[7.5pt]' : 'text-[8pt]'} font-bold`}>Số: {docNumber}</div>
                   </div>
 
-                  <div className="border-b border-dashed border-black pb-1.5 space-y-0.5 text-[8pt]">
+                  <div className={`border-b border-dashed border-black pb-1.5 space-y-0.5 ${paperSize === 'K58' ? 'text-[7pt]' : 'text-[8pt]'}`}>
                     <div>
                       <strong>Khách hàng:</strong> {customerName}
                     </div>
@@ -1629,37 +1661,64 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                     </div>
                   </div>
 
-                  {/* K80 Items Table */}
-                  <div className="border-b border-dashed border-black pb-1.5">
-                    <table className="w-full text-left text-[8pt]">
-                      <thead>
-                        <tr className="border-b border-black font-bold">
-                          <th className="py-1">Mặt hàng</th>
-                          <th className="py-1 text-center w-8">SL</th>
-                          <th className="py-1 text-right w-16">T.Tiền</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {itemsList.map((it, idx) => (
-                          <tr key={idx} className="border-b border-gray-200">
-                            <td className="py-1 pr-1 font-sans">
-                              <div className="font-semibold text-black">{it.productName}</div>
-                              <div className="text-[7pt] text-gray-600">
-                                {it.quantity} x {formatVND(it.unitPrice)}
-                              </div>
-                            </td>
-                            <td className="py-1 text-center font-bold">{it.quantity}</td>
-                            <td className="py-1 text-right font-bold font-mono">
-                              {formatVND(it.total || it.quantity * it.unitPrice).replace(' ₫', '')}
-                            </td>
+                  {/* Thermal Items: 2-Line Optimized Layout for K58 & Compact Table for K80 */}
+                  {paperSize === 'K58' ? (
+                    /* K58 2-Line Compressed Item Rows */
+                    <div className="border-b border-dashed border-black pb-1.5 space-y-1.5">
+                      <div className="text-[7pt] font-bold text-gray-500 uppercase border-b border-black pb-0.5 flex justify-between">
+                        <span>Tên hàng & Đơn giá</span>
+                        <span>Thành tiền</span>
+                      </div>
+                      {itemsList.map((it, idx) => (
+                        <div key={idx} className="border-b border-dotted border-gray-300 pb-1 text-[7.5pt]">
+                          <div className="font-bold text-black font-sans leading-tight">
+                            {idx + 1}. {it.productName}
+                          </div>
+                          <div className="flex justify-between items-center text-[7pt] text-gray-700 mt-0.5">
+                            <span>{it.quantity} {it.unit || 'Cái'} x {formatVND(it.unitPrice).replace(' ₫', '')}</span>
+                            <span className="font-bold font-mono text-black">
+                              {formatVND(it.total || it.quantity * it.unitPrice)}
+                            </span>
+                          </div>
+                          {it.warranty && (
+                            <div className="text-[6.5pt] text-gray-500 italic">BH: {it.warranty}</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    /* K80 Standard 3-Column Table */
+                    <div className="border-b border-dashed border-black pb-1.5">
+                      <table className="w-full text-left text-[8pt]">
+                        <thead>
+                          <tr className="border-b border-black font-bold">
+                            <th className="py-1">Mặt hàng</th>
+                            <th className="py-1 text-center w-8">SL</th>
+                            <th className="py-1 text-right w-16">T.Tiền</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {itemsList.map((it, idx) => (
+                            <tr key={idx} className="border-b border-gray-200">
+                              <td className="py-1 pr-1 font-sans">
+                                <div className="font-semibold text-black">{it.productName}</div>
+                                <div className="text-[7pt] text-gray-600">
+                                  {it.quantity} x {formatVND(it.unitPrice)}
+                                </div>
+                              </td>
+                              <td className="py-1 text-center font-bold">{it.quantity}</td>
+                              <td className="py-1 text-right font-bold font-mono">
+                                {formatVND(it.total || it.quantity * it.unitPrice).replace(' ₫', '')}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
 
-                  {/* K80 Totals */}
-                  <div className="space-y-1 text-[8.5pt]">
+                  {/* Thermal Totals */}
+                  <div className={`space-y-1 ${paperSize === 'K58' ? 'text-[7.5pt]' : 'text-[8.5pt]'}`}>
                     <div className="flex justify-between">
                       <span>Cộng tiền hàng:</span>
                       <strong className="font-mono">{formatVND(calculatedSubtotal)}</strong>
@@ -1670,24 +1729,34 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                         <strong className="font-mono">{formatVND(calculatedTaxAmount)}</strong>
                       </div>
                     )}
-                    <div className="flex justify-between text-[10pt] font-black border-t border-black pt-1">
+                    <div className={`flex justify-between ${paperSize === 'K58' ? 'text-[8.5pt]' : 'text-[10pt]'} font-black border-t border-black pt-1`}>
                       <span>TỔNG CỘNG:</span>
                       <span className="font-mono text-black">{formatVND(calculatedGrandTotal)}</span>
                     </div>
-                    <div className="text-[7.5pt] italic text-gray-700 pt-0.5">
+                    <div className={`${paperSize === 'K58' ? 'text-[6.5pt]' : 'text-[7.5pt]'} italic text-gray-700 pt-0.5`}>
                       Bằng chữ: {amountInWords}
                     </div>
                   </div>
 
-                  {/* K80 QR */}
-                  {showVietQR && qrUrl && (
-                    <div className="flex flex-col items-center justify-center pt-2 border-t border-dashed border-black">
-                      <img src={qrUrl} alt="VietQR" referrerPolicy="no-referrer" className="w-24 h-24 object-contain" />
-                      <div className="text-[7pt] text-gray-700 mt-1">Quét mã chuyển khoản nhanh</div>
+                  {/* Barcode & QR Code Section */}
+                  {(showBarcode || showDocQr || (showVietQR && qrUrl)) && (
+                    <div className="pt-2 border-t border-dashed border-black">
+                      <SlipBarcodeQR
+                        docCode={docNumber}
+                        docType={docType}
+                        date={docDateStr}
+                        customerName={customerName}
+                        totalAmount={calculatedGrandTotal}
+                        showBarcode={showBarcode}
+                        showQr={showDocQr || showVietQR}
+                        paperSize={paperSize}
+                        vietQrUrl={qrUrl}
+                        qrPayloadMode={showVietQR ? 'vietqr' : 'erp_smart'}
+                      />
                     </div>
                   )}
 
-                  <div className="text-center pt-2 border-t border-dashed border-black text-[7.5pt] text-gray-600 italic">
+                  <div className={`text-center pt-1.5 border-t border-dashed border-black ${paperSize === 'K58' ? 'text-[6.5pt]' : 'text-[7.5pt]'} text-gray-600 italic`}>
                     Cảm ơn Quý khách! Hẹn gặp lại!
                   </div>
                 </div>

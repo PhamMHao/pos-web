@@ -33,6 +33,7 @@ const LoginModal = lazy(() => import('./features/auth/components/LoginModal').th
 const ShortcutsModal = lazy(() => import('./components/common/ShortcutsModal').then((m) => ({ default: m.ShortcutsModal })));
 const ScannerPrinterHubModal = lazy(() => import('./components/common/ScannerPrinterHubModal').then((m) => ({ default: m.ScannerPrinterHubModal })));
 const DocumentOcrScannerModal = lazy(() => import('./components/common/DocumentOcrScannerModal').then((m) => ({ default: m.DocumentOcrScannerModal })));
+const UniversalDocSearchModal = lazy(() => import('./components/common/UniversalDocSearchModal').then((m) => ({ default: m.UniversalDocSearchModal })));
 const ProductBarcodeLabelModal = lazy(() => import('./components/inventory/ProductBarcodeLabelModal').then((m) => ({ default: m.ProductBarcodeLabelModal })));
 const AiAssistantDrawer = lazy(() => import('./components/ai/AiAssistantDrawer').then((m) => ({ default: m.AiAssistantDrawer })));
 
@@ -229,6 +230,7 @@ export function App() {
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
   const [loadedQuoteData, setLoadedQuoteData] = useState<{ items: CartItem[]; customer?: Customer | null } | null>(null);
   const [showDocOcrModal, setShowDocOcrModal] = useState(false);
+  const [showUniversalDocSearch, setShowUniversalDocSearch] = useState(false);
   const [docOcrInitialMode, setDocOcrInitialMode] = useState<'stock_in' | 'supplier_quote' | 'purchase_order' | 'customer_quote'>('stock_in');
 
   const handleOpenDocOcrScanner = (mode: 'stock_in' | 'supplier_quote' | 'purchase_order' | 'customer_quote' = 'stock_in') => {
@@ -509,6 +511,9 @@ export function App() {
         setScannerHubInitialCode('');
         setScannerHubInitialTab('lookup');
         setShowScannerPrinterHubModal((prev) => !prev);
+      } else if (e.key === 'F7') {
+        e.preventDefault();
+        setShowUniversalDocSearch((prev) => !prev);
       }
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
@@ -1385,6 +1390,7 @@ export function App() {
             setShowScannerPrinterHubModal(true);
           }}
           onOpenDocOcrScanner={() => handleOpenDocOcrScanner('stock_in')}
+          onOpenUniversalSearch={() => setShowUniversalDocSearch(true)}
         />
 
         {/* View Content */}
@@ -1786,6 +1792,24 @@ export function App() {
             onApplySupplierQuote={handleApplyOcrSupplierQuote}
             onApplyPurchaseOrder={handleApplyOcrPurchaseOrder}
             onApplyCustomerQuote={handleApplyOcrCustomerQuote}
+          />
+        )}
+
+        {/* Universal Document Search, Barcode/QR Scanner & Product Lifecycle Center (F7) */}
+        {showUniversalDocSearch && (
+          <UniversalDocSearchModal
+            isOpen={showUniversalDocSearch}
+            onClose={() => setShowUniversalDocSearch(false)}
+            orders={orders}
+            stockReceipts={stockReceipts}
+            quotes={quotes}
+            warranties={warranties}
+            purchaseOrders={purchaseOrders}
+            eInvoices={eInvoices}
+            inboundInvoices={inboundInvoices}
+            products={products}
+            customers={customers}
+            settings={settings}
           />
         )}
       </Suspense>
