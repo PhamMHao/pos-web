@@ -141,18 +141,57 @@ export const DatabaseConfigModal: React.FC<DatabaseConfigModalProps> = ({
       const data = await response.json();
 
       if (data.success) {
-        setSaveResult({ success: true, message: data.message });
+        setSaveResult({
+          success: true,
+          message: `${data.message} Đang làm mới dữ liệu từ CSDL [${finalDb}]...`,
+        });
         setDatabase(finalDb);
         setIsCustomDb(false);
         setCustomDbName('');
         if (!availableDatabases.includes(finalDb)) {
           setAvailableDatabases((prev) => [...prev, finalDb].sort());
         }
-        if (onSuccess) {
-          setTimeout(() => {
+
+        // Clear cached localStorage data from previous database
+        const keysToClear = [
+          'gperp_products_v2',
+          'gperp_customers_v2',
+          'gperp_orders_v2',
+          'gperp_promotions_v2',
+          'gperp_current_shift_v2',
+          'gperp_shifts_history_v2',
+          'gperp_settings_v2',
+          'gperp_inv_logs_v2',
+          'gperp_accounting_v2',
+          'gperp_employees_v2',
+          'gperp_quotes_v2',
+          'gperp_costing_v2',
+          'gperp_assets_v2',
+          'gperp_fraud_alerts_v2',
+          'gperp_warranties_v2',
+          'gperp_serial_records_v2',
+          'gperp_einvoices_v2',
+          'gperp_labor_contracts_v2',
+          'gperp_inbound_invoices_v2',
+          'gperp_stock_receipts_v2',
+          'gp_erp_suppliers_data',
+          'gp_erp_purchase_orders_data',
+          'gperp_returns_v2',
+          'gperp_transfers_v2',
+        ];
+        keysToClear.forEach((k) => {
+          try {
+            localStorage.removeItem(k);
+          } catch {}
+        });
+
+        setTimeout(() => {
+          if (onSuccess) {
             onSuccess();
-          }, 1500);
-        }
+          } else {
+            window.location.reload();
+          }
+        }, 1200);
       } else {
         setSaveResult({ success: false, message: data.message || 'Lỗi khi lưu cấu hình CSDL!' });
       }

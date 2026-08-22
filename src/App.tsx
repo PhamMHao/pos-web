@@ -1847,6 +1847,10 @@ export function App() {
         <DatabaseConfigModal
           isOpen={showDbModal}
           onClose={() => setShowDbModal(false)}
+          onSuccess={() => {
+            setShowDbModal(false);
+            window.location.reload();
+          }}
         />
 
         {/* User Login & Role Switch Modal */}

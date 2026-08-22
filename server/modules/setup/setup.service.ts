@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { exec } from "child_process";
 import { promisify } from "util";
+import { reloadPrismaClient } from "../../config/db";
 
 const execAsync = promisify(exec);
 
@@ -285,6 +286,7 @@ export async function saveAndInitializeDatabase(params: DbConnectionParams) {
     try {
       await execAsync("npx prisma db push --accept-data-loss", { cwd: process.cwd() });
       console.log("Đã tạo cấu trúc 22 bảng Schema sạch sẽ thành công!");
+      await reloadPrismaClient();
     } catch (pushErr: any) {
       console.error("Lỗi khi prisma db push:", pushErr.message);
       throw new Error(`Đã kết nối được SQL Server nhưng lỗi khi khởi tạo bảng: ${pushErr.message}`);
