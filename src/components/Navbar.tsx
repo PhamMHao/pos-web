@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   ShoppingBag,
   PackagePlus,
@@ -13,6 +13,8 @@ import {
   Moon,
   Sun,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Layers,
   ShieldCheck,
   User,
@@ -78,6 +80,22 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [showNotifications, setShowNotifications] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const navScrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollNav = (direction: 'left' | 'right') => {
+    if (navScrollRef.current) {
+      const scrollAmount = direction === 'left' ? -250 : 250;
+      navScrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
+
+  const handleNavWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (navScrollRef.current) {
+      if (e.deltaY !== 0) {
+        navScrollRef.current.scrollLeft += e.deltaY;
+      }
+    }
+  };
 
   const handleNavigate = onNavigate || setActiveTab || (() => {});
   const safeProducts = Array.isArray(products) ? products : [];
@@ -109,7 +127,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="h-16 bg-slate-900/95 backdrop-blur-md text-slate-100 px-3 md:px-5 flex items-center justify-between border-b border-slate-800/80 shrink-0 sticky top-0 z-30 shadow-md select-none gap-2 md:gap-4 overflow-hidden">
+    <header className="h-16 bg-slate-900/95 backdrop-blur-md text-slate-100 px-3 md:px-4 flex items-center justify-between border-b border-slate-800/80 shrink-0 sticky top-0 z-30 shadow-md select-none gap-2 md:gap-3 overflow-hidden">
       {/* LEFT: Brand & Store Identity (Always Fixed / Pinned on the left) */}
       <div 
         className="flex items-center space-x-3 cursor-pointer group transition-transform active:scale-[0.99] shrink-0 z-10" 
@@ -145,9 +163,25 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       {/* SCROLLABLE NAVIGATION & QUICK ACTIONS: Starts from Bán Hàng (F2) with smooth horizontal scroll */}
-      <div className="flex-1 flex items-center justify-end space-x-2.5 overflow-x-auto pos-toolbar-scroll py-1 shrink min-w-0 scroll-smooth">
-        {/* CENTER: Essential POS & Quick Actions */}
-        <div className="flex items-center space-x-2 shrink-0">
+      <div className="flex-1 flex items-center min-w-0 ml-1 md:ml-3 relative group/navbar">
+        {/* Left Scroll Navigation Button */}
+        <button
+          type="button"
+          onClick={() => scrollNav('left')}
+          className="h-8 w-6 bg-slate-800/90 hover:bg-slate-750 text-slate-300 hover:text-white rounded-l-lg border border-slate-700 flex items-center justify-center shrink-0 z-10 cursor-pointer shadow transition-colors mr-0.5"
+          title="Cuộn sang trái (Bán hàng F2, Quét F3, Nhập kho...)"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+
+        {/* Scrollable Track Starting from Bán Hàng (F2) */}
+        <div
+          ref={navScrollRef}
+          onWheel={handleNavWheel}
+          className="flex-1 flex items-center justify-start space-x-2.5 overflow-x-auto pos-toolbar-scroll py-1 shrink min-w-0 scroll-smooth px-1"
+        >
+          {/* CENTER: Essential POS & Quick Actions */}
+          <div className="flex items-center space-x-2 shrink-0">
         {/* Main Action: Bán Hàng POS (F2) */}
         <button
           onClick={() => handleNavigate('pos')}
@@ -411,6 +445,17 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       </div>
     </div>
+
+    {/* Right Scroll Navigation Button */}
+    <button
+      type="button"
+      onClick={() => scrollNav('right')}
+      className="h-8 w-6 bg-slate-800/90 hover:bg-slate-750 text-slate-300 hover:text-white rounded-r-lg border border-slate-700 flex items-center justify-center shrink-0 z-10 cursor-pointer shadow transition-colors ml-0.5"
+      title="Cuộn sang phải (Đồng hồ, Phím tắt, Thông báo, Tài khoản...)"
+    >
+      <ChevronRight className="w-4 h-4" />
+    </button>
+  </div>
     </header>
   );
 };
