@@ -621,11 +621,11 @@ export const PosView: React.FC<PosViewProps> = ({
     <div className="flex flex-col lg:flex-row h-full overflow-hidden bg-slate-950 text-slate-100">
       {/* Left: Product Catalog & Search (Narrower width as requested) */}
       <div className="w-full lg:w-[48%] xl:w-[46%] 2xl:w-[44%] flex flex-col min-w-0 border-r border-slate-800/80 overflow-hidden shrink-0">
-        {/* Search & Barcode Bar */}
-        <div className="p-3 md:p-4 bg-slate-900/90 border-b border-slate-800 flex flex-col sm:flex-row gap-2 shrink-0">
+        {/* Search & Barcode Bar (Horizontally scrollable with smooth scrollbar) */}
+        <div className="p-2.5 md:p-3 bg-slate-900/95 border-b border-slate-800 flex items-center gap-2 overflow-x-auto pos-toolbar-scroll shrink-0 scroll-smooth">
           <form
             onSubmit={handleBarcodeSubmit}
-            className="flex-1 relative flex items-center"
+            className="min-w-[220px] max-w-sm flex-1 relative flex items-center shrink-0"
           >
             <Search className="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none" />
             <input
@@ -633,7 +633,7 @@ export const PosView: React.FC<PosViewProps> = ({
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Tìm sản phẩm theo Tên, Mã SKU, hoặc quét Mã vạch (Enter)..."
+              placeholder="Tìm theo Tên, SKU, Barcode (Enter)..."
               className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-24 py-2 text-xs md:text-sm text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
             />
             <button
@@ -648,7 +648,7 @@ export const PosView: React.FC<PosViewProps> = ({
           {/* Quick UOM Calculator & Converter Button */}
           <button
             onClick={() => setShowUomCalculator(true)}
-            className="flex items-center space-x-1.5 px-3 py-1.5 bg-indigo-950/70 hover:bg-indigo-900/80 rounded-xl border border-indigo-700/60 text-xs text-indigo-200 transition-all shadow-sm shrink-0"
+            className="flex items-center space-x-1.5 px-3 py-2 bg-indigo-950/70 hover:bg-indigo-900/80 rounded-xl border border-indigo-700/60 text-xs text-indigo-200 transition-all shadow-sm shrink-0 whitespace-nowrap"
             title="Bảng tính quy đổi đơn vị tính & giá tương ứng (Thùng, Cuộn, Mét, Kg, Gam)"
           >
             <Scale className="w-3.5 h-3.5 text-indigo-400" />
@@ -659,7 +659,7 @@ export const PosView: React.FC<PosViewProps> = ({
           {onOpenAiAssistant && (
             <button
               onClick={onOpenAiAssistant}
-              className="flex items-center space-x-1.5 px-3 py-1.5 bg-gradient-to-r from-blue-900/80 to-indigo-900/80 hover:from-blue-800 hover:to-indigo-800 rounded-xl border border-blue-500/50 text-xs text-blue-200 transition-all shadow-sm shrink-0 group"
+              className="flex items-center space-x-1.5 px-3 py-2 bg-gradient-to-r from-blue-900/80 to-indigo-900/80 hover:from-blue-800 hover:to-indigo-800 rounded-xl border border-blue-500/50 text-xs text-blue-200 transition-all shadow-sm shrink-0 whitespace-nowrap group"
               title="Mở Trợ Lý AI GP-Copilot: Tra cứu quy cách ĐVT, giá bán, chính sách bảo hành, tư vấn khách (Phím tắt: F1)"
             >
               <Bot className="w-3.5 h-3.5 text-cyan-400 group-hover:rotate-12 transition-transform" />
@@ -672,7 +672,7 @@ export const PosView: React.FC<PosViewProps> = ({
           {onOpenDevices && (
             <button
               onClick={onOpenDevices}
-              className="hidden md:flex items-center space-x-1.5 px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700/80 rounded-xl border border-slate-700 text-xs text-blue-300 transition-colors shrink-0"
+              className="flex items-center space-x-1.5 px-3 py-2 bg-slate-800/80 hover:bg-slate-700/80 rounded-xl border border-slate-700 text-xs text-blue-300 transition-colors shrink-0 whitespace-nowrap"
               title="Cấu hình máy in bill K80, máy quét 2D, két tiền, cân điện tử PC"
             >
               <Monitor className="w-3.5 h-3.5 text-blue-400" />
@@ -682,14 +682,14 @@ export const PosView: React.FC<PosViewProps> = ({
           )}
 
           {/* Shift status banner */}
-          <div className="hidden sm:flex items-center px-3 py-1.5 bg-slate-800/80 rounded-xl border border-slate-700 text-xs text-slate-300 shrink-0">
+          <div className="flex items-center px-3 py-2 bg-slate-800/80 rounded-xl border border-slate-700 text-xs text-slate-300 shrink-0 whitespace-nowrap">
             <span className="w-2 h-2 rounded-full bg-emerald-400 mr-2"></span>
             <span>{currentShift?.staffName || 'Thu ngân'}</span>
           </div>
         </div>
 
         {/* Categories Bar */}
-        <div className="px-3 md:px-4 py-2.5 bg-slate-900/60 border-b border-slate-800/60 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+        <div className="px-3 md:px-4 py-2 bg-slate-900/60 border-b border-slate-800/60 flex items-center gap-1.5 overflow-x-auto pos-toolbar-scroll shrink-0">
           {CATEGORIES.map((cat) => (
             <button
               key={cat}
