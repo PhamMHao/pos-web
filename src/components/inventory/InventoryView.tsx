@@ -912,14 +912,17 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       </div>
 
       {/* Quick-Add Master Data Interactive Toolbar Banner */}
-      <div className="p-3 bg-gradient-to-r from-slate-900 via-slate-900/90 to-cyan-950/40 rounded-2xl border border-slate-800 flex flex-wrap items-center justify-between gap-2.5">
-        <div className="flex items-center space-x-2">
-          <div className="w-7 h-7 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-xs border border-cyan-500/30">
+      <div className="p-3.5 bg-slate-900/90 rounded-2xl border border-slate-800 shadow-sm flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center space-x-2.5">
+          <div className="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-sm border border-cyan-500/30 shadow-sm shrink-0">
             ⚡
           </div>
           <div>
-            <span className="text-xs font-extrabold text-white">Thêm Nhanh Danh Mục Gốc (Quick-Add Master Data):</span>
-            <p className="text-[11px] text-slate-400">Tạo trực tiếp tại chỗ không cần chuyển trang cài đặt</p>
+            <div className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
+              <span>Thêm Nhanh Danh Mục Gốc</span>
+              <span className="text-[10px] font-mono font-normal text-cyan-400 bg-cyan-950/60 px-1.5 py-0.5 rounded border border-cyan-800/50">Quick-Add Master Data</span>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-0.5">Tạo nhanh danh mục trực tiếp tại chỗ không cần chuyển trang cài đặt</p>
           </div>
         </div>
 
@@ -927,57 +930,57 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           <button
             type="button"
             onClick={() => setQuickAddType('product')}
-            className="px-2.5 py-1.5 rounded-xl bg-cyan-950/60 hover:bg-cyan-900 text-cyan-300 border border-cyan-700/50 font-bold flex items-center space-x-1 transition cursor-pointer shadow-xs"
+            className="px-2.5 py-1.5 rounded-xl bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 hover:text-cyan-200 border border-cyan-500/40 font-bold flex items-center space-x-1 transition cursor-pointer shadow-xs"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-3.5 h-3.5 text-cyan-400" />
             <span>SP Mới</span>
           </button>
           <button
             type="button"
             onClick={() => setQuickAddType('uom')}
-            className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold flex items-center space-x-1 transition cursor-pointer"
+            className="px-2.5 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold flex items-center space-x-1 transition cursor-pointer hover:border-slate-600"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-3.5 h-3.5 text-emerald-400" />
             <span>ĐVT</span>
           </button>
           <button
             type="button"
             onClick={() => setQuickAddType('partner')}
-            className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold flex items-center space-x-1 transition cursor-pointer"
+            className="px-2.5 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold flex items-center space-x-1 transition cursor-pointer hover:border-slate-600"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-3.5 h-3.5 text-indigo-400" />
             <span>NCC / Đối Tác</span>
           </button>
           <button
             type="button"
             onClick={() => setQuickAddType('location')}
-            className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold flex items-center space-x-1 transition cursor-pointer"
+            className="px-2.5 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold flex items-center space-x-1 transition cursor-pointer hover:border-slate-600"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-3.5 h-3.5 text-amber-400" />
             <span>Vị Trí Kệ</span>
           </button>
           <button
             type="button"
             onClick={() => setQuickAddType('color')}
-            className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold flex items-center space-x-1 transition cursor-pointer"
+            className="px-2.5 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold flex items-center space-x-1 transition cursor-pointer hover:border-slate-600"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-3.5 h-3.5 text-rose-400" />
             <span>Màu Sắc</span>
           </button>
           <button
             type="button"
             onClick={() => setQuickAddType('department')}
-            className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold flex items-center space-x-1 transition cursor-pointer"
+            className="px-2.5 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold flex items-center space-x-1 transition cursor-pointer hover:border-slate-600"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-3.5 h-3.5 text-blue-400" />
             <span>Phòng Ban</span>
           </button>
           <button
             type="button"
             onClick={() => setQuickAddType('employee')}
-            className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold flex items-center space-x-1 transition cursor-pointer"
+            className="px-2.5 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold flex items-center space-x-1 transition cursor-pointer hover:border-slate-600"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-3.5 h-3.5 text-purple-400" />
             <span>Nhân Sự</span>
           </button>
         </div>
