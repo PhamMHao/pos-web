@@ -823,16 +823,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             <span>Quét Phiếu Nhập Kho (AI)</span>
           </button>
 
-          {onRefreshDb && (
-            <button
-              onClick={onRefreshDb}
-              className="flex items-center space-x-1.5 px-3 py-2 bg-slate-800 hover:bg-emerald-950/60 text-slate-300 hover:text-emerald-300 text-xs font-semibold rounded-xl border border-slate-700 hover:border-emerald-500/50 transition-colors cursor-pointer"
-              title="Đồng bộ lại danh sách sản phẩm mới nhất từ SQL Server"
-            >
-              <RefreshCw className="w-4 h-4 text-emerald-400" />
-              <span className="hidden sm:inline">Làm mới CSDL</span>
-            </button>
-          )}
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={isImportingCsv}
