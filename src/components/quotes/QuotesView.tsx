@@ -140,7 +140,7 @@ export const QuotesView: React.FC<QuotesViewProps> = ({
             title="Quét phiếu báo giá bằng camera điện thoại & bóc tách AI"
           >
             <Sparkles className="w-4 h-4 text-amber-300" />
-            <span>📷 Quét Phiếu / Excel (AI)</span>
+            <span>Quét Phiếu / Excel (AI)</span>
           </button>
 
           <button
@@ -179,7 +179,7 @@ export const QuotesView: React.FC<QuotesViewProps> = ({
             className="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 shadow-lg shadow-blue-500/20 transition-colors cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>+ Tạo Báo Giá Mới</span>
+            <span>Tạo Báo Giá Mới</span>
           </button>
         </div>
       </div>
@@ -304,7 +304,7 @@ export const QuotesView: React.FC<QuotesViewProps> = ({
                     className="px-3.5 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-purple-600/25 flex items-center space-x-1.5 transition-all cursor-pointer active:scale-95"
                   >
                     <RotateCcw className="w-3.5 h-3.5 text-amber-300" />
-                    <span>🔄 Quản Lý Dòng Đời (6 Bước)</span>
+                    <span>Quản Lý Dòng Đời (6 Bước)</span>
                   </button>
 
                   <button
