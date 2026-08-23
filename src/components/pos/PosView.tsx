@@ -619,8 +619,8 @@ export const PosView: React.FC<PosViewProps> = ({
 
   return (
     <div className="flex flex-col lg:flex-row h-full overflow-hidden bg-slate-950 text-slate-100">
-      {/* Left: Product Catalog & Search */}
-      <div className="flex-1 flex flex-col min-w-0 border-r border-slate-800/80 overflow-hidden">
+      {/* Left: Product Catalog & Search (Narrower width as requested) */}
+      <div className="w-full lg:w-[48%] xl:w-[46%] 2xl:w-[44%] flex flex-col min-w-0 border-r border-slate-800/80 overflow-hidden shrink-0">
         {/* Search & Barcode Bar */}
         <div className="p-3 md:p-4 bg-slate-900/90 border-b border-slate-800 flex flex-col sm:flex-row gap-2 shrink-0">
           <form
@@ -716,7 +716,7 @@ export const PosView: React.FC<PosViewProps> = ({
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 gap-2.5">
               {filteredProducts.map((p) => {
                 const inCartItems = cart.filter((item) => item.product.id === p.id);
                 const totalInCartQty = inCartItems.reduce((s, i) => s + i.quantity, 0);
@@ -830,8 +830,8 @@ export const PosView: React.FC<PosViewProps> = ({
         </div>
       </div>
 
-      {/* Right: Cart, Customer & Checkout Area */}
-      <div className="w-full lg:w-96 xl:w-[450px] bg-slate-900/95 flex flex-col shrink-0 border-t lg:border-t-0 border-slate-800 shadow-2xl">
+      {/* Right: Cart, Customer & Checkout Area (Wider width as requested) */}
+      <div className="flex-1 w-full lg:w-[52%] xl:w-[54%] 2xl:w-[56%] bg-slate-900/95 flex flex-col min-w-0 border-t lg:border-t-0 border-slate-800 shadow-2xl overflow-hidden">
         {/* Customer Header & Delivery Info Panel */}
         <div className="p-3 border-b border-slate-800 bg-slate-900 space-y-2.5">
           <div className="flex items-center justify-between">
@@ -860,27 +860,27 @@ export const PosView: React.FC<PosViewProps> = ({
               <div className="grid grid-cols-2 gap-1.5">
                 <input
                   type="text"
+                  required
+                  placeholder="Tên khách hàng (*)"
                   value={newCustName}
                   onChange={(e) => setNewCustName(e.target.value)}
-                  placeholder="Tên khách hàng (*)"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
-                  required
+                  className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
                 />
                 <input
                   type="tel"
+                  required
+                  placeholder="Số điện thoại (*)"
                   value={newCustPhone}
                   onChange={(e) => setNewCustPhone(e.target.value)}
-                  placeholder="Số điện thoại (*)"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
-                  required
+                  className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
                 />
               </div>
               <input
                 type="text"
+                placeholder="Địa chỉ giao hàng (Tùy chọn)"
                 value={newCustAddress}
                 onChange={(e) => setNewCustAddress(e.target.value)}
-                placeholder="Địa chỉ giao nhận hàng..."
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
               />
               <div className="flex items-center space-x-1.5">
                 <label className="text-[10px] text-slate-400 shrink-0">Công nợ đầu kì (nếu có):</label>
@@ -892,31 +892,37 @@ export const PosView: React.FC<PosViewProps> = ({
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white font-mono placeholder-slate-500 focus:outline-none focus:border-emerald-500"
                 />
               </div>
-              <div className="flex justify-end space-x-1.5 pt-1">
+              <div className="flex justify-end space-x-2 pt-1">
                 <button
                   type="button"
                   onClick={() => setShowQuickAddCust(false)}
-                  className="px-2.5 py-1 text-[11px] text-slate-400 hover:text-white"
+                  className="px-2.5 py-1 text-xs text-slate-400 hover:text-white"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  className="px-3.5 py-1 bg-emerald-500 text-slate-950 font-bold rounded-lg text-[11px] hover:bg-emerald-400 transition-all shadow"
+                  className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-lg shadow"
                 >
-                  Lưu & Chọn
+                  Lưu & Chọn Ngay
                 </button>
               </div>
             </form>
           ) : (
+            /* Customer Selector Dropdown */
             <div className="relative">
               <select
                 value={selectedCustomer?.id || ''}
                 onChange={(e) => {
                   const cust = customers.find((c) => c.id === e.target.value);
                   setSelectedCustomer(cust || null);
+                  if (cust && cust.address) {
+                    setCustomerDeliveryAddress(cust.address);
+                  } else {
+                    setCustomerDeliveryAddress('');
+                  }
                 }}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500 font-medium"
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:border-emerald-500 cursor-pointer appearance-none pr-8"
               >
                 <option value="">-- Khách lẻ vãng lai (Không lưu tên) --</option>
                 {customers.map((c) => (
@@ -967,15 +973,13 @@ export const PosView: React.FC<PosViewProps> = ({
                 </span>
               </div>
 
-              {/* Row 3: Delivery Address Field */}
-              <div className="space-y-1 pt-1 border-t border-slate-800">
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-slate-400 flex items-center space-x-1">
+              {/* Row 3 & 4: Delivery Address & Order Note in 2 columns */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-slate-800">
+                <div className="space-y-1">
+                  <span className="text-slate-400 flex items-center space-x-1 text-[11px]">
                     <MapPin className="w-3 h-3 text-emerald-400" />
                     <span>Địa chỉ giao nhận:</span>
                   </span>
-                </div>
-                <div className="relative">
                   <input
                     type="text"
                     value={customerDeliveryAddress}
@@ -984,44 +988,44 @@ export const PosView: React.FC<PosViewProps> = ({
                     className="w-full bg-slate-900 border border-slate-750 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
-              </div>
-
-              {/* Row 4: Order Note / Shipper Note */}
-              <div className="space-y-1">
-                <span className="text-[11px] text-slate-400 flex items-center space-x-1">
-                  <FileText className="w-3 h-3 text-indigo-400" />
-                  <span>Ghi chú đơn hàng / Shipper:</span>
-                </span>
-                <input
-                  type="text"
-                  value={orderNote}
-                  onChange={(e) => setOrderNote(e.target.value)}
-                  placeholder="Ghi chú giao hàng, giờ giao, lưu ý đóng gói..."
-                  className="w-full bg-slate-900 border border-slate-750 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-                />
+                <div className="space-y-1">
+                  <span className="text-[11px] text-slate-400 flex items-center space-x-1">
+                    <FileText className="w-3 h-3 text-indigo-400" />
+                    <span>Ghi chú đơn hàng / Shipper:</span>
+                  </span>
+                  <input
+                    type="text"
+                    value={orderNote}
+                    onChange={(e) => setOrderNote(e.target.value)}
+                    placeholder="Ghi chú giao hàng, giờ giao, lưu ý..."
+                    className="w-full bg-slate-900 border border-slate-750 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
               </div>
             </div>
           ) : (
-            /* Guest Customer: Optional Delivery Address & Notes */
+            /* Guest Customer: Optional Delivery Address & Notes in 2 columns */
             <div className="p-2 bg-slate-850/70 rounded-xl border border-slate-800 space-y-1.5 text-xs">
               <div className="flex items-center space-x-1 text-[11px] text-slate-400">
                 <Truck className="w-3.5 h-3.5 text-slate-400" />
                 <span>Giao hàng cho khách lẻ (Tùy chọn):</span>
               </div>
-              <input
-                type="text"
-                value={customerDeliveryAddress}
-                onChange={(e) => setCustomerDeliveryAddress(e.target.value)}
-                placeholder="Nhập địa chỉ giao hàng (nếu có ship)..."
-                className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
-              />
-              <input
-                type="text"
-                value={orderNote}
-                onChange={(e) => setOrderNote(e.target.value)}
-                placeholder="Ghi chú đơn hàng..."
-                className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
-              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  value={customerDeliveryAddress}
+                  onChange={(e) => setCustomerDeliveryAddress(e.target.value)}
+                  placeholder="Nhập địa chỉ giao hàng (nếu có ship)..."
+                  className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                />
+                <input
+                  type="text"
+                  value={orderNote}
+                  onChange={(e) => setOrderNote(e.target.value)}
+                  placeholder="Ghi chú đơn hàng..."
+                  className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
             </div>
           )}
         </div>
