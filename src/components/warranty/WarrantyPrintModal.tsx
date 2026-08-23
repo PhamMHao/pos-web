@@ -18,6 +18,7 @@ import {
 import { WarrantyTicket, StoreSettings, PaperSize } from '../../types';
 import { formatVND } from '../../utils/vietqr';
 import { SlipBarcodeQR } from '../common/SlipBarcodeQR';
+import { GiaPhucLogo } from '../common/GiaPhucLogo';
 
 interface WarrantyPrintModalProps {
   isOpen: boolean;
@@ -131,16 +132,19 @@ export const WarrantyPrintModal: React.FC<WarrantyPrintModalProps> = ({
         <div className="p-6 sm:p-8 overflow-y-auto flex-1 bg-white text-slate-900 text-xs space-y-6 print:p-0 print:space-y-4">
           {/* Header of Document */}
           <div className="flex items-start justify-between border-b-2 border-slate-900 pb-4">
-            <div className="space-y-1">
-              <h2 className="text-base font-black uppercase text-slate-900 tracking-wider">
-                {settings?.storeName || 'TRUNG TÂM BẢO HÀNH & KỸ THUẬT GP-ERP'}
-              </h2>
-              <p className="text-[11px] text-slate-600">
-                Địa chỉ: {settings?.address || 'Số 123 Đường Điện Biên Phủ, Quận 1, TP. Hồ Chí Minh'}
-              </p>
-              <p className="text-[11px] text-slate-600">
-                Hotline kỹ thuật: <strong className="text-slate-900">{settings?.phone || '1900 6868 - 0988 888 888'}</strong> | Website: www.gperp.vn
-              </p>
+            <div className="flex items-start space-x-3">
+              <GiaPhucLogo logoUrl={settings?.logoUrl} size="sm" isPrint={true} />
+              <div className="space-y-1">
+                <h2 className="text-base font-black uppercase text-slate-900 tracking-wider">
+                  {settings?.storeName || 'TRUNG TÂM BẢO HÀNH & KỸ THUẬT GP-ERP'}
+                </h2>
+                <p className="text-[11px] text-slate-600">
+                  Địa chỉ: {settings?.address || 'Số 123 Đường Điện Biên Phủ, Quận 1, TP. Hồ Chí Minh'}
+                </p>
+                <p className="text-[11px] text-slate-600">
+                  Hotline kỹ thuật: <strong className="text-slate-900">{settings?.phone || '1900 6868 - 0988 888 888'}</strong> | Website: {settings?.website || 'www.vitinhgiaphuc.com'}
+                </p>
+              </div>
             </div>
 
             <div className="text-right flex flex-col items-end">

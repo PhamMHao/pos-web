@@ -193,7 +193,7 @@ export const StockReceiptPrintModal: React.FC<StockReceiptPrintModalProps> = ({
               {/* Header: Company Profile + Form Code */}
               <div className="flex items-start justify-between border-b border-slate-300 pb-3 mb-3">
                 <div className="flex items-start gap-3 flex-1">
-                  <GiaPhucLogo size={paperSize === 'A5' ? 'xs' : 'sm'} isPrint={true} />
+                  <GiaPhucLogo logoUrl={settings?.logoUrl} size={paperSize === 'A5' ? 'xs' : 'sm'} isPrint={true} />
                   <div className="space-y-0.5">
                     <h4 className={`font-black uppercase text-slate-900 ${paperSize === 'A5' ? 'text-xs' : 'text-sm'}`}>
                       {settings.companyLegalName || settings.brandName || 'CÔNG TY TNHH MTV TM-DV SỬA CHỮA GIA PHÚC'}

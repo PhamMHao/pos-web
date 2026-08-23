@@ -861,6 +861,7 @@ export const EInvoiceManagerView: React.FC<EInvoiceManagerViewProps> = ({
       {selectedInvoice && (
         <EInvoicePrintModal
           invoice={selectedInvoice}
+          settings={settings}
           onClose={() => setSelectedInvoice(null)}
           onSignInvoice={handleSignInvoice}
           onSendCqt={handleSendCqt}

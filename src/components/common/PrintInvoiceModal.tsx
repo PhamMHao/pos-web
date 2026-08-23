@@ -136,6 +136,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
 
   // Dynamically load per-form default configuration when docType changes
   useEffect(() => {
+    setCustomLogoUrl(settings.logoUrl || '');
     const config = settings.printDocConfigs?.[docType];
     if (config) {
       if (config.paperSize) setPaperSize(config.paperSize);
@@ -1176,7 +1177,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                                   className="h-12 w-auto max-w-[120px] object-contain"
                                 />
                               ) : (
-                                <GiaPhucLogo isPrint={true} size="xs" />
+                                <GiaPhucLogo logoUrl={customLogoUrl || settings.logoUrl} isPrint={true} size="xs" />
                               )}
                             </div>
                           )}
@@ -1343,7 +1344,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                                   className={`${paperSize === 'A5' ? 'h-10' : 'h-14'} w-auto max-w-[130px] object-contain`}
                                 />
                               ) : (
-                                <GiaPhucLogo isPrint={true} size={paperSize === 'A5' ? 'xs' : 'sm'} />
+                                <GiaPhucLogo logoUrl={customLogoUrl || settings.logoUrl} isPrint={true} size={paperSize === 'A5' ? 'xs' : 'sm'} />
                               )}
                             </div>
                           )}

@@ -15,12 +15,13 @@ import {
   ExternalLink,
   Lock,
 } from 'lucide-react';
-import { EInvoice } from '../../types';
+import { EInvoice, StoreSettings } from '../../types';
 import { numberToVietnameseWords } from '../../utils/numberToWords';
 import { GiaPhucLogo } from '../common/GiaPhucLogo';
 
 interface EInvoicePrintModalProps {
   invoice: EInvoice;
+  settings?: StoreSettings;
   onClose: () => void;
   onSignInvoice?: (invoiceId: string) => void;
   onSendCqt?: (invoiceId: string) => void;
@@ -28,6 +29,7 @@ interface EInvoicePrintModalProps {
 
 export const EInvoicePrintModal: React.FC<EInvoicePrintModalProps> = ({
   invoice,
+  settings,
   onClose,
   onSignInvoice,
   onSendCqt,
@@ -368,7 +370,7 @@ export const EInvoicePrintModal: React.FC<EInvoicePrintModalProps> = ({
                     </div>
                   </div>
                   <div className="hidden sm:block shrink-0 pt-0.5">
-                    <GiaPhucLogo size="xs" isPrint={true} />
+                    <GiaPhucLogo logoUrl={settings?.logoUrl} size="xs" isPrint={true} />
                   </div>
                 </div>
               </div>

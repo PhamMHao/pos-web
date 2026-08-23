@@ -7,6 +7,7 @@ interface GiaPhucLogoProps {
   textColor?: string;
   subtextColor?: string;
   isPrint?: boolean;
+  logoUrl?: string;
 }
 
 export const GiaPhucLogo: React.FC<GiaPhucLogoProps> = ({
@@ -16,17 +17,37 @@ export const GiaPhucLogo: React.FC<GiaPhucLogoProps> = ({
   textColor,
   subtextColor,
   isPrint = false,
+  logoUrl,
 }) => {
   const sizeMap = {
-    xs: { width: 90, height: 32, iconSize: 28 },
-    sm: { width: 130, height: 44, iconSize: 38 },
-    md: { width: 170, height: 56, iconSize: 48 },
-    lg: { width: 220, height: 72, iconSize: 62 },
-    xl: { width: 280, height: 92, iconSize: 80 },
-    custom: { width: 180, height: 60, iconSize: 50 },
+    xs: { width: 90, height: 32, iconSize: 28, imgHeight: 32 },
+    sm: { width: 130, height: 44, iconSize: 38, imgHeight: 42 },
+    md: { width: 170, height: 56, iconSize: 48, imgHeight: 52 },
+    lg: { width: 220, height: 72, iconSize: 62, imgHeight: 68 },
+    xl: { width: 280, height: 92, iconSize: 80, imgHeight: 88 },
+    custom: { width: 180, height: 60, iconSize: 50, imgHeight: 56 },
   };
 
   const currentSize = sizeMap[size];
+
+  // If user uploaded a custom logo image, ALWAYS render the user's custom uploaded logo!
+  if (logoUrl && logoUrl.trim().length > 0) {
+    return (
+      <div className={`inline-flex items-center justify-center select-none ${className}`}>
+        <img
+          src={logoUrl}
+          alt="Logo Thương Hiệu"
+          referrerPolicy="no-referrer"
+          style={{
+            maxHeight: `${currentSize.imgHeight}px`,
+            maxWidth: `${currentSize.width * 1.5}px`,
+            objectFit: 'contain',
+          }}
+          className="shrink-0 max-h-full max-w-full"
+        />
+      </div>
+    );
+  }
 
   // Official Gia Phúc colors matching the branding
   const blueColor = '#0b66b3';

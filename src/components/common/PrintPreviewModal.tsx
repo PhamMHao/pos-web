@@ -421,7 +421,7 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
                   <div className="border-b border-slate-300 pb-3 mb-3">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-center space-x-3">
-                        <GiaPhucLogo className="w-12 h-12 shrink-0" />
+                        <GiaPhucLogo logoUrl={settings?.logoUrl} className="w-12 h-12 shrink-0" isPrint={true} size="sm" />
                         <div>
                           <h1 className="text-sm md:text-base font-black text-slate-950 uppercase tracking-tight">
                             {companyLegalName}

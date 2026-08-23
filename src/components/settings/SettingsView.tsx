@@ -270,7 +270,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       const reader = new FileReader();
       reader.onload = (event) => {
         if (event.target?.result) {
-          setFormData({ ...formData, logoUrl: event.target.result as string });
+          const newLogo = event.target.result as string;
+          const updated = { ...formData, logoUrl: newLogo };
+          setFormData(updated);
+          onSaveSettings(updated);
+          setSavedSuccess(true);
+          setTimeout(() => setSavedSuccess(false), 3000);
         }
       };
       reader.readAsDataURL(file);
@@ -745,7 +750,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     {formData.logoUrl && (
                       <button
                         type="button"
-                        onClick={() => setFormData({ ...formData, logoUrl: '' })}
+                        onClick={() => {
+                          const updated = { ...formData, logoUrl: '' };
+                          setFormData(updated);
+                          onSaveSettings(updated);
+                          setSavedSuccess(true);
+                          setTimeout(() => setSavedSuccess(false), 3000);
+                        }}
                         className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-rose-300 rounded-lg text-xs font-semibold transition-colors"
                       >
                         Dùng Logo Gốc Gia Phúc

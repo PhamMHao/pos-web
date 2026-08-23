@@ -124,7 +124,7 @@ export const PurchaseOrderPrintModal: React.FC<PurchaseOrderPrintModalProps> = (
             <div>
               <div className="border-b-2 border-slate-900 pb-4 mb-4 flex justify-between items-start">
                 <div className="flex items-start space-x-4">
-                  <GiaPhucLogo className="w-14 h-14 shrink-0" />
+                  <GiaPhucLogo logoUrl={settings?.logoUrl} className="w-14 h-14 shrink-0" isPrint={true} size="sm" />
                   <div>
                     <h1 className="text-base font-black text-slate-950 uppercase tracking-tight">{companyName}</h1>
                     <p className="text-[11px] text-slate-600 mt-0.5">📍 Địa chỉ: {companyAddress}</p>

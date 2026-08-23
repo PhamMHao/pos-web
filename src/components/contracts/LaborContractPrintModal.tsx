@@ -17,18 +17,20 @@ import {
   ExternalLink,
   Award,
 } from 'lucide-react';
-import { LaborContract } from '../../types';
+import { LaborContract, StoreSettings } from '../../types';
 import { numberToVietnameseWords } from '../../utils/numberToWords';
 import { GiaPhucLogo } from '../common/GiaPhucLogo';
 
 interface LaborContractPrintModalProps {
   contract: LaborContract;
+  settings?: StoreSettings;
   onClose: () => void;
   onSignContract?: (contractId: string, signatureDataUrl: string) => void;
 }
 
 export const LaborContractPrintModal: React.FC<LaborContractPrintModalProps> = ({
   contract,
+  settings,
   onClose,
   onSignContract,
 }) => {
@@ -221,7 +223,7 @@ export const LaborContractPrintModal: React.FC<LaborContractPrintModalProps> = (
             {/* Header / National Title with Company Logo */}
             <div className="flex items-start justify-between border-b border-slate-200 pb-3">
               <div className="hidden sm:block shrink-0">
-                <GiaPhucLogo size="xs" isPrint={true} />
+                <GiaPhucLogo logoUrl={settings?.logoUrl} size="xs" isPrint={true} />
               </div>
               <div className="text-center flex-1">
                 <h4 className="font-sans font-bold uppercase tracking-wider text-xs sm:text-sm text-slate-900">

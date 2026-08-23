@@ -748,6 +748,7 @@ export const LaborContractManagerView: React.FC<LaborContractManagerViewProps> =
       {selectedContract && (
         <LaborContractPrintModal
           contract={selectedContract}
+          settings={settings}
           onClose={() => setSelectedContract(null)}
           onSignContract={handleSignContract}
         />
