@@ -204,7 +204,7 @@ export const WarrantyView: React.FC<WarrantyViewProps> = ({
             className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 shadow-lg shadow-cyan-500/20 transition-all active:scale-95"
           >
             <Plus className="w-4 h-4" />
-            <span>+ Tiếp Nhận Mới</span>
+            <span>Tiếp Nhận Mới</span>
           </button>
         </div>
       </div>

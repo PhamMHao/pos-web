@@ -78,7 +78,7 @@ export const CostingView: React.FC<CostingViewProps> = ({
           className="px-3.5 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 shadow-lg shadow-purple-500/20 transition-colors"
         >
           <Plus className="w-4 h-4" />
-          <span>+ Thiết Lập BOM Mới</span>
+          <span>Thiết Lập BOM Mới</span>
         </button>
       </div>
 

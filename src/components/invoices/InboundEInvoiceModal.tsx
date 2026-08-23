@@ -1187,7 +1187,7 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
                                 className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
                                 title="In toàn bộ tem mã vạch cho các mặt hàng vừa nhập kho"
                               >
-                                <span>🏷️ In Tem Mã Vạch ({selectedInvoice.items.reduce((s, i) => s + (i.quantity || 1), 0)} Tem)</span>
+                                <span>In Tem Mã Vạch ({selectedInvoice.items.reduce((s, i) => s + (i.quantity || 1), 0)} Tem)</span>
                               </button>
                             </div>
                           ) : (
@@ -1196,7 +1196,7 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
                               className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-600/30 flex items-center gap-2 transition-transform hover:scale-[1.02] active:scale-98"
                             >
                               <Sparkles className="w-4 h-4 text-emerald-200" />
-                              <span>⚡ Hoàn Tất Nhập Kho (Cộng Tồn & Kế Toán)</span>
+                              <span>Hoàn Tất Nhập Kho (Cộng Tồn & Kế Toán)</span>
                             </button>
                           )}
                         </div>
@@ -1354,7 +1354,7 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
                                   className="w-full py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black rounded-xl text-xs shadow-md shadow-emerald-500/20 flex items-center justify-center gap-1.5 transition-all hover:scale-[1.02] active:scale-98"
                                 >
                                   <Sparkles className="w-3.5 h-3.5 text-slate-900" />
-                                  <span>⚡ Tự Động Tạo Hàng Loạt</span>
+                                  <span>Tự Động Tạo Hàng Loạt</span>
                                 </button>
                               </div>
                             </div>
@@ -1613,7 +1613,7 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
                       className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 flex items-center justify-center space-x-2 transition-all disabled:opacity-50"
                     >
                       <RefreshCw className={`w-4 h-4 ${isSyncingCqt ? 'animate-spin' : ''}`} />
-                      <span>{isSyncingCqt ? 'Đang đồng bộ...' : '⚡ Quét & Đồng Bộ Ngay Từ CQT'}</span>
+                      <span>{isSyncingCqt ? 'Đang đồng bộ...' : 'Quét & Đồng Bộ Ngay Từ CQT'}</span>
                     </button>
                   </div>
 

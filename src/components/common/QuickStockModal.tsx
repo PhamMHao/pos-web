@@ -218,7 +218,7 @@ export const QuickStockModal: React.FC<QuickStockModalProps> = ({
             }`}
           >
             <PackagePlus className="w-4 h-4" />
-            <span>📥 Nhập Kho</span>
+            <span>Nhập Kho</span>
           </button>
 
           <button
@@ -234,7 +234,7 @@ export const QuickStockModal: React.FC<QuickStockModalProps> = ({
             }`}
           >
             <PackageMinus className="w-4 h-4" />
-            <span>📤 Xuất Kho</span>
+            <span>Xuất Kho</span>
           </button>
 
           <button
@@ -250,7 +250,7 @@ export const QuickStockModal: React.FC<QuickStockModalProps> = ({
             }`}
           >
             <ClipboardCheck className="w-4 h-4" />
-            <span>📋 Kiểm Kho</span>
+            <span>Kiểm Kho</span>
           </button>
         </div>
 

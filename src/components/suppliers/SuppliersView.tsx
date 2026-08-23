@@ -153,7 +153,7 @@ export const SuppliersView: React.FC<SuppliersViewProps> = ({
               className="px-3.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-blue-500/20 flex items-center space-x-1.5 cursor-pointer transition-all active:scale-95"
             >
               <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
-              <span>📷 Quét Báo Giá (AI)</span>
+              <span>Quét Báo Giá (AI)</span>
             </button>
           )}
 
@@ -170,8 +170,7 @@ export const SuppliersView: React.FC<SuppliersViewProps> = ({
             type="button"
             onClick={() => {
               if (safeSuppliers.length === 0) {
-                alert('Vui lòng tạo ít nhất 1 nhà cung cấp trước khi lập đơn mua hàng!');
-                setShowNewSupplierModal(true);
+                alert('Vui lòng tạo ít nhất 1 nhà cung cấp trước khi lập đơn mua hàng PO.');
                 return;
               }
               setShowNewPOModal(true);
@@ -179,7 +178,7 @@ export const SuppliersView: React.FC<SuppliersViewProps> = ({
             className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-black text-xs rounded-xl shadow-lg shadow-amber-500/25 flex items-center space-x-1.5 cursor-pointer transition-all active:scale-95"
           >
             <Truck className="w-4 h-4" />
-            <span>+ Lập Đơn Mua (PO)</span>
+            <span>Lập Đơn Mua (PO)</span>
           </button>
 
           <button
@@ -191,7 +190,7 @@ export const SuppliersView: React.FC<SuppliersViewProps> = ({
             className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-blue-600/30 flex items-center space-x-1.5 cursor-pointer transition-all active:scale-95"
           >
             <Plus className="w-4 h-4" />
-            <span>+ Thêm NCC</span>
+            <span>Thêm NCC</span>
           </button>
         </div>
       </div>
@@ -362,7 +361,7 @@ export const SuppliersView: React.FC<SuppliersViewProps> = ({
                     className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-black text-xs rounded-xl shadow-lg shadow-amber-500/25 flex items-center space-x-1.5 cursor-pointer transition-all active:scale-95"
                   >
                     <Truck className="w-4 h-4" />
-                    <span>+ Lập Đơn Đặt Hàng (PO)</span>
+                    <span>Lập Đơn Đặt Hàng (PO)</span>
                   </button>
                 </div>
               </div>
@@ -636,7 +635,7 @@ export const SuppliersView: React.FC<SuppliersViewProps> = ({
                                     title="Kiểm đếm và nhập kho thực tế"
                                   >
                                     <PackageCheck className="w-3.5 h-3.5" />
-                                    <span>📥 Nhập Kho</span>
+                                    <span>Nhập Kho</span>
                                   </button>
                                 ) : (
                                   <button

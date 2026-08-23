@@ -545,7 +545,7 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
             className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-emerald-600/30 flex items-center space-x-2 cursor-pointer transition-all active:scale-95"
           >
             <Plus className="w-4 h-4" />
-            <span>+ Tạo Đơn Hàng Mới</span>
+            <span>Tạo Đơn Hàng Mới</span>
           </button>
         </div>
       </div>

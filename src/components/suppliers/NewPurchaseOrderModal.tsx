@@ -261,7 +261,7 @@ export const NewPurchaseOrderModal: React.FC<NewPurchaseOrderModalProps> = ({
                 className="px-3 py-1 bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/40 text-xs font-bold rounded-lg flex items-center space-x-1 transition-colors cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>+ Thêm Dòng</span>
+                <span>Thêm Dòng</span>
               </button>
             </div>
 

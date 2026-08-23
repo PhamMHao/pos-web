@@ -151,7 +151,7 @@ export const NewAccountingRecordModal: React.FC<NewAccountingRecordModalProps> =
                 }`}
               >
                 <TrendingUp className="w-4 h-4" />
-                <span>+ Thu Tiền (Ghi Có)</span>
+                <span>Thu Tiền (Ghi Có)</span>
               </button>
               <button
                 type="button"
@@ -163,7 +163,7 @@ export const NewAccountingRecordModal: React.FC<NewAccountingRecordModalProps> =
                 }`}
               >
                 <TrendingDown className="w-4 h-4" />
-                <span>- Chi Tiền (Ghi Nợ)</span>
+                <span>Chi Tiền (Ghi Nợ)</span>
               </button>
             </div>
           </div>

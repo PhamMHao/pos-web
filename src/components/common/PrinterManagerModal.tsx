@@ -268,7 +268,7 @@ export const PrinterManagerModal: React.FC<PrinterManagerModalProps> = ({
                 className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-600/25 flex items-center space-x-2 cursor-pointer transition-all active:scale-95"
               >
                 <Plus className="w-4 h-4" />
-                <span>+ Thêm Máy In Mới</span>
+                <span>Thêm Máy In Mới</span>
               </button>
 
               <button

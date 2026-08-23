@@ -217,7 +217,7 @@ export const NewCostingModal: React.FC<NewCostingModalProps> = ({
                 className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-purple-400 hover:text-white text-xs font-bold rounded-xl flex items-center space-x-1 border border-slate-700 transition"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>+ Thêm Linh Kiện</span>
+                <span>Thêm Linh Kiện</span>
               </button>
             </div>
 

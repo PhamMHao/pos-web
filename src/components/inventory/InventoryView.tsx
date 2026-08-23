@@ -1274,7 +1274,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                               className="px-2 py-1 text-[11px] font-bold bg-purple-950/60 hover:bg-purple-900/80 text-purple-300 rounded-lg border border-purple-700/60 transition-colors cursor-pointer"
                               title="Xem & Cập nhật Dòng Đời Sản Phẩm (8 Giai Đoạn, Lô SX, Hạn Dùng, Chuyển Kệ)"
                             >
-                              🔄 Dòng Đời
+                              Dòng Đời
                             </button>
                             <button
                               onClick={() => {
@@ -1839,7 +1839,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                         title="Tính lại toàn bộ chuỗi quy đổi và bảng giá theo tỷ lệ chuẩn"
                       >
                         <Calculator className="w-3 h-3" />
-                        <span>⚡ Tự Động Tính Chuỗi Quy Đổi & Giá</span>
+                        <span>Tự Động Tính Chuỗi Quy Đổi & Giá</span>
                       </button>
 
                       <button

@@ -112,7 +112,7 @@ export const PromotionsView: React.FC<PromotionsViewProps> = ({
           className="flex items-center space-x-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold rounded-xl transition-all shadow-lg shadow-emerald-500/20"
         >
           <Plus className="w-4 h-4" />
-          <span>+ Tạo Mã Khuyến Mãi</span>
+          <span>Tạo Mã Khuyến Mãi</span>
         </button>
       </div>
 

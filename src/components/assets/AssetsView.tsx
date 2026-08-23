@@ -132,7 +132,7 @@ export const AssetsView: React.FC<AssetsViewProps> = ({
             className="px-3.5 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 shadow-lg shadow-cyan-500/20 transition-colors cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>+ Thêm Thiết Bị Mới</span>
+            <span>Thêm Thiết Bị Mới</span>
           </button>
         </div>
       </div>
