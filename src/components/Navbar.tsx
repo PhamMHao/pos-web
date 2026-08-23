@@ -109,10 +109,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="h-16 bg-slate-900/95 backdrop-blur-md text-slate-100 px-4 md:px-6 flex items-center justify-between border-b border-slate-800/80 shrink-0 sticky top-0 z-30 shadow-md select-none">
-      {/* LEFT: Brand & Store Identity */}
+    <header className="h-16 bg-slate-900/95 backdrop-blur-md text-slate-100 px-3 md:px-5 flex items-center justify-between border-b border-slate-800/80 shrink-0 sticky top-0 z-30 shadow-md select-none gap-2 md:gap-4 overflow-hidden">
+      {/* LEFT: Brand & Store Identity (Always Fixed / Pinned on the left) */}
       <div 
-        className="flex items-center space-x-3 cursor-pointer group transition-transform active:scale-[0.99] shrink-0" 
+        className="flex items-center space-x-3 cursor-pointer group transition-transform active:scale-[0.99] shrink-0 z-10" 
         onClick={() => handleNavigate('pos')}
       >
         <div className="h-10 px-2 rounded-xl bg-white flex items-center justify-center shadow-md shadow-blue-500/10 border border-slate-700 shrink-0">
@@ -144,8 +144,10 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       </div>
 
-      {/* CENTER: Essential POS & Quick Actions (Clean, Balanced & Modern) */}
-      <div className="hidden md:flex items-center space-x-2 shrink-0">
+      {/* SCROLLABLE NAVIGATION & QUICK ACTIONS: Starts from Bán Hàng (F2) with smooth horizontal scroll */}
+      <div className="flex-1 flex items-center justify-end space-x-2.5 overflow-x-auto pos-toolbar-scroll py-1 shrink min-w-0 scroll-smooth">
+        {/* CENTER: Essential POS & Quick Actions */}
+        <div className="flex items-center space-x-2 shrink-0">
         {/* Main Action: Bán Hàng POS (F2) */}
         <button
           onClick={() => handleNavigate('pos')}
@@ -408,6 +410,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
       </div>
+    </div>
     </header>
   );
 };
