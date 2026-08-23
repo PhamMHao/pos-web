@@ -820,7 +820,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             title="Quét phiếu nhập kho bằng camera điện thoại & Import Excel (AI Vision)"
           >
             <Sparkles className="w-4 h-4 text-amber-300" />
-            <span>📷 Quét Phiếu Nhập Kho (AI)</span>
+            <span>Quét Phiếu Nhập Kho (AI)</span>
           </button>
 
           {onRefreshDb && (
@@ -847,7 +847,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             className="flex items-center space-x-1.5 px-3.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl shadow-md shadow-blue-600/25 border border-blue-400/30 transition-all hover:scale-[1.02] active:scale-98"
           >
             <FileCode2 className="w-4 h-4 text-blue-200" />
-            <span>📥 Nhập Kho Từ HĐĐT (Thuế / Gmail)</span>
+            <span>Nhập Kho Từ HĐĐT (Thuế / Gmail)</span>
             {pendingInboundCount > 0 && (
               <span className="px-1.5 py-0.2 bg-amber-400 text-slate-950 rounded-full text-[10px] font-black animate-pulse">
                 {pendingInboundCount}
@@ -861,7 +861,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             title="Quản lý điều chuyển hàng hóa giữa Kho Tổng và các Cửa hàng chi nhánh"
           >
             <Truck className="w-4 h-4 text-teal-200" />
-            <span>🚚 Chuyển Kho Nội Bộ ({transfers.length})</span>
+            <span>Chuyển Kho Nội Bộ ({transfers.length})</span>
           </button>
           <button
             onClick={() => {
@@ -881,7 +881,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             title="Mở bản xem trước và in tem mã vạch (30x20mm, 50x30mm, Tùy chỉnh)"
           >
             <Eye className="w-4 h-4 text-sky-200" />
-            <span>👁️ Xem Trước Tem (30x20, 50x30, Tùy Chỉnh)</span>
+            <span>Xem Trước Tem (30x20, 50x30, Tùy Chỉnh)</span>
           </button>
           <button
             onClick={() => {
@@ -906,7 +906,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             className="flex items-center space-x-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold rounded-xl transition-all shadow-lg shadow-emerald-500/20 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>+ Thêm Sản Phẩm Mới</span>
+            <span>Thêm Sản Phẩm Mới</span>
           </button>
         </div>
       </div>
@@ -930,7 +930,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             className="px-2.5 py-1.5 rounded-xl bg-cyan-950/60 hover:bg-cyan-900 text-cyan-300 border border-cyan-700/50 font-bold flex items-center space-x-1 transition cursor-pointer shadow-xs"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>+ SP Mới</span>
+            <span>SP Mới</span>
           </button>
           <button
             type="button"
@@ -938,7 +938,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold flex items-center space-x-1 transition cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>+ ĐVT</span>
+            <span>ĐVT</span>
           </button>
           <button
             type="button"
@@ -946,7 +946,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold flex items-center space-x-1 transition cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>+ NCC / Đối Tác</span>
+            <span>NCC / Đối Tác</span>
           </button>
           <button
             type="button"
@@ -954,7 +954,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold flex items-center space-x-1 transition cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>+ Vị Trí Kệ</span>
+            <span>Vị Trí Kệ</span>
           </button>
           <button
             type="button"
@@ -962,7 +962,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold flex items-center space-x-1 transition cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>+ Màu Sắc</span>
+            <span>Màu Sắc</span>
           </button>
           <button
             type="button"
@@ -970,7 +970,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold flex items-center space-x-1 transition cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>+ Phòng Ban</span>
+            <span>Phòng Ban</span>
           </button>
           <button
             type="button"
@@ -978,7 +978,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold flex items-center space-x-1 transition cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>+ Nhân Sự</span>
+            <span>Nhân Sự</span>
           </button>
         </div>
       </div>
@@ -1724,7 +1724,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                         title="Tải ảnh từ ổ đĩa máy tính hoặc kéo thả"
                       >
                         <Upload className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>+ Từ máy tính</span>
+                        <span>Từ máy tính</span>
                       </button>
 
                       <button
@@ -1734,7 +1734,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                         title="Mở thư viện ảnh sản phẩm HD & Tìm kiếm Web"
                       >
                         <Globe className="w-3.5 h-3.5 text-indigo-400" />
-                        <span>+ Từ Web</span>
+                        <span>Từ Web</span>
                       </button>
 
                       {formData.image && (
@@ -1879,7 +1879,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                         className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[10px] font-bold flex items-center space-x-1 shadow-sm transition-all"
                       >
                         <Plus className="w-3 h-3" />
-                        <span>+ Thêm ĐVT</span>
+                        <span>Thêm ĐVT</span>
                       </button>
                     </div>
                   </div>

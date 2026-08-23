@@ -559,7 +559,7 @@ export const QuickAddMasterDataModal: React.FC<QuickAddMasterDataModalProps> = (
                         title="Tải ảnh từ ổ đĩa máy tính"
                       >
                         <Upload className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>+ Từ máy tính</span>
+                        <span>Từ máy tính</span>
                       </button>
 
                       <button
@@ -569,7 +569,7 @@ export const QuickAddMasterDataModal: React.FC<QuickAddMasterDataModalProps> = (
                         title="Mở thư viện ảnh sản phẩm HD & Tìm kiếm Web"
                       >
                         <Globe className="w-3.5 h-3.5 text-indigo-400" />
-                        <span>+ Từ Web</span>
+                        <span>Từ Web</span>
                       </button>
 
                       {productForm.image && (
