@@ -136,12 +136,15 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
 
   // Direct browser print function
   const handleDirectPrint = () => {
-    if (onPrint) {
-      onPrint();
-      return;
-    }
-    window.print();
+    requestAnimationFrame(() => {
+      if (onPrint) {
+        onPrint();
+        return;
+      }
+      window.print();
+    });
   };
+  const handlePrint = handleDirectPrint;
 
   // Default Fallback Document Data
   const defaultDoc: DocumentSampleData = {
@@ -416,14 +419,17 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
                 children
               ) : (
                 /* Standard Business Document Structure */
-                <div className="w-full flex flex-col justify-between min-h-full font-sans text-slate-900">
+                <div
+                  className="w-full flex flex-col justify-between min-h-full font-serif text-slate-900"
+                  style={{ fontFamily: '"Tinos", "Noto Serif", "Times New Roman", Times, serif' }}
+                >
                   {/* Document Header */}
                   <div className="border-b border-slate-300 pb-3 mb-3">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-center space-x-3">
                         <GiaPhucLogo logoUrl={settings?.logoUrl} className="w-12 h-12 shrink-0" isPrint={true} size="sm" />
                         <div>
-                          <h1 className="text-sm md:text-base font-black text-slate-950 uppercase tracking-tight">
+                          <h1 className="text-sm md:text-base font-bold text-slate-950 uppercase tracking-normal">
                             {companyLegalName}
                           </h1>
                           <p className="text-[10px] text-slate-600 mt-0.5">📍 {companyAddress}</p>
@@ -443,7 +449,7 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
 
                     {/* Document Big Title */}
                     <div className="text-center mt-3 pt-2 border-t border-slate-100">
-                      <h2 className="text-base md:text-lg font-black text-blue-900 uppercase tracking-wide">
+                      <h2 className="text-base md:text-lg font-bold text-blue-900 uppercase tracking-normal">
                         {defaultDoc.title}
                       </h2>
                       <p className="text-[10px] italic text-slate-500">(Liên 1: Lưu nội bộ / Khách hàng giữ phiếu)</p>
@@ -526,9 +532,9 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
                         <span>Thuế GTGT ({defaultDoc.taxRate || 8}%):</span>
                         <span className="font-mono text-slate-900">{formatVND(defaultDoc.taxAmount || 0)}</span>
                       </div>
-                      <div className="flex justify-between text-xs font-black text-blue-900 pt-1 border-t border-slate-300">
+                      <div className="flex justify-between text-xs font-bold text-blue-900 pt-1 border-t border-slate-300">
                         <span>TỔNG THANH TOÁN:</span>
-                        <span className="font-mono text-sm">{formatVND(defaultDoc.totalAmount || 0)}</span>
+                        <span className="font-mono text-sm font-bold">{formatVND(defaultDoc.totalAmount || 0)}</span>
                       </div>
                       <div className="text-[10px] italic text-slate-600 text-right mt-0.5">
                         (Bằng chữ: <strong>{defaultDoc.amountInWords}</strong>)

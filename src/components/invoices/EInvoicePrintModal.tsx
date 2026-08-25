@@ -54,7 +54,9 @@ export const EInvoicePrintModal: React.FC<EInvoicePrintModalProps> = ({
   };
 
   const handlePrint = () => {
-    window.print();
+    requestAnimationFrame(() => {
+      window.print();
+    });
   };
 
   const handleCopyLookupLink = () => {
@@ -263,13 +265,16 @@ export const EInvoicePrintModal: React.FC<EInvoicePrintModalProps> = ({
         )}
 
         {/* Printable Official Invoice Content (A4 layout styling) */}
-        <div className="p-6 sm:p-10 max-h-[calc(88vh-80px)] overflow-y-auto print:max-h-none print:p-0 print:overflow-visible text-slate-800 font-sans">
+        <div
+          className="p-6 sm:p-10 max-h-[calc(88vh-80px)] overflow-y-auto print:max-h-none print:p-0 print:overflow-visible text-slate-800 font-serif"
+          style={{ fontFamily: '"Tinos", "Noto Serif", "Times New Roman", Times, serif' }}
+        >
           <div className="border border-slate-300 rounded-xl p-6 sm:p-8 bg-white shadow-sm print:border-0 print:p-2 print:shadow-none relative">
             
             {/* Watermark for draft status */}
             {invoice.status === 'draft' && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10 select-none">
-                <span className="text-7xl sm:text-8xl font-black text-rose-600 uppercase transform -rotate-45">
+                <span className="text-7xl sm:text-8xl font-bold text-rose-600 uppercase transform -rotate-45">
                   DỰ THẢO (CHƯA KÝ)
                 </span>
               </div>
@@ -278,7 +283,7 @@ export const EInvoicePrintModal: React.FC<EInvoicePrintModalProps> = ({
             {/* Header / National Title */}
             <div className="text-center pb-4 border-b border-slate-200">
               <div className="flex flex-col items-center">
-                <h4 className="text-xs font-bold uppercase tracking-widest text-slate-600">
+                <h4 className="text-xs font-bold uppercase tracking-normal text-slate-600">
                   CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
                 </h4>
                 <p className="text-xs font-semibold text-slate-600">Độc lập - Tự do - Hạnh phúc</p>
@@ -286,7 +291,7 @@ export const EInvoicePrintModal: React.FC<EInvoicePrintModalProps> = ({
               </div>
 
               <div className="mt-3">
-                <h1 className="text-xl sm:text-2xl font-black text-blue-900 uppercase tracking-tight">
+                <h1 className="text-xl sm:text-2xl font-bold text-blue-900 uppercase tracking-normal">
                   HÓA ĐƠN GIÁ TRỊ GIA TĂNG
                 </h1>
                 <p className="text-xs italic text-slate-500 font-medium">(HÓA ĐƠN ĐIỆN TỬ)</p>

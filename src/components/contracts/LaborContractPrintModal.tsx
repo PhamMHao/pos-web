@@ -17,9 +17,11 @@ import {
   ExternalLink,
   Award,
 } from 'lucide-react';
-import { LaborContract, StoreSettings } from '../../types';
+import { LaborContract, StoreSettings, DigitalSignatureMetadata } from '../../types';
 import { numberToVietnameseWords } from '../../utils/numberToWords';
 import { GiaPhucLogo } from '../common/GiaPhucLogo';
+import { DocumentSignerModal } from '../signatures/DocumentSignerModal';
+import { SignatureVerificationBadge } from '../signatures/SignatureVerificationBadge';
 
 interface LaborContractPrintModalProps {
   contract: LaborContract;
@@ -35,6 +37,8 @@ export const LaborContractPrintModal: React.FC<LaborContractPrintModalProps> = (
   onSignContract,
 }) => {
   const [showSignPad, setShowSignPad] = useState(false);
+  const [showCaSignModal, setShowCaSignModal] = useState(false);
+  const [caSignature, setCaSignature] = useState<DigitalSignatureMetadata | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -51,7 +55,9 @@ export const LaborContractPrintModal: React.FC<LaborContractPrintModalProps> = (
   };
 
   const handlePrint = () => {
-    window.print();
+    requestAnimationFrame(() => {
+      window.print();
+    });
   };
 
   // Canvas drawing functions
@@ -169,13 +175,28 @@ export const LaborContractPrintModal: React.FC<LaborContractPrintModalProps> = (
 
           <div className="flex items-center gap-2">
             {!contract.signatures.employeeSigned && (
-              <button
-                onClick={() => setShowSignPad(true)}
-                className="px-3.5 py-1.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-sm transition"
-              >
-                <PenTool className="w-3.5 h-3.5" />
-                Ký Tên Điện Tử Ngay
-              </button>
+              <>
+                <button
+                  onClick={() => setShowCaSignModal(true)}
+                  className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+                  title="Ký số từ xa SmartCA / USB Token chuẩn PAdES B-LT"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  Ký Số SmartCA (PAdES B-LT)
+                </button>
+
+                <button
+                  onClick={() => setShowSignPad(true)}
+                  className="px-3.5 py-1.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-sm transition"
+                >
+                  <PenTool className="w-3.5 h-3.5" />
+                  Vẽ Chữ Ký Tay
+                </button>
+              </>
+            )}
+
+            {caSignature && (
+              <SignatureVerificationBadge signature={caSignature} size="sm" />
             )}
 
             <button
@@ -218,7 +239,10 @@ export const LaborContractPrintModal: React.FC<LaborContractPrintModalProps> = (
         )}
 
         {/* Legal A4 Printable Content */}
-        <div className="p-6 sm:p-10 max-h-[calc(88vh-80px)] overflow-y-auto print:max-h-none print:p-0 print:overflow-visible text-slate-800 font-serif leading-relaxed text-xs sm:text-[13px]">
+        <div
+          className="p-6 sm:p-10 max-h-[calc(88vh-80px)] overflow-y-auto print:max-h-none print:p-0 print:overflow-visible text-slate-800 font-serif leading-relaxed text-xs sm:text-[13px]"
+          style={{ fontFamily: '"Tinos", "Noto Serif", "Times New Roman", Times, serif' }}
+        >
           <div className="border border-slate-300 rounded-xl p-6 sm:p-10 bg-white shadow-sm print:border-0 print:p-2 print:shadow-none space-y-4">
             {/* Header / National Title with Company Logo */}
             <div className="flex items-start justify-between border-b border-slate-200 pb-3">
@@ -226,14 +250,14 @@ export const LaborContractPrintModal: React.FC<LaborContractPrintModalProps> = (
                 <GiaPhucLogo logoUrl={settings?.logoUrl} size="xs" isPrint={true} />
               </div>
               <div className="text-center flex-1">
-                <h4 className="font-sans font-bold uppercase tracking-wider text-xs sm:text-sm text-slate-900">
+                <h4 className="font-serif font-bold uppercase tracking-normal text-xs sm:text-sm text-slate-900">
                   CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
                 </h4>
-                <p className="font-sans font-semibold text-xs sm:text-sm text-slate-800">
+                <p className="font-serif font-semibold text-xs sm:text-sm text-slate-800">
                   Độc lập - Tự do - Hạnh phúc
                 </p>
                 <div className="w-32 h-0.5 bg-slate-800 mx-auto my-1.5"></div>
-                <p className="text-[11px] italic font-sans text-slate-500 mt-2">
+                <p className="text-[11px] italic font-serif text-slate-500 mt-2">
                   TP. Hồ Chí Minh, {formatDate(contract.signDate)}
                 </p>
               </div>
@@ -242,13 +266,13 @@ export const LaborContractPrintModal: React.FC<LaborContractPrintModalProps> = (
 
             {/* Document Title */}
             <div className="text-center py-2 border-b border-slate-200">
-              <h1 className="font-sans text-xl sm:text-2xl font-black text-slate-900 uppercase tracking-tight">
+              <h1 className="font-serif text-xl sm:text-2xl font-bold text-slate-900 uppercase tracking-normal">
                 HỢP ĐỒNG LAO ĐỘNG
               </h1>
-              <p className="text-xs font-sans text-slate-600 font-medium mt-0.5">
+              <p className="text-xs font-serif text-slate-600 font-medium mt-0.5">
                 (Số: <span className="font-mono font-bold text-slate-900">{contract.contractNumber}</span>)
               </p>
-              <p className="text-[11px] font-sans text-slate-500 italic mt-0.5">
+              <p className="text-[11px] font-serif text-slate-500 italic mt-0.5">
                 (Căn cứ Bộ luật Lao động số 45/2019/QH14 và các văn bản hướng dẫn thi hành hiện hành)
               </p>
             </div>
@@ -614,6 +638,36 @@ export const LaborContractPrintModal: React.FC<LaborContractPrintModalProps> = (
             </div>
           </div>
         </div>
+      )}
+
+      {/* CA Digital Signer Modal */}
+      {showCaSignModal && (
+        <DocumentSignerModal
+          document={{
+            id: contract.id,
+            code: contract.contractNumber,
+            title: `Hợp Đồng Lao Động - ${contract.employeeName} (${contract.employeeRole})`,
+            type: 'contract',
+            typeLabel: 'Hợp Đồng Lao Động',
+            createdAt: contract.signDate,
+            totalAmount: totalGuaranteedIncome,
+            creatorName: 'Phòng Nhân Sự HR',
+            recipientName: contract.employeeName,
+            status: 'pending',
+            legalStandard: 'PAdES B-LT (ETSI EN 319 142)',
+          }}
+          settings={settings}
+          onClose={() => setShowCaSignModal(false)}
+          onSignSuccess={(sig) => {
+            setCaSignature(sig);
+            setShowCaSignModal(false);
+            if (onSignContract) {
+              onSignContract(contract.id, 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="60"><text x="10" y="35" fill="%231e3a8a" font-weight="bold" font-family="sans-serif">DIGITALLY SIGNED (PAdES B-LT)</text></svg>');
+            }
+            setNotification('Đã ký số điện tử SmartCA Hợp Đồng Lao Động thành công (Chuẩn PAdES B-LT)!');
+            setTimeout(() => setNotification(null), 4000);
+          }}
+        />
       )}
     </div>
   );

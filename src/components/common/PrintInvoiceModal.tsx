@@ -63,6 +63,7 @@ export interface PrintInvoiceModalProps {
     companyName?: string;
   };
   initialDocType?: PrintDocType;
+  initialPaperSize?: PaperSize;
   settings: StoreSettings;
   orderCode?: string;
   subtotal?: number;
@@ -85,6 +86,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
   items: propItems,
   customer: propCustomer,
   initialDocType = 'sales_invoice',
+  initialPaperSize,
   settings,
   orderCode: propOrderCode,
   subtotal: propSubtotal,
@@ -102,7 +104,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
   // Document Configuration State
   const [docType, setDocType] = useState<PrintDocType>(initialDocType);
   const [paperSize, setPaperSize] = useState<PaperSize>(
-    settings.printDocConfigs?.[initialDocType]?.paperSize || settings.defaultPrintPaperSize || 'A4'
+    initialPaperSize || settings.printDocConfigs?.[initialDocType]?.paperSize || settings.defaultPrintPaperSize || 'A4'
   );
   const [orientation, setOrientation] = useState<'portrait' | 'landscape'>(
     settings.printDocConfigs?.[initialDocType]?.orientation || settings.defaultPrintOrientation || 'portrait'
@@ -121,7 +123,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
   const [showEditor, setShowEditor] = useState<boolean>(false);
   const [showBarcode, setShowBarcode] = useState<boolean>(true);
   const [showDocQr, setShowDocQr] = useState<boolean>(true);
-  const [codePlacement, setCodePlacement] = useState<'footer' | 'header' | 'split' | 'both'>('split');
+  const [codePlacement, setCodePlacement] = useState<'header' | 'footer' | 'both'>('header');
   const [showVietQR, setShowVietQR] = useState<boolean>(
     settings.printDocConfigs?.[initialDocType]?.showVietQR !== undefined
       ? settings.printDocConfigs[initialDocType]!.showVietQR
@@ -381,7 +383,9 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
   }, [settings, calculatedGrandTotal, docNumber, brandTitle]);
 
   const handlePrint = () => {
-    window.print();
+    requestAnimationFrame(() => {
+      window.print();
+    });
   };
 
   useEffect(() => {
@@ -613,10 +617,10 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
               <span className="text-[10px] text-slate-400 font-bold px-2">Vị trí mã:</span>
               <button
                 type="button"
-                onClick={() => setCodePlacement('split')}
-                title="Mã vạch trên đầu (cân phiếu), Mã QR ở chân trang"
+                onClick={() => setCodePlacement('header')}
+                title="Mã vạch & Mã QR ở đầu trang"
                 className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  codePlacement === 'split' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                  codePlacement === 'header' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
                 Đầu trang (Cân phiếu)
@@ -624,7 +628,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
               <button
                 type="button"
                 onClick={() => setCodePlacement('footer')}
-                title="Toàn bộ mã ở chân trang"
+                title="Mã vạch & Mã QR ở chân trang"
                 className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
                   codePlacement === 'footer' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
                 }`}
@@ -956,17 +960,17 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                   {/* Code Placement Options */}
                   <div className="pt-1">
                     <label className="block text-slate-400 mb-1 font-bold">Vị trí in Mã vạch & QR:</label>
-                    <div className="grid grid-cols-2 gap-1 bg-slate-950 p-1 rounded-xl border border-slate-700">
+                    <div className="grid grid-cols-3 gap-1 bg-slate-950 p-1 rounded-xl border border-slate-700">
                       <button
                         type="button"
-                        onClick={() => setCodePlacement('split')}
+                        onClick={() => setCodePlacement('header')}
                         className={`px-2 py-1.5 rounded-lg text-[10px] font-bold text-center transition-all ${
-                          codePlacement === 'split'
+                          codePlacement === 'header'
                             ? 'bg-blue-600 text-white shadow-sm'
                             : 'text-slate-400 hover:text-slate-200'
                         }`}
                       >
-                        Cân đối (Mã trên / QR dưới)
+                        Đầu trang
                       </button>
                       <button
                         type="button"
@@ -977,18 +981,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                             : 'text-slate-400 hover:text-slate-200'
                         }`}
                       >
-                        Chân trang (Dưới cùng)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCodePlacement('header')}
-                        className={`px-2 py-1.5 rounded-lg text-[10px] font-bold text-center transition-all ${
-                          codePlacement === 'header'
-                            ? 'bg-blue-600 text-white shadow-sm'
-                            : 'text-slate-400 hover:text-slate-200'
-                        }`}
-                      >
-                        Đầu phiếu (Trên cùng)
+                        Cuối trang
                       </button>
                       <button
                         type="button"
@@ -999,7 +992,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                             : 'text-slate-400 hover:text-slate-200'
                         }`}
                       >
-                        Cả hai vị trí
+                        Cả 2 vị trí
                       </button>
                     </div>
                   </div>
@@ -1135,7 +1128,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
           <div className="flex-1 overflow-auto p-2 sm:p-6 flex justify-center items-start bg-slate-900/80">
             <div
               id="printable-area"
-              className={`printable-document shadow-2xl transition-all duration-150 font-sans text-black bg-white ${
+              className={`printable-document shadow-2xl transition-all duration-150 font-serif text-black bg-white ${
                 paperSize === 'K58'
                   ? 'paper-size-K58'
                   : paperSize === 'K80'
@@ -1149,7 +1142,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                   : 'paper-size-A4-portrait'
               }`}
               style={{
-                fontFamily: 'Arial, "Times New Roman", -apple-system, sans-serif',
+                fontFamily: '"Tinos", "Noto Serif", "Times New Roman", Times, serif',
                 lineHeight: paperSize === 'K58' ? '1.2' : paperSize === 'A5' ? '1.25' : '1.35',
               }}
             >
@@ -1157,7 +1150,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                   A4 / A5 Form Layout (Exact Pixel-Perfect Match to 6 Real Images)
                   ========================================================================= */}
               {paperSize !== 'K80' && paperSize !== 'K58' ? (
-                <div className="w-full text-black flex flex-col justify-between h-full">
+                <div className="w-full text-black flex flex-col justify-between h-full font-serif">
                   {/* -------------------------------------------------------------
                       DOCUMENT HEADER & METADATA SELECTOR
                       ------------------------------------------------------------- */}
@@ -1182,7 +1175,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                             </div>
                           )}
                           <div className="text-left">
-                            <div className="font-black text-[10pt] uppercase text-blue-950 leading-tight">
+                            <div className="font-bold text-[10.5pt] uppercase text-blue-950 leading-tight">
                               {companyName}
                             </div>
                             <div className="text-[7.5pt] text-gray-800 leading-tight mt-0.5">
@@ -1196,7 +1189,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
 
                         {/* Center: Quốc Hiệu Tiêu Ngữ */}
                         <div className="text-center flex-1">
-                          <div className="font-bold text-[9pt] uppercase tracking-wider text-black">
+                          <div className="font-bold text-[9pt] uppercase tracking-normal text-black">
                             CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
                           </div>
                           <div className="font-bold text-[8.5pt] italic text-black">
@@ -1206,7 +1199,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                         </div>
 
                         {/* Right: Mã Vạch / QR Code */}
-                        {showBarcode && (codePlacement === 'split' || codePlacement === 'header' || codePlacement === 'both') && (
+                        {(showBarcode || showDocQr) && (codePlacement === 'header' || codePlacement === 'both') && (
                           <div className="flex-shrink-0 flex flex-col items-end">
                             <SlipBarcodeQR
                               docCode={docNumber}
@@ -1215,11 +1208,11 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                               customerName={customerName}
                               totalAmount={calculatedGrandTotal}
                               paperSize={paperSize}
-                              showBarcode={true}
-                              showQr={codePlacement === 'header' || codePlacement === 'both'}
-                              renderMode={codePlacement === 'split' ? 'barcode_only' : 'both'}
+                              showBarcode={showBarcode}
+                              showQr={showDocQr}
+                              renderMode={showBarcode && showDocQr ? 'both' : showBarcode ? 'barcode_only' : 'qr_only'}
                               align="right"
-                              layout="column"
+                              layout="row"
                               className="my-0"
                             />
                           </div>
@@ -1228,7 +1221,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
 
                       {/* Tiêu đề & Căn cứ pháp lý */}
                       <div className="text-center mt-2">
-                        <h2 className="text-[14pt] font-black uppercase tracking-wider text-black">
+                        <h2 className="text-[14pt] font-bold uppercase tracking-normal text-black">
                           BIÊN BẢN GIAO NHẬN HÀNG HÓA
                         </h2>
                         <div className="text-[8pt] text-gray-700 italic">
@@ -1243,7 +1236,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                       <div className="mt-2 space-y-1.5 text-[8pt] text-gray-900 border border-black p-2 rounded bg-gray-50/50">
                         <div>
                           <div className="font-bold uppercase text-black text-[8.5pt]">
-                            BÊN A (BÊN BÁN): <span className="font-black">{companyName}</span>
+                            BÊN A (BÊN BÁN): <span className="font-bold">{companyName}</span>
                           </div>
                           <div className="grid grid-cols-12 gap-x-2 pl-3 pt-0.5 leading-snug">
                             <div className="col-span-12"><strong>Địa chỉ:</strong> {companyAddress}</div>
@@ -1257,7 +1250,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
 
                         <div className="pt-1 border-t border-dotted border-gray-400">
                           <div className="font-bold uppercase text-black text-[8.5pt]">
-                            BÊN B (BÊN MUA): <span className="font-black">{customerName}</span>
+                            BÊN B (BÊN MUA): <span className="font-bold">{customerName}</span>
                           </div>
                           <div className="grid grid-cols-12 gap-x-2 pl-3 pt-0.5 leading-snug">
                             <div className="col-span-8"><strong>Địa chỉ:</strong> {customerAddress || 'Tại cửa hàng'}</div>
@@ -1274,7 +1267,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                       <div className="flex items-start justify-between gap-4">
                         {/* Left: Doanh nghiệp */}
                         <div className="flex-1">
-                          <div className="font-black text-[10pt] uppercase text-black">{companyName}</div>
+                          <div className="font-bold text-[10.5pt] uppercase text-black">{companyName}</div>
                           <div className="text-[7.5pt] text-gray-800 leading-tight">{companyAddress}</div>
                           <div className="text-[7.5pt] text-gray-700">Điện thoại: {companyPhone}</div>
                         </div>
@@ -1298,7 +1291,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
 
                       {/* Tiêu đề & Ngày tháng */}
                       <div className="text-center mt-2">
-                        <h2 className="text-[15pt] font-black uppercase tracking-wider text-black">
+                        <h2 className="text-[15pt] font-bold uppercase tracking-normal text-black">
                           HÀNG BÁN TRẢ LẠI
                         </h2>
                         <div className="text-[8pt] text-gray-700 italic">
@@ -1353,8 +1346,8 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                           <div className="flex-1 text-center sm:text-left pl-1">
                             <h1
                               className={`${
-                                paperSize === 'A5' ? 'text-[10pt]' : 'text-[12pt]'
-                              } font-black uppercase text-blue-950 tracking-tight leading-tight`}
+                                paperSize === 'A5' ? 'text-[10.5pt]' : 'text-[12.5pt]'
+                              } font-bold uppercase text-blue-950 tracking-normal leading-tight`}
                             >
                               {companyName}
                             </h1>
@@ -1392,7 +1385,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                           </div>
 
                           {/* Right: Top-Right Barcode & QR Box (Cân đối đầu trang - Đúng vị trí khoanh đỏ Ảnh 1) */}
-                          {showBarcode && (codePlacement === 'split' || codePlacement === 'header' || codePlacement === 'both') && (
+                          {(showBarcode || showDocQr) && (codePlacement === 'header' || codePlacement === 'both') && (
                             <div className="flex-shrink-0 flex flex-col items-end justify-start pl-2 pt-0.5">
                               <SlipBarcodeQR
                                 docCode={docNumber}
@@ -1401,11 +1394,11 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                                 customerName={customerName}
                                 totalAmount={calculatedGrandTotal}
                                 paperSize={paperSize}
-                                showBarcode={true}
-                                showQr={codePlacement === 'header' || codePlacement === 'both'}
-                                renderMode={codePlacement === 'split' ? 'barcode_only' : 'both'}
+                                showBarcode={showBarcode}
+                                showQr={showDocQr}
+                                renderMode={showBarcode && showDocQr ? 'both' : showBarcode ? 'barcode_only' : 'qr_only'}
                                 align="right"
-                                layout="column"
+                                layout="row"
                                 className="my-0"
                               />
                             </div>
@@ -1418,7 +1411,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                         <h2
                           className={`${
                             paperSize === 'A5' ? 'text-[12pt]' : 'text-[15pt]'
-                          } font-black uppercase tracking-wider text-black`}
+                          } font-bold uppercase tracking-normal text-black`}
                         >
                           {getDocTitle()}
                         </h2>
@@ -2076,14 +2069,14 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                         )}
 
                         {/* TỔNG CỘNG */}
-                        <tr className="border-t-2 border-black bg-gray-100 font-black">
+                        <tr className="border-t-2 border-black bg-gray-100 font-bold">
                           <td
                             colSpan={docType === 'exchange_return' ? 12 : docType === 'warranty_intake' || docType === 'warranty_return' || docType === 'sales_order' ? 5 : 6}
-                            className="border border-black px-3 py-1 text-right uppercase text-black"
+                            className="border border-black px-3 py-1 text-right uppercase text-black font-bold"
                           >
                             TỔNG CỘNG:
                           </td>
-                          <td className="border border-black px-2 py-1 text-right font-mono text-[9pt] sm:text-[10pt] font-black text-black">
+                          <td className="border border-black px-2 py-1 text-right font-mono text-[9pt] sm:text-[10pt] font-bold text-black">
                             {formatVND(calculatedGrandTotal).replace(' ₫', '')}
                           </td>
                           <td className="border border-black px-1 py-1 text-center text-[7pt] font-bold text-black">
@@ -2156,7 +2149,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                     )}
 
                     {/* Barcode 1D & QR Code Tra Cứu Footer */}
-                    {(showBarcode || showDocQr) && (codePlacement === 'footer' || codePlacement === 'split' || codePlacement === 'both') && (
+                    {(showBarcode || showDocQr) && (codePlacement === 'footer' || codePlacement === 'both') && (
                       <div className="py-1 border-t border-dotted border-gray-300">
                         <SlipBarcodeQR
                           docCode={docNumber}
@@ -2164,13 +2157,14 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                           date={docDateStr}
                           customerName={customerName}
                           totalAmount={calculatedGrandTotal}
-                          showBarcode={codePlacement === 'footer' || codePlacement === 'both'}
+                          showBarcode={showBarcode}
                           showQr={showDocQr}
-                          renderMode={codePlacement === 'split' ? 'qr_only' : 'both'}
+                          renderMode={showBarcode && showDocQr ? 'both' : showBarcode ? 'barcode_only' : 'qr_only'}
                           paperSize={paperSize}
                           vietQrUrl={qrUrl}
                           qrPayloadMode={showVietQR ? 'vietqr' : 'erp_smart'}
-                          align={codePlacement === 'split' ? 'center' : 'between'}
+                          align="between"
+                          layout="row"
                         />
                       </div>
                     )}
@@ -2182,14 +2176,14 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                         <div className="grid grid-cols-2 gap-4 text-center">
                           <div className="flex flex-col items-center justify-between min-h-[75px]">
                             <div>
-                              <div className="font-black text-[9pt] uppercase text-black">ĐẠI DIỆN BÊN BÁN (BÊN A)</div>
+                              <div className="font-bold text-[9pt] uppercase text-black">ĐẠI DIỆN BÊN BÁN (BÊN A)</div>
                               <div className="text-[7.5pt] text-gray-600 italic">(Ký và ghi rõ họ tên)</div>
                             </div>
                             <div className="font-bold text-black text-[8.5pt] pt-8">{creator}</div>
                           </div>
                           <div className="flex flex-col items-center justify-between min-h-[75px]">
                             <div>
-                              <div className="font-black text-[9pt] uppercase text-black">ĐẠI DIỆN BÊN MUA (BÊN B)</div>
+                              <div className="font-bold text-[9pt] uppercase text-black">ĐẠI DIỆN BÊN MUA (BÊN B)</div>
                               <div className="text-[7.5pt] text-gray-600 italic">(Ký và ghi rõ họ tên)</div>
                             </div>
                             <div className="font-bold text-black text-[8.5pt] pt-8">{recipientName || customerName}</div>
@@ -2344,7 +2338,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                   </div>
 
                   <div className="text-center py-0.5">
-                    <div className={`font-bold ${paperSize === 'K58' ? 'text-[9.5pt]' : 'text-[11pt]'} uppercase tracking-wider`}>{getDocTitle()}</div>
+                    <div className={`font-bold ${paperSize === 'K58' ? 'text-[9.5pt]' : 'text-[11pt]'} uppercase tracking-normal`}>{getDocTitle()}</div>
                     <div className={`${paperSize === 'K58' ? 'text-[6.5pt]' : 'text-[7.5pt]'} text-gray-600`}>{docDateStr}</div>
                     <div className={`${paperSize === 'K58' ? 'text-[7.5pt]' : 'text-[8pt]'} font-bold`}>Số: {docNumber}</div>
                   </div>
@@ -2372,14 +2366,14 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                   {/* Thermal Items: 2-Line Optimized Layout for K58 & Compact Table for K80 */}
                   {paperSize === 'K58' ? (
                     /* K58 2-Line Compressed Item Rows */
-                    <div className="border-b border-dashed border-black pb-1.5 space-y-1.5">
+                    <div className="border-b border-dashed border-black pb-1.5 space-y-1.5 font-serif">
                       <div className="text-[7pt] font-bold text-gray-500 uppercase border-b border-black pb-0.5 flex justify-between">
                         <span>Tên hàng & Đơn giá</span>
                         <span>Thành tiền</span>
                       </div>
                       {itemsList.map((it, idx) => (
                         <div key={idx} className="border-b border-dotted border-gray-300 pb-1 text-[7.5pt]">
-                          <div className="font-bold text-black font-sans leading-tight">
+                          <div className="font-bold text-black font-serif leading-tight">
                             {idx + 1}. {it.productName}
                           </div>
                           <div className="flex justify-between items-center text-[7pt] text-gray-700 mt-0.5">
@@ -2396,8 +2390,8 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                     </div>
                   ) : (
                     /* K80 Standard 3-Column Table */
-                    <div className="border-b border-dashed border-black pb-1.5">
-                      <table className="w-full text-left text-[8pt]">
+                    <div className="border-b border-dashed border-black pb-1.5 font-serif">
+                      <table className="w-full text-left text-[8pt] font-serif">
                         <thead>
                           <tr className="border-b border-black font-bold">
                             <th className="py-1">Mặt hàng</th>
@@ -2408,7 +2402,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                         <tbody>
                           {itemsList.map((it, idx) => (
                             <tr key={idx} className="border-b border-gray-200">
-                              <td className="py-1 pr-1 font-sans">
+                              <td className="py-1 pr-1 font-serif">
                                 <div className="font-semibold text-black">{it.productName}</div>
                                 <div className="text-[7pt] text-gray-600">
                                   {it.quantity} x {formatVND(it.unitPrice)}
@@ -2426,7 +2420,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                   )}
 
                   {/* Thermal Totals */}
-                  <div className={`space-y-1 ${paperSize === 'K58' ? 'text-[7.5pt]' : 'text-[8.5pt]'}`}>
+                  <div className={`space-y-1 ${paperSize === 'K58' ? 'text-[7.5pt]' : 'text-[8.5pt]'} font-serif`}>
                     <div className="flex justify-between">
                       <span>Cộng tiền hàng:</span>
                       <strong className="font-mono">{formatVND(calculatedSubtotal)}</strong>
@@ -2437,9 +2431,9 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                         <strong className="font-mono">{formatVND(calculatedTaxAmount)}</strong>
                       </div>
                     )}
-                    <div className={`flex justify-between ${paperSize === 'K58' ? 'text-[8.5pt]' : 'text-[10pt]'} font-black border-t border-black pt-1`}>
+                    <div className={`flex justify-between ${paperSize === 'K58' ? 'text-[8.5pt]' : 'text-[10pt]'} font-bold border-t border-black pt-1`}>
                       <span>TỔNG CỘNG:</span>
-                      <span className="font-mono text-black">{formatVND(calculatedGrandTotal)}</span>
+                      <span className="font-mono text-black font-bold">{formatVND(calculatedGrandTotal)}</span>
                     </div>
                     <div className={`${paperSize === 'K58' ? 'text-[6.5pt]' : 'text-[7.5pt]'} italic text-gray-700 pt-0.5`}>
                       Bằng chữ: {amountInWords}

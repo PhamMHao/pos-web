@@ -9,10 +9,11 @@ import {
   Check, 
   Sparkles,
   Copy,
-  Receipt
+  Receipt,
+  Printer
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { Customer, PaymentMethod, StoreSettings, Order } from '../../types';
+import { Customer, PaymentMethod, StoreSettings, Order, PaperSize } from '../../types';
 import { formatVND, generateVietQRUrl } from '../../utils/vietqr';
 
 export interface EInvoiceRequestData {
@@ -42,6 +43,7 @@ interface CheckoutModalProps {
     changeAmount: number;
     paymentStatus: 'paid' | 'unpaid';
     note?: string;
+    paperSize?: PaperSize;
     eInvoiceData?: EInvoiceRequestData;
   }) => Order;
   onClose: () => void;
@@ -64,6 +66,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   onClose,
 }) => {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+  const [selectedPaperSize, setSelectedPaperSize] = useState<PaperSize>('A4');
   const [cashGiven, setCashGiven] = useState<number>(total);
   const [orderNote, setOrderNote] = useState(initialNote);
   const [isCopied, setIsCopied] = useState(false);
@@ -107,9 +110,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setTimeout(() => setIsCopied(false), 2000);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const handleConfirmWithPaperSize = (paperSizeToUse: PaperSize) => {
     let paid = total;
     let change = 0;
     let status: 'paid' | 'unpaid' = 'paid';
@@ -129,6 +130,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       changeAmount: change,
       paymentStatus: status,
       note: orderNote,
+      paperSize: paperSizeToUse,
       eInvoiceData: wantEInvoice
         ? {
             requestEInvoice: true,
@@ -150,6 +152,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setCompletedOrder(order);
   };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleConfirmWithPaperSize(selectedPaperSize);
+  };
+
   return (
     <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-slate-900 text-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-800 overflow-hidden animate-in fade-in zoom-in-95 max-h-[90vh] flex flex-col">
@@ -160,10 +167,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <Receipt className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-white">Thanh Toán Đơn Hàng</h3>
+              <h3 className="font-bold text-sm text-white">Thanh Toán Đơn Hàng & Chọn Khổ In</h3>
               <p className="text-xs text-slate-400">
-                {itemsCount} món hàng • Khách:{' '}
-                {selectedCustomer ? selectedCustomer.name : 'Khách lẻ vãng lai'}
+                {itemsCount} sản phẩm • Tổng tiền: {formatVND(total)}
               </p>
             </div>
           </div>
@@ -238,6 +244,70 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   </button>
                 );
               })}
+            </div>
+          </div>
+
+          {/* Chọn Khổ Giấy In Hóa Đơn / Phiếu Bán Hàng (Đúng mẫu Ảnh 2) */}
+          <div className="bg-slate-800/40 p-3.5 rounded-xl border border-slate-700/80 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-200 flex items-center space-x-2">
+                <Printer className="w-4 h-4 text-blue-400" />
+                <span>Chọn Khổ Giấy In Hóa Đơn / Phiếu Bán Hàng:</span>
+              </label>
+              <span className="text-[10px] text-slate-400">Tùy chọn khổ giấy chuẩn</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              {/* Option A4 */}
+              <button
+                type="button"
+                onClick={() => setSelectedPaperSize('A4')}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                  selectedPaperSize === 'A4'
+                    ? 'bg-blue-600/20 border-blue-500 text-blue-300 ring-2 ring-blue-500/40 shadow-sm'
+                    : 'bg-slate-900 border-slate-700/70 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                }`}
+              >
+                <div className="font-bold text-xs flex items-center space-x-1.5 text-white">
+                  <span>📄</span>
+                  <span>Khổ A4 (Chuẩn)</span>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">Toàn trang, có QR & Chữ ký</p>
+              </button>
+
+              {/* Option A5 */}
+              <button
+                type="button"
+                onClick={() => setSelectedPaperSize('A5')}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                  selectedPaperSize === 'A5'
+                    ? 'bg-blue-600/20 border-blue-500 text-blue-300 ring-2 ring-blue-500/40 shadow-sm'
+                    : 'bg-slate-900 border-slate-700/70 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                }`}
+              >
+                <div className="font-bold text-xs flex items-center space-x-1.5 text-white">
+                  <span>📑</span>
+                  <span>Khổ A5 (Gọn Nhẹ)</span>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">Nửa trang A4, tiết kiệm giấy</p>
+              </button>
+
+              {/* Option K80 */}
+              <button
+                type="button"
+                onClick={() => setSelectedPaperSize('K80')}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                  selectedPaperSize === 'K80'
+                    ? 'bg-blue-600/20 border-blue-500 text-blue-300 ring-2 ring-blue-500/40 shadow-sm'
+                    : 'bg-slate-900 border-slate-700/70 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                }`}
+              >
+                <div className="font-bold text-xs flex items-center space-x-1.5 text-white">
+                  <span>🧾</span>
+                  <span>Khổ K80 (Bill Nhiệt)</span>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">Cuộn 80mm máy in POS</p>
+              </button>
             </div>
           </div>
 
@@ -446,23 +516,44 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-slate-800 flex justify-end space-x-2 shrink-0 bg-slate-900/90">
+        {/* Footer (Đúng mẫu Ảnh 2) */}
+        <div className="p-4 border-t border-slate-800 flex items-center justify-between shrink-0 bg-slate-900/90 gap-2">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 rounded-xl hover:bg-slate-700 transition-colors"
+            className="px-4 py-2 text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 rounded-xl hover:bg-slate-700 transition-colors cursor-pointer"
           >
             Quay Lại
           </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            className="px-6 py-2 text-xs font-bold text-slate-950 bg-emerald-500 hover:bg-emerald-400 rounded-xl transition-all shadow-lg shadow-emerald-500/25 flex items-center space-x-2"
-          >
-            <Check className="w-4 h-4" />
-            <span>Hoàn Tất & In Hóa Đơn ({formatVND(total)})</span>
-          </button>
+
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={() => handleConfirmWithPaperSize('A4')}
+              className="px-3.5 py-2 text-xs font-bold text-white bg-blue-700 hover:bg-blue-600 rounded-xl transition-all flex items-center space-x-1.5 shadow-sm cursor-pointer"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>In Khổ A4</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleConfirmWithPaperSize('A5')}
+              className="px-3.5 py-2 text-xs font-bold text-white bg-cyan-800 hover:bg-cyan-700 rounded-xl transition-all flex items-center space-x-1.5 shadow-sm cursor-pointer"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>In Khổ A5</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleConfirmWithPaperSize(selectedPaperSize)}
+              className="px-5 py-2 text-xs font-bold text-slate-950 bg-emerald-500 hover:bg-emerald-400 rounded-xl transition-all shadow-lg shadow-emerald-500/25 flex items-center space-x-1.5 cursor-pointer"
+            >
+              <Check className="w-4 h-4" />
+              <span>Hoàn Tất & In ({selectedPaperSize})</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

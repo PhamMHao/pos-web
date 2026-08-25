@@ -101,18 +101,33 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
   }
 }
 
+function normalizeBackendRole(role?: string | null): string {
+  if (!role) return "cashier";
+  const clean = role.toLowerCase().trim();
+  if (clean === "admin" || clean === "quản trị viên" || clean === "quantrivien") return "admin";
+  if (clean === "manager" || clean === "quản lý" || clean === "quanly" || clean === "quản lý cửa hàng") return "manager";
+  if (clean === "cashier" || clean === "thu ngân" || clean === "thungan") return "cashier";
+  if (clean === "warehouse" || clean === "thủ kho" || clean === "thukho") return "warehouse";
+  if (clean === "accountant" || clean === "kế toán" || clean === "ketoan") return "accountant";
+  if (clean === "sales" || clean === "kinh doanh" || clean === "bán hàng" || clean === "banhang") return "sales";
+  if (clean === "technician" || clean === "kỹ thuật" || clean === "kythuat" || clean === "kỹ thuật viên") return "technician";
+  return clean;
+}
+
 export function requireRole(allowedRoles: string[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
       return next(new UnauthorizedError("Bạn chưa đăng nhập"));
     }
 
-    if (req.user.role === "admin" || req.user.role === "Admin") {
+    const userRoleNorm = normalizeBackendRole(req.user.role);
+    if (userRoleNorm === "admin") {
       // Super admin always has access
       return next();
     }
 
-    if (!allowedRoles.includes(req.user.role)) {
+    const normalizedAllowed = allowedRoles.map(normalizeBackendRole);
+    if (!normalizedAllowed.includes(userRoleNorm)) {
       return next(
         new ForbiddenError(
           `Bạn không có quyền truy cập chức năng này. Quyền yêu cầu: [${allowedRoles.join(", ")}]`

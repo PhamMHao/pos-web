@@ -136,7 +136,7 @@ export function useStoreState() {
     getStoredItem(KEYS.LABOR_CONTRACTS, [])
   );
   const [inboundInvoices, setInboundInvoicesState] = useState<InboundEInvoice[]>(() =>
-    getStoredItem(KEYS.INBOUND_INVOICES, [])
+    getStoredItem(KEYS.INBOUND_INVOICES, INITIAL_INBOUND_INVOICES)
   );
   const [stockReceipts, setStockReceiptsState] = useState<StockGoodsReceipt[]>(() =>
     getStoredItem(KEYS.STOCK_RECEIPTS, [])

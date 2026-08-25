@@ -36,12 +36,14 @@ export const WarrantyPrintModal: React.FC<WarrantyPrintModalProps> = ({
   printMode = 'receipt',
 }) => {
   const [paperSize, setPaperSize] = useState<PaperSize>('A4');
-  const [codePlacement, setCodePlacement] = useState<'split' | 'footer' | 'header'>('split');
+  const [codePlacement, setCodePlacement] = useState<'header' | 'footer' | 'both'>('header');
 
   if (!isOpen || !ticket) return null;
 
   const handlePrint = () => {
-    window.print();
+    requestAnimationFrame(() => {
+      window.print();
+    });
   };
 
   const isHandover = printMode === 'handover' || ticket.status === 'returned' || ticket.status === 'ready_to_return';
@@ -94,12 +96,12 @@ export const WarrantyPrintModal: React.FC<WarrantyPrintModalProps> = ({
             <div className="flex items-center bg-slate-800 rounded-xl p-0.5 text-xs">
               <button
                 type="button"
-                onClick={() => setCodePlacement('split')}
+                onClick={() => setCodePlacement('header')}
                 className={`px-2.5 py-1 rounded-lg font-bold text-[10px] transition-all ${
-                  codePlacement === 'split' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
+                  codePlacement === 'header' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Mã trên/QR dưới
+                Đầu trang
               </button>
               <button
                 type="button"
@@ -108,7 +110,16 @@ export const WarrantyPrintModal: React.FC<WarrantyPrintModalProps> = ({
                   codePlacement === 'footer' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Chân trang
+                Cuối trang
+              </button>
+              <button
+                type="button"
+                onClick={() => setCodePlacement('both')}
+                className={`px-2.5 py-1 rounded-lg font-bold text-[10px] transition-all ${
+                  codePlacement === 'both' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Cả 2
               </button>
             </div>
 
@@ -129,13 +140,16 @@ export const WarrantyPrintModal: React.FC<WarrantyPrintModalProps> = ({
         </div>
 
         {/* Printable Paper Document */}
-        <div className="p-6 sm:p-8 overflow-y-auto flex-1 bg-white text-slate-900 text-xs space-y-6 print:p-0 print:space-y-4">
+        <div
+          className="p-6 sm:p-8 overflow-y-auto flex-1 bg-white text-slate-900 font-serif text-xs space-y-6 print:p-0 print:space-y-4"
+          style={{ fontFamily: '"Tinos", "Noto Serif", "Times New Roman", Times, serif' }}
+        >
           {/* Header of Document */}
           <div className="flex items-start justify-between border-b-2 border-slate-900 pb-4">
             <div className="flex items-start space-x-3">
               <GiaPhucLogo logoUrl={settings?.logoUrl} size="sm" isPrint={true} />
               <div className="space-y-1">
-                <h2 className="text-base font-black uppercase text-slate-900 tracking-wider">
+                <h2 className="text-base font-bold uppercase text-slate-900 tracking-normal">
                   {settings?.storeName || 'TRUNG TÂM BẢO HÀNH & KỸ THUẬT GP-ERP'}
                 </h2>
                 <p className="text-[11px] text-slate-600">
@@ -148,7 +162,7 @@ export const WarrantyPrintModal: React.FC<WarrantyPrintModalProps> = ({
             </div>
 
             <div className="text-right flex flex-col items-end">
-              {(codePlacement === 'split' || codePlacement === 'header') && (
+              {(codePlacement === 'header' || codePlacement === 'both') && (
                 <SlipBarcodeQR
                   docCode={ticket.code}
                   docType="warranty_intake"
@@ -157,10 +171,10 @@ export const WarrantyPrintModal: React.FC<WarrantyPrintModalProps> = ({
                   totalAmount={ticket.totalFee || 0}
                   paperSize={paperSize}
                   showBarcode={true}
-                  showQr={codePlacement === 'header'}
-                  renderMode={codePlacement === 'split' ? 'barcode_only' : 'both'}
+                  showQr={true}
+                  renderMode="both"
                   align="right"
-                  layout="column"
+                  layout="row"
                   className="my-0"
                 />
               )}
@@ -169,7 +183,7 @@ export const WarrantyPrintModal: React.FC<WarrantyPrintModalProps> = ({
 
           {/* Title of Document */}
           <div className="text-center space-y-1 py-1">
-            <h1 className="text-lg sm:text-xl font-black uppercase tracking-wide text-slate-950">
+            <h1 className="text-lg sm:text-xl font-bold uppercase tracking-normal text-slate-950">
               {isHandover ? 'BIÊN BẢN NGHIỆM THU & BÀN GIAO TRẢ HÀNG' : 'PHIẾU TIẾP NHẬN BẢO HÀNH / BẢO TRÌ'}
             </h1>
             <div className="flex items-center justify-center space-x-3 text-slate-600 text-[11px]">
@@ -329,7 +343,7 @@ export const WarrantyPrintModal: React.FC<WarrantyPrintModalProps> = ({
           </div>
 
           {/* Footer Barcode / QR Code */}
-          {(codePlacement === 'footer' || codePlacement === 'split') && (
+          {(codePlacement === 'footer' || codePlacement === 'both') && (
             <div className="py-2 border-t border-dotted border-slate-300 flex justify-center">
               <SlipBarcodeQR
                 docCode={ticket.code}
@@ -338,11 +352,12 @@ export const WarrantyPrintModal: React.FC<WarrantyPrintModalProps> = ({
                 customerName={ticket.customerName}
                 totalAmount={ticket.totalFee || 0}
                 paperSize={paperSize}
-                showBarcode={codePlacement === 'footer'}
+                showBarcode={true}
                 showQr={true}
                 qrPayloadMode="erp_smart"
-                renderMode={codePlacement === 'split' ? 'qr_only' : 'both'}
+                renderMode="both"
                 align="center"
+                layout="row"
               />
             </div>
           )}

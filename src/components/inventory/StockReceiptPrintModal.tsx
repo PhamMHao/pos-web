@@ -33,11 +33,13 @@ export const StockReceiptPrintModal: React.FC<StockReceiptPrintModalProps> = ({
 }) => {
   const printRef = useRef<HTMLDivElement>(null);
   const [paperSize, setPaperSize] = useState<'A4' | 'A5'>('A4');
-  const [codePlacement, setCodePlacement] = useState<'split' | 'footer' | 'header'>('split');
+  const [codePlacement, setCodePlacement] = useState<'header' | 'footer' | 'both'>('header');
   const [showGiaPhucModal, setShowGiaPhucModal] = useState<boolean>(false);
 
   const handlePrint = () => {
-    window.print();
+    requestAnimationFrame(() => {
+      window.print();
+    });
   };
 
   React.useEffect(() => {
@@ -65,7 +67,7 @@ export const StockReceiptPrintModal: React.FC<StockReceiptPrintModalProps> = ({
   };
 
   // Convert receipt items for standard PrintInvoiceModal
-  const convertedItems = receipt.items.map((it, idx) => ({
+  const convertedItems = (receipt?.items || []).map((it, idx) => ({
     id: `item-${idx}`,
     sku: it.sku || `VT-${idx + 1}`,
     productName: it.productName,
@@ -125,12 +127,12 @@ export const StockReceiptPrintModal: React.FC<StockReceiptPrintModalProps> = ({
               <div className="flex items-center bg-slate-200 rounded-xl p-0.5 text-xs">
                 <button
                   type="button"
-                  onClick={() => setCodePlacement('split')}
+                  onClick={() => setCodePlacement('header')}
                   className={`px-2.5 py-1.5 rounded-lg font-bold text-[10px] transition-all ${
-                    codePlacement === 'split' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                    codePlacement === 'header' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  Mã trên/QR dưới
+                  Đầu trang
                 </button>
                 <button
                   type="button"
@@ -139,7 +141,16 @@ export const StockReceiptPrintModal: React.FC<StockReceiptPrintModalProps> = ({
                     codePlacement === 'footer' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  Chân trang
+                  Cuối trang
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCodePlacement('both')}
+                  className={`px-2.5 py-1.5 rounded-lg font-bold text-[10px] transition-all ${
+                    codePlacement === 'both' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Cả 2
                 </button>
               </div>
 
@@ -184,18 +195,19 @@ export const StockReceiptPrintModal: React.FC<StockReceiptPrintModalProps> = ({
           <div className="flex-1 p-4 sm:p-8 overflow-y-auto bg-slate-100/50 print:bg-white print:p-0 print:overflow-visible flex justify-center">
             <div
               ref={printRef}
-              className={`bg-white rounded-xl border border-slate-200 shadow-sm print:border-0 print:shadow-none font-sans text-slate-800 leading-relaxed ${
+              className={`bg-white rounded-xl border border-slate-200 shadow-sm print:border-0 print:shadow-none font-serif text-slate-800 leading-relaxed ${
                 paperSize === 'A5'
                   ? 'paper-size-A5-portrait text-[8pt] p-4 sm:p-6'
                   : 'paper-size-A4-portrait text-xs p-6 sm:p-10'
               }`}
+              style={{ fontFamily: '"Tinos", "Noto Serif", "Times New Roman", Times, serif' }}
             >
               {/* Header: Company Profile + Form Code */}
               <div className="flex items-start justify-between border-b border-slate-300 pb-3 mb-3">
                 <div className="flex items-start gap-3 flex-1">
                   <GiaPhucLogo logoUrl={settings?.logoUrl} size={paperSize === 'A5' ? 'xs' : 'sm'} isPrint={true} />
                   <div className="space-y-0.5">
-                    <h4 className={`font-black uppercase text-slate-900 ${paperSize === 'A5' ? 'text-xs' : 'text-sm'}`}>
+                    <h4 className={`font-bold uppercase text-slate-900 ${paperSize === 'A5' ? 'text-xs' : 'text-sm'}`}>
                       {settings.companyLegalName || settings.brandName || 'CÔNG TY TNHH MTV TM-DV SỬA CHỮA GIA PHÚC'}
                     </h4>
                     <p className={`${paperSize === 'A5' ? 'text-[9px]' : 'text-[11px]'} text-slate-600`}>
@@ -211,7 +223,7 @@ export const StockReceiptPrintModal: React.FC<StockReceiptPrintModalProps> = ({
                   <p className="font-bold text-slate-700">Mẫu số: 01 - VT</p>
                   <p>(Ban hành theo TT số 200/2014/TT-BTC)</p>
                   <p className="mt-1 text-emerald-700 font-semibold">Kho: {receipt.warehouseName}</p>
-                  {(codePlacement === 'split' || codePlacement === 'header') && (
+                  {(codePlacement === 'header' || codePlacement === 'both') && (
                     <div className="pt-1 flex justify-end">
                       <SlipBarcodeQR
                         docCode={receipt.code}
@@ -221,10 +233,10 @@ export const StockReceiptPrintModal: React.FC<StockReceiptPrintModalProps> = ({
                         totalAmount={receipt.grandTotal}
                         paperSize={paperSize}
                         showBarcode={true}
-                        showQr={codePlacement === 'header'}
-                        renderMode={codePlacement === 'split' ? 'barcode_only' : 'both'}
+                        showQr={true}
+                        renderMode="both"
                         align="right"
-                        layout="column"
+                        layout="row"
                         className="my-0"
                       />
                     </div>
@@ -234,7 +246,7 @@ export const StockReceiptPrintModal: React.FC<StockReceiptPrintModalProps> = ({
 
               {/* Document Title */}
               <div className="text-center my-3 space-y-0.5">
-                <h2 className={`font-black uppercase text-slate-950 tracking-wide ${paperSize === 'A5' ? 'text-base' : 'text-xl'}`}>
+                <h2 className={`font-bold uppercase text-slate-950 tracking-normal ${paperSize === 'A5' ? 'text-base' : 'text-xl'}`}>
                   PHIẾU NHẬP KHO
                 </h2>
                 <p className="italic text-slate-600 text-[11px]">
@@ -375,7 +387,7 @@ export const StockReceiptPrintModal: React.FC<StockReceiptPrintModalProps> = ({
               </p>
 
               {/* Barcode & ERP QR Code Tra Cứu */}
-              {(codePlacement === 'footer' || codePlacement === 'split') && (
+              {(codePlacement === 'footer' || codePlacement === 'both') && (
                 <div className="py-2 border-t border-dotted border-slate-300">
                   <SlipBarcodeQR
                     docCode={receipt.code}
@@ -384,10 +396,11 @@ export const StockReceiptPrintModal: React.FC<StockReceiptPrintModalProps> = ({
                     customerName={receipt.supplierName}
                     totalAmount={receipt.grandTotal}
                     paperSize={paperSize}
-                    showBarcode={codePlacement === 'footer'}
+                    showBarcode={true}
                     showQr={true}
-                    renderMode={codePlacement === 'split' ? 'qr_only' : 'both'}
-                    align={codePlacement === 'split' ? 'center' : 'between'}
+                    renderMode="both"
+                    align="between"
+                    layout="row"
                   />
                 </div>
               )}

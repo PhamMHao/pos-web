@@ -1017,3 +1017,160 @@ export interface StockTransfer {
   items: StockTransferItem[];
 }
 
+// 18. Đánh Giá KPI & Thưởng Hiệu Suất Lao Động (Điều 104 BLLĐ 2019)
+export type KpiRank = 'A+' | 'A' | 'B' | 'C' | 'D';
+
+export interface KpiCriterion {
+  id: string;
+  name: string;
+  description: string;
+  weight: number; // Tỷ trọng % (Tổng các tiêu chí = 100%)
+  targetValue: string; // Chỉ tiêu giao
+  actualValue: string; // Thực tế đạt được
+  selfScore: number; // Điểm người lao động tự chấm (0 - 100)
+  managerScore: number; // Điểm quản lý thẩm định (0 - 100)
+}
+
+export interface KpiEvaluation {
+  id: string;
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  role: string;
+  department: string;
+  period: string; // VD: 'Tháng 02/2026' hoặc 'Quý 1/2026'
+  evaluationDate: string;
+  criteria: KpiCriterion[];
+  selfTotalScore: number;
+  managerTotalScore: number;
+  finalScore: number;
+  rank: KpiRank;
+  baseSalary: number; // Lương hợp đồng
+  salesRevenue: number; // Doanh số thực đạt
+  commissionRate: number; // % hoa hồng
+  commissionAmount: number; // Tiền hoa hồng
+  performanceBonusRate: number; // % thưởng hiệu suất (25%, 15%, 8%, 0%)
+  performanceBonus: number; // Tiền thưởng hiệu suất (theo Điều 104 BLLĐ)
+  attendanceBonus: number; // Thưởng chuyên cần (500.000đ)
+  initiativeBonus: number; // Thưởng sáng kiến / Trách nhiệm (1.000.000đ, 300.000đ, 0đ)
+  totalGrossPayout: number; // Tổng thực lĩnh trước thuế
+  employeeStrengths?: string; // Điểm mạnh nổi bật
+  employeeImprovements?: string; // Điểm cần cải thiện
+  developmentPlan?: string; // Kế hoạch phát triển kỳ tới
+  directorApprovalStatus: 'pending' | 'approved' | 'rejected';
+  approvedBy?: string;
+  approvedAt?: string;
+  signedDate?: string;
+}
+
+// 19. Quản Lý Chữ Ký Số Đa Nhà Cung Cấp CA (Viettel, VNPT, FPT, MISA, BKAV)
+export type CaProvider =
+  | 'viettel_smartca'
+  | 'vnpt_smartca'
+  | 'fpt_esign'
+  | 'misa_esign'
+  | 'bkav_ca'
+  | 'usb_token';
+
+export type SigningMethod =
+  | 'remote_signing' // Viettel SmartCA / VNPT SmartCA OTP, Sinh trắc học App
+  | 'usb_token' // Token PKCS#11 cắm máy
+  | 'cloud_hsm' // HSM Máy chủ đám mây
+  | 'soft_cert'; // Chứng thư số mềm
+
+export type DocSigningType =
+  | 'einvoice' // Hóa đơn điện tử (XML-DSig)
+  | 'contract' // Hợp đồng lao động (PAdES B-LT)
+  | 'quote' // Báo giá dự án (PAdES B-LT)
+  | 'purchase_order' // Đơn đặt hàng mua PO (PAdES B-LT)
+  | 'kpi_decision'; // Quyết định khen thưởng KPI (PAdES B-LT)
+
+export interface DigitalCertificateX509 {
+  id: string;
+  serialNumber: string;
+  subjectName: string; // Tên chủ thể (VD: CÔNG TY TNHH MTV TM-DV GIA PHÚC)
+  subjectTaxCode: string;
+  issuer: string; // Nhà cấp phát (VD: Viettel-CA, VNPT-CA, FPT-CA)
+  provider: CaProvider;
+  validFrom: string;
+  validTo: string;
+  keyAlgorithm: string; // RSA 2048-bit / SHA256withRSA
+  keyUsage: string[]; // Digital Signature, Non-Repudiation, Document Signing
+  status: 'active' | 'expiring_soon' | 'expired' | 'revoked';
+  isDefault: boolean;
+  assignedTo: string; // Người đại diện / Chức vụ
+}
+
+export interface DigitalSignatureMetadata {
+  signatureId: string;
+  documentId: string;
+  documentType: DocSigningType;
+  documentCode: string;
+  documentTitle: string;
+  provider: CaProvider;
+  providerName: string;
+  signingMethod: SigningMethod;
+  signerName: string;
+  signerPosition: string;
+  signerTaxCode: string;
+  signedAt: string; // ISO String
+  tsaTimestamp?: string; // Dấu thời gian TSA RFC 3161
+  tsaProvider?: string; // Ví dụ: VNPT TSA / Viettel TSA
+  signatureFormat: 'XML-DSig' | 'PAdES B-LT' | 'PKCS#7';
+  sha256Hash: string;
+  certificateSerial: string;
+  issuer: string;
+  status: 'signed' | 'pending' | 'rejected' | 'revoked';
+  ipAddress: string;
+  validationStatus: 'valid' | 'invalid' | 'warning';
+  validationMessage?: string;
+}
+
+export interface CaGatewayConfig {
+  provider: CaProvider;
+  name: string;
+  logo: string;
+  tagline: string;
+  supportedMethods: SigningMethod[];
+  endpointUrl: string;
+  clientId: string;
+  clientSecretMasked: string;
+  isActive: boolean;
+  pingLatencyMs?: number;
+  lastPingStatus?: 'online' | 'degraded' | 'offline';
+  lastPingAt?: string;
+  description: string;
+}
+
+export interface SignatureAuditLog {
+  id: string;
+  timestamp: string;
+  action: 'sign_single' | 'sign_batch' | 'verify' | 'revoke' | 'export_cert';
+  documentId: string;
+  documentCode: string;
+  documentType: DocSigningType;
+  documentTitle: string;
+  provider: CaProvider;
+  signerName: string;
+  ipAddress: string;
+  status: 'success' | 'failed';
+  details: string;
+  sha256Hash: string;
+}
+
+export interface SignableDocument {
+  id: string;
+  code: string;
+  title: string;
+  type: DocSigningType;
+  typeLabel: string;
+  createdAt: string;
+  totalAmount?: number;
+  creatorName: string;
+  recipientName: string;
+  status: 'pending' | 'signed' | 'rejected';
+  signature?: DigitalSignatureMetadata;
+  legalStandard: string; // VD: 'XML-DSig TT78', 'PAdES B-LT ETSI EN 319 142'
+}
+
+

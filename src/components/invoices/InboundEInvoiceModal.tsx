@@ -56,6 +56,7 @@ import {
   SAMPLE_SUPPLIER_XML_FPT,
   SAMPLE_SUPPLIER_XML_DGW,
   SIMULATED_CQT_NEW_INVOICES,
+  INITIAL_INBOUND_INVOICES,
 } from '../../data/mockInboundData';
 import { inboundInvoicesApi } from '../../features/inbound-invoices/api/inboundInvoicesApi';
 import { warehouseApi } from '../../features/warehouse/api/warehouseApi';
@@ -178,27 +179,141 @@ export function guessLocationForCategory(category: string, availableLocations: s
   return availableLocations[0] || 'Khu Vực Hàng Mới Nhập';
 }
 
+// Helper to guarantee valid invoice shape with seller, buyer, and items
+export function normalizeInboundInvoice(inv: any): InboundEInvoice {
+  if (!inv) {
+    return {
+      id: `inb-inv-${Date.now()}`,
+      source: 'xml_upload',
+      invoiceCode: 'HD-NEW',
+      invoiceNumber: '0000001',
+      invoiceSymbol: '1C26TFP',
+      invoiceTemplate: '1/001',
+      issueDate: new Date().toISOString().split('T')[0],
+      receivedDate: new Date().toISOString(),
+      seller: { name: 'Nhà Cung Cấp', taxCode: '', address: 'Việt Nam' },
+      buyer: { name: 'CÔNG TY TNHH MTV TM-DV SỬA CHỮA GIA PHÚC', taxCode: '0318999888', address: 'Bình Dương / TP. Hồ Chí Minh' },
+      items: [],
+      subtotal: 0,
+      taxRate: 8,
+      taxAmount: 0,
+      totalAmount: 0,
+      amountInWords: 'Không đồng',
+      status: 'pending_review',
+    };
+  }
+
+  let seller = inv.seller;
+  if (!seller && inv.sellerData) {
+    try {
+      seller = typeof inv.sellerData === 'string' ? JSON.parse(inv.sellerData) : inv.sellerData;
+    } catch {
+      seller = null;
+    }
+  }
+
+  let buyer = inv.buyer;
+  if (!buyer && inv.buyerData) {
+    try {
+      buyer = typeof inv.buyerData === 'string' ? JSON.parse(inv.buyerData) : inv.buyerData;
+    } catch {
+      buyer = null;
+    }
+  }
+
+  const rawIssue = inv.issueDate || new Date().toISOString().split('T')[0];
+  const issueDate = typeof rawIssue === 'string' && rawIssue.includes('T') ? rawIssue.split('T')[0] : String(rawIssue || '');
+
+  return {
+    ...inv,
+    id: inv.id || `inb-inv-${Date.now()}`,
+    source: inv.source || 'xml_upload',
+    invoiceCode: inv.invoiceCode || inv.invoiceNumber || 'HD-NEW',
+    invoiceNumber: inv.invoiceNumber || inv.invoiceCode || '0000001',
+    invoiceSymbol: inv.invoiceSymbol || '1C26TFP',
+    invoiceTemplate: inv.invoiceTemplate || '1/001',
+    issueDate: issueDate || new Date().toISOString().split('T')[0],
+    receivedDate: inv.receivedDate || new Date().toISOString(),
+    status: inv.status || 'pending_review',
+    seller: {
+      name: seller?.name || seller?.sellerName || 'Nhà Cung Cấp',
+      taxCode: seller?.taxCode || seller?.supplierTaxCode || '',
+      address: seller?.address || 'Việt Nam',
+      phone: seller?.phone || '',
+      email: seller?.email || '',
+      bankAccount: seller?.bankAccount || '',
+      bankName: seller?.bankName || '',
+    },
+    buyer: {
+      name: buyer?.name || buyer?.buyerName || 'CÔNG TY TNHH MTV TM-DV SỬA CHỮA GIA PHÚC',
+      taxCode: buyer?.taxCode || '0318999888',
+      address: buyer?.address || 'Bình Dương / TP. Hồ Chí Minh',
+    },
+    items: Array.isArray(inv.items)
+      ? inv.items.map((it: any, idx: number) => ({
+          ...it,
+          id: it.id || `inb-it-${idx + 1}`,
+          lineNumber: it.lineNumber || idx + 1,
+          productName: it.productName || 'Sản phẩm',
+          skuOrCode: it.skuOrCode || '',
+          unit: it.unit || 'Cái',
+          quantity: Number(it.quantity) || 1,
+          unitPrice: Number(it.unitPrice) || 0,
+          subtotal: Number(it.subtotal) || (Number(it.unitPrice) || 0) * (Number(it.quantity) || 1),
+          taxRate: Number(it.taxRate) || 8,
+          taxAmount: Number(it.taxAmount) || 0,
+          total: Number(it.total) || Number(it.subtotal) || 0,
+          status: it.status || (it.matchedProductId ? 'matched' : 'unmatched'),
+        }))
+      : [],
+    subtotal: Number(inv.subtotal) || 0,
+    taxRate: Number(inv.taxRate) || 8,
+    taxAmount: Number(inv.taxAmount) || 0,
+    totalAmount: Number(inv.totalAmount) || 0,
+    amountInWords: inv.amountInWords || numberToVietnameseWords(Number(inv.totalAmount) || 0),
+  };
+}
+
 export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
   isOpen,
   onClose,
-  inboundInvoices,
+  inboundInvoices = [],
   setInboundInvoices,
-  products,
+  products = [],
   onSaveProduct,
   onAdjustStock,
   setAccountingRecords,
   settings,
-  stockReceipts,
+  stockReceipts = [],
   setStockReceipts,
 }) => {
   const [activeTab, setActiveTab] = useState<'list' | 'sync' | 'upload'>('list');
-  const [selectedInvoice, setSelectedInvoice] = useState<InboundEInvoice | null>(null);
+
+  // Normalized safe invoice list
+  const normalizedInboundInvoices = useMemo(() => {
+    const rawList = Array.isArray(inboundInvoices) && inboundInvoices.length > 0
+      ? inboundInvoices
+      : INITIAL_INBOUND_INVOICES;
+    return rawList.map(normalizeInboundInvoice);
+  }, [inboundInvoices]);
+
+  const [selectedInvoice, setSelectedInvoice] = useState<InboundEInvoice | null>(() => {
+    return normalizedInboundInvoices.length > 0 ? normalizedInboundInvoices[0] : null;
+  });
+
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending_review' | 'imported_to_stock'>('all');
 
+  // Ensure an invoice is selected if available
+  useEffect(() => {
+    if (!selectedInvoice && normalizedInboundInvoices.length > 0) {
+      setSelectedInvoice(normalizedInboundInvoices[0]);
+    }
+  }, [normalizedInboundInvoices]);
+
   // Dynamic Lists for Warehouses, Storage Locations, and Categories
   const [warehouseList, setWarehouseList] = useState<string[]>(() => {
-    return settings.warehouseList && settings.warehouseList.length > 0
+    return settings?.warehouseList && settings.warehouseList.length > 0
       ? settings.warehouseList
       : [
           'Kho Chính Gia Phúc Computer',
@@ -210,7 +325,7 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
   });
 
   const [storageLocations, setStorageLocations] = useState<string[]>(() => {
-    return settings.storageLocations && settings.storageLocations.length > 0
+    return settings?.storageLocations && settings.storageLocations.length > 0
       ? settings.storageLocations
       : [
           'Kệ A1 - Tầng 1 (Đầu ghi & Camera)',
@@ -224,7 +339,7 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
   });
 
   const [categoriesList, setCategoriesList] = useState<string[]>(() => {
-    return settings.customCategories && settings.customCategories.length > 0
+    return settings?.customCategories && settings.customCategories.length > 0
       ? settings.customCategories
       : [
           'Điện tử & Cáp điện',
@@ -241,7 +356,7 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
   // Batch Auto-Creation Settings
   const [batchSkuRule, setBatchSkuRule] = useState<SkuGenRule>('name_abbr');
   const [batchTargetWarehouse, setBatchTargetWarehouse] = useState<string>(
-    settings.defaultWarehouse || warehouseList[0] || 'Kho Chính Gia Phúc Computer'
+    settings?.defaultWarehouse || warehouseList[0] || 'Kho Chính Gia Phúc Computer'
   );
   const [batchDefaultLocation, setBatchDefaultLocation] = useState<string>(
     storageLocations[0] || 'Kệ A1 - Tầng 1'
@@ -325,15 +440,15 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
   if (!isOpen) return null;
 
   // Filtered invoices
-  const filteredInvoices = inboundInvoices.filter((inv) => {
+  const filteredInvoices = normalizedInboundInvoices.filter((inv) => {
     const matchStatus = statusFilter === 'all' || inv.status === statusFilter;
     const q = searchQuery.toLowerCase().trim();
     const matchSearch =
       !q ||
-      inv.invoiceNumber.toLowerCase().includes(q) ||
-      inv.invoiceCode.toLowerCase().includes(q) ||
-      inv.seller.name.toLowerCase().includes(q) ||
-      inv.seller.taxCode.includes(q);
+      (inv.invoiceNumber && inv.invoiceNumber.toLowerCase().includes(q)) ||
+      (inv.invoiceCode && inv.invoiceCode.toLowerCase().includes(q)) ||
+      (inv.seller?.name && inv.seller.name.toLowerCase().includes(q)) ||
+      (inv.seller?.taxCode && inv.seller.taxCode.includes(q));
     return matchStatus && matchSearch;
   });
 
@@ -421,7 +536,7 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
         warehouse: targetWarehouse,
         storageLocation: autoLocation,
         image: 'https://images.unsplash.com/photo-1550009158-9ebf69173e03?w=600&auto=format&fit=crop&q=80',
-        description: `Tự động tạo từ HĐĐT ${selectedInvoice.invoiceCode} (NCC: ${selectedInvoice.seller.name})`,
+        description: `Tự động tạo từ HĐĐT ${selectedInvoice.invoiceCode} (NCC: ${selectedInvoice.seller?.name || 'Nhà Cung Cấp'})`,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -447,7 +562,9 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
 
     setSelectedInvoice((prev) => (prev ? { ...prev, items: updatedItems } : null));
     setInboundInvoices((prev) =>
-      prev.map((inv) => (inv.id === selectedInvoice.id ? { ...inv, items: updatedItems } : inv))
+      (Array.isArray(prev) ? prev : []).map((inv) =>
+        inv.id === selectedInvoice.id ? { ...inv, items: updatedItems } : inv
+      )
     );
 
     showToast(`⚡ Đã tự động tạo và phân loại ${createdCount} mã sản phẩm mới vào ${batchTargetWarehouse}!`);
@@ -476,7 +593,7 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
       warehouse: initialWarehouse,
       storageLocation: initialLocation,
       image: existingProd?.image || 'https://images.unsplash.com/photo-1550009158-9ebf69173e03?w=600&auto=format&fit=crop&q=80',
-      description: existingProd?.description || `Sản phẩm nhập từ HĐĐT ${selectedInvoice?.invoiceCode} (${selectedInvoice?.seller.name})`,
+      description: existingProd?.description || `Sản phẩm nhập từ HĐĐT ${selectedInvoice?.invoiceCode} (${selectedInvoice?.seller?.name || 'Nhà Cung Cấp'})`,
     });
     setItemProfitMargin(marginProfitPercent);
   };
@@ -585,11 +702,11 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
 
     // Append new simulated invoice if not existing
     const newInv = SIMULATED_CQT_NEW_INVOICES[0];
-    const exists = inboundInvoices.some((i) => i.invoiceCode === newInv.invoiceCode);
+    const exists = normalizedInboundInvoices.some((i) => i.invoiceCode === newInv.invoiceCode);
     if (!exists) {
       const matchedItems = matchInboundItemsWithInventory(newInv.items, products);
-      const readyInv = { ...newInv, items: matchedItems };
-      setInboundInvoices((prev) => [readyInv, ...prev]);
+      const readyInv = normalizeInboundInvoice({ ...newInv, items: matchedItems });
+      setInboundInvoices((prev) => [readyInv, ...(Array.isArray(prev) ? prev : [])]);
       setSelectedInvoice(readyInv);
       showToast(`Đã đồng bộ thành công HĐĐT ${newInv.invoiceCode} từ Tổng Cục Thuế!`);
     } else {
@@ -655,12 +772,12 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
     }
 
     const matchedItems = matchInboundItemsWithInventory(parsed.items, products);
-    const readyInvoice: InboundEInvoice = {
+    const readyInvoice: InboundEInvoice = normalizeInboundInvoice({
       ...parsed,
       items: matchedItems,
-    };
+    });
 
-    setInboundInvoices((prev) => [readyInvoice, ...prev.filter((i) => i.invoiceCode !== readyInvoice.invoiceCode)]);
+    setInboundInvoices((prev) => [readyInvoice, ...(Array.isArray(prev) ? prev : []).filter((i) => i.invoiceCode !== readyInvoice.invoiceCode)]);
     setSelectedInvoice(readyInvoice);
     showToast(`Đã nạp và bóc tách thành công HĐĐT: ${readyInvoice.invoiceCode}!`);
     setActiveTab('list');
@@ -729,8 +846,8 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
     }
 
     const receiptCode = `PNK-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}${String(new Date().getDate()).padStart(2, '0')}-${String(stockReceipts.length + 1).padStart(3, '0')}`;
-    const warehouseName = batchTargetWarehouse || settings.defaultWarehouse || 'Kho Chính Gia Phúc Computer';
-    const creatorName = settings.defaultCreatorName || 'Nguyễn Văn Minh (Thủ Kho)';
+    const warehouseName = batchTargetWarehouse || settings?.defaultWarehouse || 'Kho Chính Gia Phúc Computer';
+    const creatorName = settings?.defaultCreatorName || 'Nguyễn Văn Minh (Thủ Kho)';
 
     const receiptItems: StockGoodsReceipt['items'] = [];
     let totalQty = 0;
@@ -781,7 +898,7 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
         oldStock,
         newStock,
         unitPrice: newCost,
-        reason: `Nhập kho tự động từ HĐĐT ${selectedInvoice.invoiceCode} (NCC: ${selectedInvoice.seller.name}) [${itemWarehouse} - ${itemLocation}]`,
+        reason: `Nhập kho tự động từ HĐĐT ${selectedInvoice.invoiceCode} (NCC: ${selectedInvoice.seller?.name || 'Nhà Cung Cấp'}) [${itemWarehouse} - ${itemLocation}]`,
         performedBy: creatorName,
       });
 
@@ -805,14 +922,14 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
       category: 'Nhập hàng',
       amount: selectedInvoice.totalAmount,
       date: selectedInvoice.issueDate || new Date().toISOString().split('T')[0],
-      party: selectedInvoice.seller.name,
+      party: selectedInvoice.seller?.name || 'Nhà Cung Cấp',
       paymentMethod: 'transfer',
       status: 'completed',
       receiptNumber: selectedInvoice.invoiceCode,
-      note: `Chi thanh toán tiền hàng nhập kho theo HĐĐT ${selectedInvoice.invoiceCode} (MST: ${selectedInvoice.seller.taxCode})`,
+      note: `Chi thanh toán tiền hàng nhập kho theo HĐĐT ${selectedInvoice.invoiceCode} (MST: ${selectedInvoice.seller?.taxCode || ''})`,
     };
 
-    setAccountingRecords((prev) => [accRecord, ...prev]);
+    setAccountingRecords((prev) => [accRecord, ...(Array.isArray(prev) ? prev : [])]);
 
     // 4. Create Stock Goods Receipt
     const newReceipt: StockGoodsReceipt = {
@@ -821,8 +938,8 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
       date: new Date().toISOString(),
       inboundInvoiceId: selectedInvoice.id,
       inboundInvoiceCode: selectedInvoice.invoiceCode,
-      supplierName: selectedInvoice.seller.name,
-      supplierTaxCode: selectedInvoice.seller.taxCode,
+      supplierName: selectedInvoice.seller?.name || 'Nhà Cung Cấp',
+      supplierTaxCode: selectedInvoice.seller?.taxCode || '',
       warehouseName,
       creatorName,
       receivedBy: creatorName,
@@ -836,7 +953,7 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
       notes: `Nhập kho tự động từ HĐĐT ${selectedInvoice.invoiceCode} tại ${warehouseName}`,
     };
 
-    setStockReceipts((prev) => [newReceipt, ...prev]);
+    setStockReceipts((prev) => [newReceipt, ...(Array.isArray(prev) ? prev : [])]);
 
     // Lưu phiếu nhập kho vào SQL Server DB
     try {
@@ -885,7 +1002,9 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
     };
 
     setSelectedInvoice(updatedInv);
-    setInboundInvoices((prev) => prev.map((inv) => (inv.id === updatedInv.id ? updatedInv : inv)));
+    setInboundInvoices((prev) =>
+      (Array.isArray(prev) ? prev : []).map((inv) => (inv.id === updatedInv.id ? updatedInv : inv))
+    );
 
     showToast(`🎉 Nhập kho thành công! Đã tạo Phiếu Nhập Kho: ${receiptCode}`);
     setCurrentPrintReceipt(newReceipt);
@@ -925,7 +1044,7 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
                 }`}
               >
                 <Layers className="w-3.5 h-3.5" />
-                <span>Danh Sách HĐĐT ({inboundInvoices.length})</span>
+                <span>Danh Sách HĐĐT ({normalizedInboundInvoices.length})</span>
               </button>
               <button
                 onClick={() => setActiveTab('sync')}
@@ -988,7 +1107,7 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
                             : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
                         }`}
                       >
-                        Tất cả ({inboundInvoices.length})
+                        Tất cả ({normalizedInboundInvoices.length})
                       </button>
                       <button
                         onClick={() => setStatusFilter('pending_review')}
@@ -998,7 +1117,7 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
                             : 'bg-white text-amber-700 border border-amber-200 hover:bg-amber-50'
                         }`}
                       >
-                        Chờ nhập kho ({inboundInvoices.filter((i) => i.status === 'pending_review').length})
+                        Chờ nhập kho ({normalizedInboundInvoices.filter((i) => i.status === 'pending_review').length})
                       </button>
                       <button
                         onClick={() => setStatusFilter('imported_to_stock')}
@@ -1008,7 +1127,7 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
                             : 'bg-white text-emerald-700 border border-emerald-200 hover:bg-emerald-50'
                         }`}
                       >
-                        Đã nhập ({inboundInvoices.filter((i) => i.status === 'imported_to_stock').length})
+                        Đã nhập ({normalizedInboundInvoices.filter((i) => i.status === 'imported_to_stock').length})
                       </button>
                     </div>
                   </div>
@@ -1062,7 +1181,7 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
                             </div>
 
                             <p className="text-xs font-semibold text-slate-800 mt-1 line-clamp-1">
-                              {inv.seller.name}
+                              {inv.seller?.name || 'Nhà Cung Cấp'}
                             </p>
 
                             <div className="flex items-center justify-between mt-2 pt-1 border-t border-slate-100 text-xs">
@@ -1100,11 +1219,11 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
                               HĐĐT Mua Vào: <span className="font-mono text-emerald-700">{selectedInvoice.invoiceCode}</span>
                             </h4>
                             <span className="text-xs font-medium text-slate-600">
-                              (NCC: <strong className="text-slate-900">{selectedInvoice.seller.name}</strong>)
+                              (NCC: <strong className="text-slate-900">{selectedInvoice.seller?.name || 'Nhà Cung Cấp'}</strong>)
                             </span>
                           </div>
                           <p className="text-xs text-slate-500 mt-0.5">
-                            Ngày lập: {selectedInvoice.issueDate} • MST NCC: {selectedInvoice.seller.taxCode} • Nguồn: {selectedInvoice.sourceDetail}
+                            Ngày lập: {selectedInvoice.issueDate} • MST NCC: {selectedInvoice.seller?.taxCode || '---'} • Nguồn: {selectedInvoice.sourceDetail || 'HĐĐT Nhập Khẩu'}
                           </p>
                         </div>
 
@@ -1125,17 +1244,17 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
                                       id: 'rec-view',
                                       code: selectedInvoice.goodsReceiptId || 'PNK-AUTO',
                                       date: selectedInvoice.importedAt || new Date().toISOString(),
-                                      supplierName: selectedInvoice.seller.name,
-                                      supplierTaxCode: selectedInvoice.seller.taxCode,
-                                      warehouseName: selectedInvoice.targetWarehouse || settings.defaultWarehouse || 'Kho Chính Gia Phúc Computer',
+                                      supplierName: selectedInvoice.seller?.name || 'Nhà Cung Cấp',
+                                      supplierTaxCode: selectedInvoice.seller?.taxCode || '',
+                                      warehouseName: selectedInvoice.targetWarehouse || settings?.defaultWarehouse || 'Kho Chính Gia Phúc Computer',
                                       creatorName: selectedInvoice.importedBy || 'Thủ Kho',
                                       receivedBy: selectedInvoice.importedBy || 'Thủ Kho',
-                                      totalItemsCount: selectedInvoice.items.length,
-                                      totalQuantity: selectedInvoice.items.reduce((a, b) => a + b.quantity, 0),
-                                      totalCostAmount: selectedInvoice.subtotal,
-                                      totalTaxAmount: selectedInvoice.taxAmount,
-                                      grandTotal: selectedInvoice.totalAmount,
-                                      items: selectedInvoice.items.map((it) => ({
+                                      totalItemsCount: selectedInvoice.items?.length || 0,
+                                      totalQuantity: (selectedInvoice.items || []).reduce((a, b) => a + (b.quantity || 0), 0),
+                                      totalCostAmount: selectedInvoice.subtotal || 0,
+                                      totalTaxAmount: selectedInvoice.taxAmount || 0,
+                                      grandTotal: selectedInvoice.totalAmount || 0,
+                                      items: (selectedInvoice.items || []).map((it) => ({
                                         productId: it.matchedProductId || 'sp',
                                         productName: it.matchedProductName || it.productName,
                                         sku: it.matchedProductSku || it.skuOrCode || 'SKU',

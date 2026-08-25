@@ -30,7 +30,7 @@ export const PurchaseOrderPrintModal: React.FC<PurchaseOrderPrintModalProps> = (
   settings,
 }) => {
   const printableRef = useRef<HTMLDivElement>(null);
-  const [codePlacement, setCodePlacement] = useState<'split' | 'footer' | 'header'>('split');
+  const [codePlacement, setCodePlacement] = useState<'header' | 'footer' | 'both'>('header');
 
   if (!isOpen || !order) return null;
 
@@ -40,7 +40,9 @@ export const PurchaseOrderPrintModal: React.FC<PurchaseOrderPrintModalProps> = (
   const companyTaxCode = settings?.taxCode || '0318999888';
 
   const handlePrint = () => {
-    window.print();
+    requestAnimationFrame(() => {
+      window.print();
+    });
   };
 
   const qrUrl = generateVietQRUrl({
@@ -76,12 +78,12 @@ export const PurchaseOrderPrintModal: React.FC<PurchaseOrderPrintModalProps> = (
             <div className="flex items-center bg-slate-800 rounded-xl p-0.5 text-xs">
               <button
                 type="button"
-                onClick={() => setCodePlacement('split')}
+                onClick={() => setCodePlacement('header')}
                 className={`px-2.5 py-1.5 rounded-lg font-bold text-[10px] transition-all ${
-                  codePlacement === 'split' ? 'bg-amber-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
+                  codePlacement === 'header' ? 'bg-amber-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Mã trên/QR dưới
+                Đầu trang
               </button>
               <button
                 type="button"
@@ -90,7 +92,16 @@ export const PurchaseOrderPrintModal: React.FC<PurchaseOrderPrintModalProps> = (
                   codePlacement === 'footer' ? 'bg-amber-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Chân trang
+                Cuối trang
+              </button>
+              <button
+                type="button"
+                onClick={() => setCodePlacement('both')}
+                className={`px-2.5 py-1.5 rounded-lg font-bold text-[10px] transition-all ${
+                  codePlacement === 'both' ? 'bg-amber-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Cả 2
               </button>
             </div>
 
@@ -118,7 +129,8 @@ export const PurchaseOrderPrintModal: React.FC<PurchaseOrderPrintModalProps> = (
           <div
             ref={printableRef}
             id="printable-area"
-            className="printable-document bg-white text-slate-900 p-8 md:p-12 shadow-2xl rounded-sm max-w-4xl w-full select-text min-h-[1050px] flex flex-col justify-between text-xs"
+            className="printable-document bg-white text-slate-900 font-serif p-8 md:p-12 shadow-2xl rounded-sm max-w-4xl w-full select-text min-h-[1050px] flex flex-col justify-between text-xs"
+            style={{ fontFamily: '"Tinos", "Noto Serif", "Times New Roman", Times, serif' }}
           >
             {/* Header */}
             <div>
@@ -126,7 +138,7 @@ export const PurchaseOrderPrintModal: React.FC<PurchaseOrderPrintModalProps> = (
                 <div className="flex items-start space-x-4">
                   <GiaPhucLogo logoUrl={settings?.logoUrl} className="w-14 h-14 shrink-0" isPrint={true} size="sm" />
                   <div>
-                    <h1 className="text-base font-black text-slate-950 uppercase tracking-tight">{companyName}</h1>
+                    <h1 className="text-base font-bold text-slate-950 uppercase tracking-normal">{companyName}</h1>
                     <p className="text-[11px] text-slate-600 mt-0.5">📍 Địa chỉ: {companyAddress}</p>
                     <p className="text-[11px] text-slate-600">☎️ Hotline: <strong>{companyPhone}</strong> | MST: <strong>{companyTaxCode}</strong></p>
                   </div>
@@ -137,7 +149,7 @@ export const PurchaseOrderPrintModal: React.FC<PurchaseOrderPrintModalProps> = (
                   </span>
                   <p className="text-[10px] text-slate-500 mt-1">Ngày lập: {new Date(order.orderDate).toLocaleDateString('vi-VN')}</p>
                   <p className="text-[10px] text-slate-500">Giao trước: {new Date(order.expectedDeliveryDate).toLocaleDateString('vi-VN')}</p>
-                  {(codePlacement === 'split' || codePlacement === 'header') && (
+                  {(codePlacement === 'header' || codePlacement === 'both') && (
                     <div className="pt-1">
                       <SlipBarcodeQR
                         docCode={order.code}
@@ -147,10 +159,10 @@ export const PurchaseOrderPrintModal: React.FC<PurchaseOrderPrintModalProps> = (
                         totalAmount={order.totalAmount}
                         paperSize="A4"
                         showBarcode={true}
-                        showQr={codePlacement === 'header'}
-                        renderMode={codePlacement === 'split' ? 'barcode_only' : 'both'}
+                        showQr={true}
+                        renderMode="both"
                         align="right"
-                        layout="column"
+                        layout="row"
                         className="my-0"
                       />
                     </div>
@@ -160,7 +172,7 @@ export const PurchaseOrderPrintModal: React.FC<PurchaseOrderPrintModalProps> = (
 
               {/* Title */}
               <div className="text-center my-4">
-                <h2 className="text-xl font-black uppercase text-slate-950 tracking-wide">
+                <h2 className="text-xl font-bold uppercase text-slate-950 tracking-normal">
                   ĐƠN ĐẶT HÀNG MUA (PURCHASE ORDER)
                 </h2>
                 <p className="text-[11px] text-slate-500 italic mt-0.5">Kính gửi: Đại diện Nhà Cung Cấp / Đối Tác Phân Phối</p>
@@ -233,9 +245,9 @@ export const PurchaseOrderPrintModal: React.FC<PurchaseOrderPrintModalProps> = (
                       <span className="font-mono text-rose-600">-{formatVND(order.discountAmount)}</span>
                     </div>
                   )}
-                  <div className="pt-2 border-t border-slate-400 flex justify-between font-black text-sm text-slate-950">
+                  <div className="pt-2 border-t border-slate-400 flex justify-between font-bold text-sm text-slate-950">
                     <span>TỔNG THANH TOÁN:</span>
-                    <span className="font-mono text-blue-900">{formatVND(order.totalAmount)}</span>
+                    <span className="font-mono text-blue-900 font-bold">{formatVND(order.totalAmount)}</span>
                   </div>
                 </div>
               </div>
@@ -245,7 +257,7 @@ export const PurchaseOrderPrintModal: React.FC<PurchaseOrderPrintModalProps> = (
               </p>
 
               {/* Barcode Code128 & ERP QR */}
-              {(codePlacement === 'footer' || codePlacement === 'split') && (
+              {(codePlacement === 'footer' || codePlacement === 'both') && (
                 <div className="py-2 border-t border-dotted border-slate-300">
                   <SlipBarcodeQR
                     docCode={order.code}
@@ -254,10 +266,11 @@ export const PurchaseOrderPrintModal: React.FC<PurchaseOrderPrintModalProps> = (
                     customerName={order.supplierName}
                     totalAmount={order.totalAmount}
                     paperSize="A4"
-                    showBarcode={codePlacement === 'footer'}
+                    showBarcode={true}
                     showQr={true}
-                    renderMode={codePlacement === 'split' ? 'qr_only' : 'both'}
-                    align={codePlacement === 'split' ? 'center' : 'between'}
+                    renderMode="both"
+                    align="between"
+                    layout="row"
                   />
                 </div>
               )}

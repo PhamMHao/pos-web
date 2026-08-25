@@ -22,6 +22,7 @@ const CostingView = lazy(() => import('./components/costing/CostingView').then((
 const AssetsView = lazy(() => import('./components/assets/AssetsView').then((m) => ({ default: m.AssetsView })));
 const WarrantyView = lazy(() => import('./components/warranty/WarrantyView').then((m) => ({ default: m.WarrantyView })));
 const SuppliersView = lazy(() => import('./components/suppliers/SuppliersView').then((m) => ({ default: m.SuppliersView })));
+const AccountsManagerView = lazy(() => import('./components/accounts/AccountsManagerView').then((m) => ({ default: m.AccountsManagerView })));
 
 // Lazy-loaded Modals & Drawers (Chỉ tải khi mở)
 const FraudModal = lazy(() => import('./components/ai/FraudModal').then((m) => ({ default: m.FraudModal })));
@@ -36,6 +37,12 @@ const DocumentOcrScannerModal = lazy(() => import('./components/common/DocumentO
 const UniversalDocSearchModal = lazy(() => import('./components/common/UniversalDocSearchModal').then((m) => ({ default: m.UniversalDocSearchModal })));
 const ProductBarcodeLabelModal = lazy(() => import('./components/inventory/ProductBarcodeLabelModal').then((m) => ({ default: m.ProductBarcodeLabelModal })));
 const AiAssistantDrawer = lazy(() => import('./components/ai/AiAssistantDrawer').then((m) => ({ default: m.AiAssistantDrawer })));
+const DigitalSignatureHubModal = lazy(() => import('./components/signatures/DigitalSignatureHubModal').then((m) => ({ default: m.DigitalSignatureHubModal })));
+
+import { useAuth } from './core/contexts/AuthContext';
+import { getDefaultModuleForRole } from './config/rbac.config';
+import { AccessDeniedView } from './components/common/AccessDeniedView';
+import { LoginView } from './features/auth/components/LoginView';
 
 import { productsApi } from './features/products/api/productsApi';
 import { customersApi } from './features/customers/api/customersApi';
@@ -128,6 +135,8 @@ export function App() {
     resetToInitialData,
   } = useStoreState();
 
+  const { user, isAuthenticated, hasModuleAccess } = useAuth();
+
   const [activeTab, setActiveTab] = useState<
     | 'pos'
     | 'orders'
@@ -143,10 +152,19 @@ export function App() {
     | 'customers'
     | 'promotions'
     | 'analytics'
+    | 'accounts'
     | 'settings'
     | 'einvoices'
     | 'contracts'
   >('pos');
+
+  // Redirection when user switches to a role without permission to current tab
+  useEffect(() => {
+    if (user && !hasModuleAccess(activeTab)) {
+      const fallbackTab = getDefaultModuleForRole(user.role);
+      setActiveTab(fallbackTab as any);
+    }
+  }, [user?.role, user?.username, hasModuleAccess, activeTab]);
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
@@ -334,6 +352,7 @@ export function App() {
   const [loadedQuoteData, setLoadedQuoteData] = useState<{ items: CartItem[]; customer?: Customer | null } | null>(null);
   const [showDocOcrModal, setShowDocOcrModal] = useState(false);
   const [showUniversalDocSearch, setShowUniversalDocSearch] = useState(false);
+  const [showDigitalSignatureHubModal, setShowDigitalSignatureHubModal] = useState(false);
   const [docOcrInitialMode, setDocOcrInitialMode] = useState<'stock_in' | 'supplier_quote' | 'purchase_order' | 'customer_quote'>('stock_in');
 
   const handleOpenDocOcrScanner = (mode: 'stock_in' | 'supplier_quote' | 'purchase_order' | 'customer_quote' = 'stock_in') => {
@@ -1452,6 +1471,10 @@ export function App() {
   const pendingOrdersCount = (orders || []).filter((o) => o && o.status === 'pending').length;
   const lowStockCount = (products || []).filter((p) => p && p.stock <= p.minStock).length;
 
+  if (!isAuthenticated) {
+    return <LoginView settings={settings} onLoginSuccess={() => {}} />;
+  }
+
   return (
     <div
       className={`flex h-screen w-screen overflow-hidden ${
@@ -1471,6 +1494,7 @@ export function App() {
         pendingOrdersCount={pendingOrdersCount}
         lowStockCount={lowStockCount}
         onOpenFraudAlert={() => setActiveFraudAlert(fraudAlerts[0] || null)}
+        onOpenAuthModal={() => setShowAuthModal(true)}
       />
 
       {/* Main Container */}
@@ -1506,226 +1530,253 @@ export function App() {
           }}
           onOpenDocOcrScanner={() => handleOpenDocOcrScanner('stock_in')}
           onOpenUniversalSearch={() => setShowUniversalDocSearch(true)}
+          onOpenDigitalSignatureHub={() => setShowDigitalSignatureHubModal(true)}
         />
 
         {/* View Content */}
         <main className="flex-1 overflow-hidden relative">
           <Suspense fallback={<ViewLoadingSkeleton />}>
-            {activeTab === 'pos' && (
-            <PosView
-              products={products}
-              customers={customers}
-              promotions={promotions}
-              settings={settings}
-              currentShift={currentShift}
-              onSaveOrder={handleSaveOrder}
-              onUpdateProductStock={handleUpdateProductStock}
-              onAddCustomer={handleSaveCustomer}
-              onOpenDevices={() => setShowDeviceModal(true)}
-              onOpenAiAssistant={() => setShowAiDrawer(true)}
-              onIssueEInvoice={handleIssueEInvoice}
-              loadedQuoteData={loadedQuoteData}
-              onClearLoadedQuoteData={() => setLoadedQuoteData(null)}
-            />
-          )}
+            {!hasModuleAccess(activeTab) ? (
+              <AccessDeniedView
+                moduleId={activeTab}
+                onNavigate={(tab) => setActiveTab(tab)}
+                onOpenAuthModal={() => setShowAuthModal(true)}
+              />
+            ) : (
+              <>
+                {activeTab === 'pos' && (
+                  <PosView
+                    products={products}
+                    customers={customers}
+                    promotions={promotions}
+                    settings={settings}
+                    currentShift={currentShift}
+                    onSaveOrder={handleSaveOrder}
+                    onUpdateProductStock={handleUpdateProductStock}
+                    onAddCustomer={handleSaveCustomer}
+                    onOpenDevices={() => setShowDeviceModal(true)}
+                    onOpenAiAssistant={() => setShowAiDrawer(true)}
+                    onIssueEInvoice={handleIssueEInvoice}
+                    loadedQuoteData={loadedQuoteData}
+                    onClearLoadedQuoteData={() => setLoadedQuoteData(null)}
+                  />
+                )}
 
-          {activeTab === 'orders' && (
-            <OrdersView
-              orders={orders}
-              products={products}
-              customers={customers}
-              returns={returnOrders}
-              serialRecords={serialRecords}
-              onUpdateOrderStatus={handleUpdateOrderStatus}
-              onSaveOrder={handleSaveOrder}
-              onAdjustStock={handleAdjustStock}
-              onSaveReturn={handleSaveReturnOrder}
-              onDeleteReturn={handleDeleteReturnOrder}
-              settings={settings}
-            />
-          )}
+                {activeTab === 'orders' && (
+                  <OrdersView
+                    orders={orders}
+                    products={products}
+                    customers={customers}
+                    returns={returnOrders}
+                    serialRecords={serialRecords}
+                    onUpdateOrderStatus={handleUpdateOrderStatus}
+                    onSaveOrder={handleSaveOrder}
+                    onAdjustStock={handleAdjustStock}
+                    onSaveReturn={handleSaveReturnOrder}
+                    onDeleteReturn={handleDeleteReturnOrder}
+                    settings={settings}
+                  />
+                )}
 
-          {activeTab === 'einvoices' && (
-            <EInvoiceManagerView
-              eInvoices={eInvoices}
-              setEInvoices={setEInvoices}
-              orders={orders}
-              customers={customers}
-              settings={settings}
-              inboundInvoices={inboundInvoices}
-              setInboundInvoices={setInboundInvoices}
-              products={products}
-              onSaveProduct={handleSaveProduct}
-              onAdjustStock={handleAdjustStock}
-              setAccountingRecords={setAccountingRecords}
-              stockReceipts={stockReceipts}
-              setStockReceipts={setStockReceipts}
-            />
-          )}
+                {activeTab === 'einvoices' && (
+                  <EInvoiceManagerView
+                    eInvoices={eInvoices}
+                    setEInvoices={setEInvoices}
+                    orders={orders}
+                    customers={customers}
+                    settings={settings}
+                    inboundInvoices={inboundInvoices}
+                    setInboundInvoices={setInboundInvoices}
+                    products={products}
+                    onSaveProduct={handleSaveProduct}
+                    onAdjustStock={handleAdjustStock}
+                    setAccountingRecords={setAccountingRecords}
+                    stockReceipts={stockReceipts}
+                    setStockReceipts={setStockReceipts}
+                  />
+                )}
 
-          {activeTab === 'contracts' && (
-            <LaborContractManagerView
-              laborContracts={laborContracts}
-              setLaborContracts={setLaborContracts}
-              employees={employees}
-              settings={settings}
-            />
-          )}
+                {activeTab === 'contracts' && (
+                  <LaborContractManagerView
+                    laborContracts={laborContracts}
+                    setLaborContracts={setLaborContracts}
+                    employees={employees}
+                    settings={settings}
+                  />
+                )}
 
-          {activeTab === 'accounting' && (
-            <AccountingView
-              records={accountingRecords}
-              orders={orders}
-              customers={customers}
-              employees={employees}
-              eInvoices={eInvoices}
-              setEInvoices={setEInvoices}
-              settings={settings}
-              onSaveRecord={handleSaveAccountingRecord}
-              onCollectDebt={handleCollectDebt}
-            />
-          )}
+                {activeTab === 'accounting' && (
+                  <AccountingView
+                    records={accountingRecords}
+                    orders={orders}
+                    customers={customers}
+                    employees={employees}
+                    eInvoices={eInvoices}
+                    setEInvoices={setEInvoices}
+                    settings={settings}
+                    onSaveRecord={handleSaveAccountingRecord}
+                    onCollectDebt={handleCollectDebt}
+                  />
+                )}
 
-          {activeTab === 'hr' && (
-            <HrView
-              employees={employees}
-              laborContracts={laborContracts}
-              setLaborContracts={setLaborContracts}
-              settings={settings}
-              onSaveEmployee={handleSaveEmployee}
-              onDeleteEmployee={handleDeleteEmployee}
-            />
-          )}
+                {activeTab === 'hr' && (
+                  <HrView
+                    employees={employees}
+                    laborContracts={laborContracts}
+                    setLaborContracts={setLaborContracts}
+                    settings={settings}
+                    onSaveEmployee={handleSaveEmployee}
+                    onDeleteEmployee={handleDeleteEmployee}
+                  />
+                )}
 
-          {activeTab === 'quotes' && (
-            <QuotesView
-              quotes={quotes}
-              products={products}
-              customers={customers}
-              settings={settings}
-              onSaveQuote={handleSaveQuote}
-              onConvertToOrder={handleConvertQuoteToOrder}
-              onOpenDocOcrScanner={(mode) => handleOpenDocOcrScanner(mode || 'customer_quote')}
-            />
-          )}
+                {activeTab === 'quotes' && (
+                  <QuotesView
+                    quotes={quotes}
+                    products={products}
+                    customers={customers}
+                    settings={settings}
+                    onSaveQuote={handleSaveQuote}
+                    onConvertToOrder={handleConvertQuoteToOrder}
+                    onOpenDocOcrScanner={(mode) => handleOpenDocOcrScanner(mode || 'customer_quote')}
+                  />
+                )}
 
-          {activeTab === 'suppliers' && (
-            <SuppliersView
-              suppliers={suppliers}
-              purchaseOrders={purchaseOrders}
-              products={products}
-              settings={settings}
-              onSaveSupplier={handleSaveSupplier}
-              onDeleteSupplier={handleDeleteSupplier}
-              onSavePurchaseOrder={handleSavePurchaseOrder}
-              onDeletePurchaseOrder={handleDeletePurchaseOrder}
-              onAdjustStock={handleAdjustStock}
-              onOpenDocOcrScanner={(mode) => handleOpenDocOcrScanner(mode || 'supplier_quote')}
-            />
-          )}
+                {activeTab === 'suppliers' && (
+                  <SuppliersView
+                    suppliers={suppliers}
+                    purchaseOrders={purchaseOrders}
+                    products={products}
+                    settings={settings}
+                    onSaveSupplier={handleSaveSupplier}
+                    onDeleteSupplier={handleDeleteSupplier}
+                    onSavePurchaseOrder={handleSavePurchaseOrder}
+                    onDeletePurchaseOrder={handleDeletePurchaseOrder}
+                    onAdjustStock={handleAdjustStock}
+                    onOpenDocOcrScanner={(mode) => handleOpenDocOcrScanner(mode || 'supplier_quote')}
+                  />
+                )}
 
-          {activeTab === 'costing' && (
-            <CostingView
-              costingList={costingList}
-              products={products}
-              onSaveCosting={handleSaveCosting}
-              onAssembleProduct={handleAssembleProduct}
-            />
-          )}
+                {activeTab === 'costing' && (
+                  <CostingView
+                    costingList={costingList}
+                    products={products}
+                    onSaveCosting={handleSaveCosting}
+                    onAssembleProduct={handleAssembleProduct}
+                  />
+                )}
 
-          {activeTab === 'inventory' && (
-            <InventoryView
-              products={products}
-              onSaveProduct={handleSaveProduct}
-              onDeleteProduct={handleDeleteProduct}
-              onAdjustStock={handleAdjustStock}
-              inventoryLogs={inventoryLogs}
-              inboundInvoices={inboundInvoices}
-              setInboundInvoices={setInboundInvoices}
-              setAccountingRecords={setAccountingRecords}
-              settings={settings}
-              stockReceipts={stockReceipts}
-              setStockReceipts={setStockReceipts}
-              transfers={stockTransfers}
-              onSaveTransfer={handleSaveStockTransfer}
-              onUpdateTransferStatus={handleUpdateStockTransferStatus}
-              onDeleteTransfer={handleDeleteStockTransfer}
-              onRefreshDb={fetchFreshDataFromDb}
-              onOpenDocOcrScanner={(mode) => handleOpenDocOcrScanner(mode || 'stock_in')}
-              onSavePartner={handleSaveSupplier}
-              onSaveEmployee={handleSaveEmployee}
-            />
-          )}
+                {activeTab === 'inventory' && (
+                  <InventoryView
+                    products={products}
+                    onSaveProduct={handleSaveProduct}
+                    onDeleteProduct={handleDeleteProduct}
+                    onAdjustStock={handleAdjustStock}
+                    inventoryLogs={inventoryLogs}
+                    inboundInvoices={inboundInvoices}
+                    setInboundInvoices={setInboundInvoices}
+                    setAccountingRecords={setAccountingRecords}
+                    settings={settings}
+                    stockReceipts={stockReceipts}
+                    setStockReceipts={setStockReceipts}
+                    transfers={stockTransfers}
+                    onSaveTransfer={handleSaveStockTransfer}
+                    onUpdateTransferStatus={handleUpdateStockTransferStatus}
+                    onDeleteTransfer={handleDeleteStockTransfer}
+                    onRefreshDb={fetchFreshDataFromDb}
+                    onOpenDocOcrScanner={(mode) => handleOpenDocOcrScanner(mode || 'stock_in')}
+                    onSavePartner={handleSaveSupplier}
+                    onSaveEmployee={handleSaveEmployee}
+                  />
+                )}
 
-          {activeTab === 'assets' && (
-            <AssetsView
-              assets={assets}
-              onSaveAsset={handleSaveAsset}
-              onDeleteAsset={handleDeleteAsset}
-              settings={settings}
-            />
-          )}
+                {activeTab === 'assets' && (
+                  <AssetsView
+                    assets={assets}
+                    onSaveAsset={handleSaveAsset}
+                    onDeleteAsset={handleDeleteAsset}
+                    settings={settings}
+                  />
+                )}
 
-          {activeTab === 'warranties' && (
-            <WarrantyView
-              warranties={warranties}
-              onSaveWarranty={handleSaveWarranty}
-              onUpdateWarranty={handleUpdateWarranty}
-              serialRecords={serialRecords}
-              products={products}
-              customers={customers}
-              orders={orders}
-              settings={settings}
-            />
-          )}
+                {activeTab === 'warranties' && (
+                  <WarrantyView
+                    warranties={warranties}
+                    onSaveWarranty={handleSaveWarranty}
+                    onUpdateWarranty={handleUpdateWarranty}
+                    serialRecords={serialRecords}
+                    products={products}
+                    customers={customers}
+                    orders={orders}
+                    settings={settings}
+                  />
+                )}
 
-          {activeTab === 'customers' && (
-            <CustomersView
-              customers={customers}
-              orders={orders}
-              onSaveCustomer={handleSaveCustomer}
-              onDeleteCustomer={handleDeleteCustomer}
-              onRefreshDb={fetchFreshDataFromDb}
-            />
-          )}
+                {activeTab === 'customers' && (
+                  <CustomersView
+                    customers={customers}
+                    orders={orders}
+                    onSaveCustomer={handleSaveCustomer}
+                    onDeleteCustomer={handleDeleteCustomer}
+                    onRefreshDb={fetchFreshDataFromDb}
+                  />
+                )}
 
-          {activeTab === 'analytics' && (
-            <AnalyticsView orders={orders} products={products} />
-          )}
+                {activeTab === 'analytics' && (
+                  <AnalyticsView
+                    orders={orders}
+                    products={products}
+                    customers={customers}
+                    employees={employees}
+                    laborContracts={laborContracts}
+                    shifts={shifts}
+                    suppliers={suppliers}
+                    purchaseOrders={purchaseOrders}
+                    assets={assets}
+                    settings={settings}
+                    onNavigate={(tab: any) => setActiveTab(tab)}
+                  />
+                )}
 
-          {activeTab === 'ai' && (
-            <AiAdvisorView
-              products={products}
-              orders={orders}
-              customers={customers}
-              quotes={quotes}
-              warranties={warranties}
-              eInvoices={eInvoices}
-              laborContracts={laborContracts}
-              employees={employees}
-              accountingRecords={accountingRecords}
-              settings={settings}
-              onNavigate={(tab: any) => setActiveTab(tab)}
-            />
-          )}
+                {activeTab === 'ai' && (
+                  <AiAdvisorView
+                    products={products}
+                    orders={orders}
+                    customers={customers}
+                    quotes={quotes}
+                    warranties={warranties}
+                    eInvoices={eInvoices}
+                    laborContracts={laborContracts}
+                    employees={employees}
+                    accountingRecords={accountingRecords}
+                    settings={settings}
+                    onNavigate={(tab: any) => setActiveTab(tab)}
+                  />
+                )}
 
-          {activeTab === 'promotions' && (
-            <PromotionsView
-              promotions={promotions}
-              onSavePromotion={handleSavePromotion}
-              onDeletePromotion={handleDeletePromotion}
-            />
-          )}
+                {activeTab === 'promotions' && (
+                  <PromotionsView
+                    promotions={promotions}
+                    onSavePromotion={handleSavePromotion}
+                    onDeletePromotion={handleDeletePromotion}
+                  />
+                )}
 
-          {activeTab === 'settings' && (
-            <SettingsView
-              settings={settings}
-              onSaveSettings={handleSaveSettings}
-              onResetData={handleResetAllData}
-              onExportAllData={handleExportAllData}
-              onRefreshData={() => fetchFreshDataFromDb()}
-            />
-          )}
+                {activeTab === 'accounts' && (
+                  <AccountsManagerView />
+                )}
+
+                {activeTab === 'settings' && (
+                  <SettingsView
+                    settings={settings}
+                    onSaveSettings={handleSaveSettings}
+                    onResetData={handleResetAllData}
+                    onExportAllData={handleExportAllData}
+                    onRefreshData={() => fetchFreshDataFromDb()}
+                  />
+                )}
+              </>
+            )}
           </Suspense>
         </main>
       </div>
@@ -1857,6 +1908,7 @@ export function App() {
         <LoginModal
           isOpen={showAuthModal}
           onClose={() => setShowAuthModal(false)}
+          onNavigateToAccounts={() => setActiveTab('accounts')}
         />
 
         {/* POS Keyboard Shortcuts Modal (Root Level) */}
@@ -1948,6 +2000,18 @@ export function App() {
             products={products}
             customers={customers}
             settings={settings}
+          />
+        )}
+
+        {/* Digital Signature Hub Modal (Viettel, VNPT, FPT, MISA, BKAV, USB Token) */}
+        {showDigitalSignatureHubModal && (
+          <DigitalSignatureHubModal
+            settings={settings}
+            onClose={() => setShowDigitalSignatureHubModal(false)}
+            onNavigate={(tab) => {
+              setShowDigitalSignatureHubModal(false);
+              setActiveTab(tab as any);
+            }}
           />
         )}
       </Suspense>

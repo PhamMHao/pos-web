@@ -22,10 +22,12 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
   const [paperSize, setPaperSize] = useState<'K80' | 'K58'>(
     settings.defaultPrintPaperSize === 'K58' ? 'K58' : 'K80'
   );
-  const [codePlacement, setCodePlacement] = useState<'split' | 'footer' | 'header'>('split');
+  const [codePlacement, setCodePlacement] = useState<'header' | 'footer' | 'both'>('header');
 
   const handlePrint = () => {
-    window.print();
+    requestAnimationFrame(() => {
+      window.print();
+    });
   };
 
   React.useEffect(() => {
@@ -95,33 +97,33 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
             <div className="flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700 text-xs">
               <button
                 type="button"
-                onClick={() => setCodePlacement('split')}
-                title="Mã vạch trên đầu, QR ở chân trang"
-                className={`px-2 py-1 rounded-md font-bold text-[10px] transition-all ${
-                  codePlacement === 'split' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Mã trên/QR dưới
-              </button>
-              <button
-                type="button"
-                onClick={() => setCodePlacement('footer')}
-                title="Toàn bộ mã ở chân trang"
-                className={`px-2 py-1 rounded-md font-bold text-[10px] transition-all ${
-                  codePlacement === 'footer' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Chân trang
-              </button>
-              <button
-                type="button"
                 onClick={() => setCodePlacement('header')}
-                title="Toàn bộ mã ở đầu phiếu"
+                title="Mã vạch & QR ở đầu phiếu"
                 className={`px-2 py-1 rounded-md font-bold text-[10px] transition-all ${
                   codePlacement === 'header' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Đầu phiếu
+                Đầu trang
+              </button>
+              <button
+                type="button"
+                onClick={() => setCodePlacement('footer')}
+                title="Mã vạch & QR ở chân trang"
+                className={`px-2 py-1 rounded-md font-bold text-[10px] transition-all ${
+                  codePlacement === 'footer' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Cuối trang
+              </button>
+              <button
+                type="button"
+                onClick={() => setCodePlacement('both')}
+                title="Mã vạch & QR ở cả đầu trang và chân trang"
+                className={`px-2 py-1 rounded-md font-bold text-[10px] transition-all ${
+                  codePlacement === 'both' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Cả 2
               </button>
             </div>
 
@@ -184,8 +186,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
             </div>
           </div>
 
-          {/* Top Barcode 1D (when split or header) */}
-          {(codePlacement === 'split' || codePlacement === 'header') && (
+          {/* Top Barcode 1D & QR (when header or both) */}
+          {(codePlacement === 'header' || codePlacement === 'both') && (
             <div className="py-2 border-b border-dashed border-slate-300 flex justify-center">
               <SlipBarcodeQR
                 docCode={order.code}
@@ -197,8 +199,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                 vietQrUrl={qrUrl}
                 qrPayloadMode="vietqr"
                 showBarcode={true}
-                showQr={codePlacement === 'header'}
-                renderMode={codePlacement === 'split' ? 'barcode_only' : 'both'}
+                showQr={true}
+                renderMode="both"
               />
             </div>
           )}
@@ -361,7 +363,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
           </div>
 
           {/* Barcode Code128 & VietQR payment code */}
-          {(codePlacement === 'footer' || codePlacement === 'split') && (
+          {(codePlacement === 'footer' || codePlacement === 'both') && (
             <div className="py-3 text-center">
               <SlipBarcodeQR
                 docCode={order.code}
@@ -372,9 +374,9 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                 paperSize={paperSize}
                 vietQrUrl={qrUrl}
                 qrPayloadMode="vietqr"
-                showBarcode={codePlacement === 'footer'}
+                showBarcode={true}
                 showQr={true}
-                renderMode={codePlacement === 'split' ? 'qr_only' : 'both'}
+                renderMode="both"
               />
             </div>
           )}

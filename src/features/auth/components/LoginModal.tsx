@@ -1,65 +1,40 @@
-import React, { useState } from "react";
-import { useAuth } from "../../../core/contexts/AuthContext";
-import { UserCheck, Shield, KeyRound, LogOut, CheckCircle2, AlertCircle, X, RefreshCw, User } from "lucide-react";
+import React, { useState } from 'react';
+import { useAuth, DEMO_ACCOUNTS_LIST } from '../../../core/contexts/AuthContext';
+import { Shield, KeyRound, LogOut, CheckCircle2, AlertCircle, X, RefreshCw, Lock, UserCheck } from 'lucide-react';
+import { SYSTEM_ROLES, normalizeRoleKey } from '../../../config/rbac.config';
 
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onNavigateToAccounts?: () => void;
 }
 
-const DEMO_ACCOUNTS = [
-  {
-    username: "admin",
-    name: "Vũ Gia Phúc",
-    roleName: "Quản Trị Viên (Admin)",
-    color: "from-blue-600 to-indigo-600",
-    role: "admin",
-  },
-  {
-    username: "thungan01",
-    name: "Trần Thị Thảo",
-    roleName: "Thu Ngân POS",
-    color: "from-emerald-600 to-teal-600",
-    role: "cashier",
-  },
-  {
-    username: "thukho01",
-    name: "Lê Hoàng Kho",
-    roleName: "Thủ Kho Vật Tư",
-    color: "from-amber-600 to-orange-600",
-    role: "warehouse",
-  },
-  {
-    username: "ketoan01",
-    name: "Nguyễn Kim Ngân",
-    roleName: "Kế Toán Trưởng",
-    color: "from-purple-600 to-pink-600",
-    role: "accountant",
-  },
-];
-
-export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
-  const { user, login, logout, isAuthenticated } = useAuth();
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+export const LoginModal: React.FC<LoginModalProps> = ({
+  isOpen,
+  onClose,
+  onNavigateToAccounts,
+}) => {
+  const { user, login, logout, switchUserDirectly, isAuthenticated } = useAuth();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const handleQuickLogin = async (accUsername: string) => {
+  const handleQuickSwitch = async (accUsername: string) => {
     setIsSubmitting(true);
     setErrorMsg(null);
     setSuccessMsg(null);
     try {
-      await login(accUsername, "123456");
-      setSuccessMsg(`Đã đăng nhập thành công với tài khoản: ${accUsername}`);
+      switchUserDirectly(accUsername);
+      setSuccessMsg(`Đã chuyển sang tài khoản: ${accUsername}`);
       setTimeout(() => {
         onClose();
-      }, 1000);
+      }, 600);
     } catch (err: any) {
-      setErrorMsg(err.message || "Lỗi đăng nhập");
+      setErrorMsg(err.message || 'Lỗi đổi tài khoản');
     } finally {
       setIsSubmitting(false);
     }
@@ -68,7 +43,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim() || !password.trim()) {
-      setErrorMsg("Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu");
+      setErrorMsg('Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu');
       return;
     }
 
@@ -77,127 +52,176 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
     setSuccessMsg(null);
     try {
       await login(username.trim(), password);
-      setSuccessMsg("Đăng nhập thành công!");
+      setSuccessMsg('Đăng nhập thành công!');
       setTimeout(() => {
         onClose();
-      }, 1000);
+      }, 600);
     } catch (err: any) {
-      setErrorMsg(err.message || "Tên đăng nhập hoặc mật khẩu không chính xác");
+      setErrorMsg(err.message || 'Tên đăng nhập hoặc mật khẩu không chính xác');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const currentRoleKey = normalizeRoleKey(user?.role);
+  const roleMeta = SYSTEM_ROLES.find((r) => r.id === currentRoleKey);
+
   return (
-    <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-900 text-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-800 overflow-hidden animate-in fade-in zoom-in-95">
+    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+      <div className="bg-slate-900 text-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-800 overflow-hidden animate-in fade-in zoom-in-95 max-h-[92vh] flex flex-col">
         {/* Header */}
-        <div className="p-4 px-6 border-b border-slate-800 flex items-center justify-between bg-slate-950/40">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center font-bold">
-              <Shield className="w-4 h-4" />
+        <div className="p-4 px-6 border-b border-slate-800 flex items-center justify-between bg-slate-950/60 shrink-0">
+          <div className="flex items-center space-x-3">
+            <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-400 flex items-center justify-center font-bold">
+              <Shield className="w-5 h-5" />
             </div>
             <div>
               <h3 className="text-base font-bold text-white leading-tight">
-                Xác Thực & Đổi Tài Khoản
+                Xác Thực & Chuyển Vai Trò
               </h3>
               <p className="text-[11px] text-slate-400">
-                GP-ERP Enterprise Authentication & RBAC
+                GP-ERP Enterprise Role-Based Access Control
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="p-6 space-y-5 overflow-y-auto flex-1 custom-scrollbar">
           {/* Current User Card */}
           {user && (
-            <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center font-bold text-white shadow-md">
-                  {user.fullName.charAt(0)}
+            <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 flex items-center justify-between shadow-inner">
+              <div className="flex items-center space-x-3 min-w-0">
+                <div
+                  className={`w-11 h-11 rounded-xl bg-gradient-to-tr ${
+                    roleMeta?.gradient || 'from-blue-600 to-indigo-600'
+                  } flex items-center justify-center font-black text-white shadow-md text-base shrink-0`}
+                >
+                  {user.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'}
                 </div>
-                <div>
-                  <div className="text-xs font-bold text-white flex items-center space-x-1.5">
-                    <span>{user.fullName}</span>
-                    <span className="px-1.5 py-0.5 rounded text-[10px] bg-blue-500/20 text-blue-300 font-mono">
-                      {user.role.toUpperCase()}
-                    </span>
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-white flex items-center space-x-2 truncate">
+                    <span className="truncate">{user.fullName}</span>
                   </div>
-                  <div className="text-[11px] text-slate-400">@{user.username}</div>
+                  <div className="flex items-center space-x-1.5 mt-0.5">
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${roleMeta?.badgeColor || 'bg-slate-800 text-slate-300'}`}>
+                      {roleMeta?.nameVi || user.role}
+                    </span>
+                    <span className="text-[11px] text-slate-500">@{user.username}</span>
+                  </div>
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  logout();
-                  setSuccessMsg("Đã đăng xuất");
-                }}
-                className="px-2.5 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-semibold flex items-center space-x-1 border border-rose-500/20 transition-colors"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span>Đăng xuất</span>
-              </button>
+              <div className="flex items-center space-x-2 shrink-0">
+                {currentRoleKey === 'admin' && onNavigateToAccounts && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onNavigateToAccounts();
+                    }}
+                    className="px-2.5 py-1.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 text-xs font-bold border border-blue-500/20 transition-colors cursor-pointer"
+                    title="Quản lý tài khoản & phân quyền"
+                  >
+                    RBAC
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    logout();
+                    setSuccessMsg('Đã đăng xuất');
+                    setTimeout(() => onClose(), 400);
+                  }}
+                  className="px-2.5 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-bold flex items-center space-x-1 border border-rose-500/20 transition-colors cursor-pointer"
+                  title="Đăng xuất khỏi hệ thống"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Đăng xuất</span>
+                </button>
+              </div>
             </div>
           )}
 
-          {/* Quick Login Accounts */}
+          {/* Quick Login Accounts 7 Roles */}
           <div>
-            <label className="block text-xs font-bold text-slate-300 mb-2">
-              Chuyển nhanh tài khoản mẫu (Mật khẩu mặc định 123456):
+            <label className="block text-xs font-bold text-slate-300 mb-2 flex items-center justify-between">
+              <span>Chuyển nhanh tài khoản theo vai trò (1-Click):</span>
+              <span className="text-[10px] text-slate-500">Pass: 123456</span>
             </label>
-            <div className="grid grid-cols-2 gap-2">
-              {DEMO_ACCOUNTS.map((acc) => (
-                <button
-                  key={acc.username}
-                  type="button"
-                  onClick={() => handleQuickLogin(acc.username)}
-                  disabled={isSubmitting}
-                  className={`p-2.5 rounded-xl border text-left transition-all ${
-                    user?.username === acc.username
-                      ? "bg-blue-950/50 border-blue-500/60 ring-1 ring-blue-500/40"
-                      : "bg-slate-800/60 border-slate-700/60 hover:bg-slate-800 hover:border-slate-600"
-                  }`}
-                >
-                  <div className="text-xs font-bold text-slate-200 truncate">{acc.name}</div>
-                  <div className="text-[10px] text-slate-400 truncate">{acc.roleName}</div>
-                </button>
-              ))}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {DEMO_ACCOUNTS_LIST.map((acc) => {
+                const isCurrent = user?.username.toLowerCase() === acc.username.toLowerCase();
+                return (
+                  <button
+                    key={acc.username}
+                    type="button"
+                    onClick={() => handleQuickSwitch(acc.username)}
+                    disabled={isSubmitting}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center space-x-2.5 ${
+                      isCurrent
+                        ? 'bg-blue-950/60 border-blue-500 ring-1 ring-blue-500/50 shadow-md'
+                        : 'bg-slate-950/60 border-slate-800 hover:bg-slate-800 hover:border-slate-700'
+                    }`}
+                  >
+                    <div
+                      className={`w-7 h-7 rounded-lg bg-gradient-to-tr ${acc.colorGradient} flex items-center justify-center font-bold text-white text-xs shrink-0`}
+                    >
+                      {acc.avatarLetter}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-bold text-slate-200 truncate">
+                        {acc.name.split(' (')[0]}
+                      </div>
+                      <div className="text-[10px] text-slate-400 truncate">{acc.roleNameVi}</div>
+                    </div>
+                    {isCurrent && (
+                      <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0" />
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           <div className="relative flex items-center justify-center">
-            <div className="border-t border-slate-800 w-full"></div>
-            <span className="bg-slate-900 px-3 text-[11px] text-slate-500 absolute">hoặc</span>
+            <div className="border-t border-slate-800 w-full" />
+            <span className="bg-slate-900 px-3 text-[11px] text-slate-500 absolute">
+              hoặc đăng nhập bằng tài khoản khác
+            </span>
           </div>
 
           {/* Custom Login Form */}
           <form onSubmit={handleSubmit} className="space-y-3">
             <div>
-              <label className="block text-xs text-slate-300 mb-1">Tên đăng nhập:</label>
+              <label className="block text-xs text-slate-300 mb-1 font-semibold">
+                Tên đăng nhập:
+              </label>
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Tên đăng nhập..."
-                className="w-full p-2.5 px-3 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Nhập tên đăng nhập..."
+                className="w-full p-2.5 px-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
             <div>
-              <label className="block text-xs text-slate-300 mb-1">Mật khẩu:</label>
+              <label className="block text-xs text-slate-300 mb-1 font-semibold">
+                Mật khẩu:
+              </label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full p-2.5 px-3 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full p-2.5 px-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
@@ -228,7 +252,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
               ) : (
                 <>
                   <KeyRound className="w-3.5 h-3.5" />
-                  <span>Đăng Nhập Hệ Thống</span>
+                  <span>Đăng Nhập Tài Khoản</span>
                 </>
               )}
             </button>

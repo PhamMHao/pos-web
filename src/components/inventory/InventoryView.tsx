@@ -862,7 +862,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 price: p.sellingPrice,
                 location: p.storageLocation || p.warehouse,
                 unit: p.unit,
-                quantity: Math.max(1, p.stock || 1),
+                quantity: 1,
               }));
               setPreviewModalItems(items);
               setShowPrintPreviewModal(true);

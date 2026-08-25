@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   UserCheck,
   Users,
@@ -17,10 +17,18 @@ import {
   ShieldCheck,
   Edit2,
   Trash2,
+  Sliders,
+  Printer,
+  Download,
+  FileText,
+  Percent,
 } from 'lucide-react';
-import { Employee, LaborContract, StoreSettings } from '../../types';
+import { Employee, LaborContract, StoreSettings, KpiEvaluation } from '../../types';
 import { LaborContractManagerView } from '../contracts/LaborContractManagerView';
 import { NewEmployeeModal } from './NewEmployeeModal';
+import { KpiScoringModal } from './KpiScoringModal';
+import { KpiEvaluationReportModal } from './KpiEvaluationReportModal';
+import { generateInitialKpiEvaluations } from '../../utils/kpiDefaults';
 
 interface HrViewProps {
   employees?: Employee[];
@@ -42,9 +50,19 @@ export const HrView: React.FC<HrViewProps> = ({
   const safeEmployees = Array.isArray(employees) ? employees : [];
   const safeContracts = Array.isArray(laborContracts) ? laborContracts : [];
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState<'staff' | 'contracts'>('staff');
+  const [activeTab, setActiveTab] = useState<'staff' | 'contracts' | 'kpi'>('staff');
   const [showNewModal, setShowNewModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+
+  // KPI Evaluations State
+  const [kpiEvaluations, setKpiEvaluations] = useState<KpiEvaluation[]>(() => {
+    return generateInitialKpiEvaluations(safeEmployees);
+  });
+  const [scoringEval, setScoringEval] = useState<KpiEvaluation | null>(null);
+  const [reportModalEvalId, setReportModalEvalId] = useState<string | null>(null);
+  const [showReportModal, setShowReportModal] = useState<boolean>(false);
+  const [kpiRankFilter, setKpiRankFilter] = useState<string>('all');
+  const [kpiRoleFilter, setKpiRoleFilter] = useState<string>('all');
 
   const formatVND = (amt: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amt);
@@ -62,6 +80,39 @@ export const HrView: React.FC<HrViewProps> = ({
     return sum + e.baseSalary + commission;
   }, 0);
 
+  // Filtered KPI Evaluations
+  const filteredKpiEvaluations = useMemo(() => {
+    return kpiEvaluations.filter((ev) => {
+      if (kpiRankFilter !== 'all' && ev.rank !== kpiRankFilter) return false;
+      if (kpiRoleFilter !== 'all' && ev.role !== kpiRoleFilter) return false;
+      if (searchTerm.trim()) {
+        const kw = searchTerm.toLowerCase();
+        const matchName = ev.employeeName.toLowerCase().includes(kw);
+        const matchCode = ev.employeeCode.toLowerCase().includes(kw);
+        const matchRole = ev.role.toLowerCase().includes(kw);
+        if (!matchName && !matchCode && !matchRole) return false;
+      }
+      return true;
+    });
+  }, [kpiEvaluations, kpiRankFilter, kpiRoleFilter, searchTerm]);
+
+  // KPI Summary Statistics
+  const totalKpiBonus = kpiEvaluations.reduce((sum, e) => sum + e.performanceBonus, 0);
+  const totalGrossKpiPayroll = kpiEvaluations.reduce((sum, e) => sum + e.totalGrossPayout, 0);
+  const avgKpiScore =
+    kpiEvaluations.length > 0
+      ? (kpiEvaluations.reduce((sum, e) => sum + e.finalScore, 0) / kpiEvaluations.length).toFixed(1)
+      : '0';
+
+  const rankACount = kpiEvaluations.filter((e) => e.rank === 'A+' || e.rank === 'A').length;
+
+  const handleSaveKpiEvaluation = (updated: KpiEvaluation) => {
+    setKpiEvaluations((prev) =>
+      prev.map((item) => (item.id === updated.id ? updated : item))
+    );
+    setScoringEval(null);
+  };
+
   return (
     <div className="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden">
       {/* Header */}
@@ -72,32 +123,43 @@ export const HrView: React.FC<HrViewProps> = ({
           </div>
           <div>
             <h2 className="text-lg md:text-xl font-bold text-white flex items-center space-x-2">
-              <span>Quản Trị Nhân Sự HR & Hợp Đồng Lao Động</span>
+              <span>Quản Trị Nhân Sự HR, KPI &amp; Hợp Đồng Lao Động</span>
               <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                ERP HR & eContract 2026
+                ERP HR &amp; KPI 2026
               </span>
             </h2>
             <p className="text-xs text-slate-400">
-              Quản lý ca trực, KPI hoa hồng, bảng lương tự động và ký Hợp đồng lao động điện tử
+              Chấm điểm KPI 3 cấp, tính thưởng hiệu suất tự động (Điều 104 BLLĐ 2019) và ký HĐLĐ điện tử
             </p>
           </div>
         </div>
 
-        {/* Tab switch */}
-        <div className="flex items-center space-x-2 bg-slate-800/80 p-1 rounded-xl border border-slate-700/60">
+        {/* 3 Tabs switch */}
+        <div className="flex items-center space-x-2 bg-slate-800/80 p-1 rounded-xl border border-slate-700/60 overflow-x-auto custom-scrollbar">
           <button
             onClick={() => setActiveTab('staff')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 ${
               activeTab === 'staff'
                 ? 'bg-blue-600 text-white shadow-sm'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            Nhân Sự & Lương ({safeEmployees.length})
+            Nhân Sự &amp; Lương ({safeEmployees.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('kpi')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer shrink-0 ${
+              activeTab === 'kpi'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Award className="w-3.5 h-3.5" />
+            <span>Đánh Giá KPI &amp; Khen Thưởng (BLLĐ 2019)</span>
           </button>
           <button
             onClick={() => setActiveTab('contracts')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1.5 transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer shrink-0 ${
               activeTab === 'contracts'
                 ? 'bg-indigo-600 text-white shadow-sm'
                 : 'text-slate-400 hover:text-white'
@@ -109,7 +171,10 @@ export const HrView: React.FC<HrViewProps> = ({
         </div>
       </div>
 
-      {activeTab === 'contracts' ? (
+      {/* ========================================================================= */}
+      {/* TAB 2: HỢP ĐỒNG LAO ĐỘNG ĐIỆN TỬ                                          */}
+      {/* ========================================================================= */}
+      {activeTab === 'contracts' && (
         <div className="flex-1 p-4 md:p-6 overflow-y-auto bg-slate-900/30">
           <LaborContractManagerView
             laborContracts={safeContracts}
@@ -118,7 +183,213 @@ export const HrView: React.FC<HrViewProps> = ({
             settings={settings as StoreSettings}
           />
         </div>
-      ) : (
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 3: ĐÁNH GIÁ KPI & KHEN THƯỞNG (ĐIỀU 104 BLLĐ 2019)                   */}
+      {/* ========================================================================= */}
+      {activeTab === 'kpi' && (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* KPI Summary Stats */}
+          <div className="p-4 md:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0 bg-slate-900/40 border-b border-slate-800/60">
+            <div className="p-4 rounded-2xl bg-slate-900 border border-emerald-500/20 shadow-sm space-y-1">
+              <div className="text-slate-400 text-xs font-medium flex items-center gap-1.5">
+                <Award className="w-4 h-4 text-emerald-400" />
+                Điểm KPI Trung Bình Toàn Công Ty
+              </div>
+              <div className="text-2xl font-black text-emerald-400 font-mono">{avgKpiScore}đ</div>
+              <p className="text-[11px] text-slate-400">
+                {rankACount} / {kpiEvaluations.length} nhân sự xếp loại Xuất sắc &amp; Tốt (A+/A)
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-900 border border-blue-500/20 shadow-sm space-y-1">
+              <div className="text-slate-400 text-xs font-medium flex items-center gap-1.5">
+                <DollarSign className="w-4 h-4 text-blue-400" />
+                Quỹ Thưởng Hiệu Suất (Điều 104)
+              </div>
+              <div className="text-xl font-black text-blue-300 font-mono">{formatVND(totalKpiBonus)}</div>
+              <p className="text-[11px] text-blue-400/80">Trích từ Quỹ Khen Thưởng Doanh Nghiệp</p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-900 border border-purple-500/20 shadow-sm space-y-1">
+              <div className="text-slate-400 text-xs font-medium flex items-center gap-1.5">
+                <TrendingUp className="w-4 h-4 text-purple-400" />
+                Tổng Thu Nhập Thực Lĩnh Sau KPI
+              </div>
+              <div className="text-xl font-black text-purple-300 font-mono">{formatVND(totalGrossKpiPayroll)}</div>
+              <p className="text-[11px] text-slate-400">Lương HĐLĐ + Thưởng KPI + Hoa hồng + Chuyên cần</p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-900 border border-cyan-500/20 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="text-slate-400 text-xs font-medium mb-1">Bộ Biểu Mẫu Pháp Quy</div>
+                <div className="text-sm font-bold text-cyan-300">4 Mẫu Chuẩn Thể Thức</div>
+                <p className="text-[10px] text-slate-400">Phiếu ĐG, Tờ Trình, QĐ Khen Thưởng, Báo Cáo</p>
+              </div>
+              <button
+                onClick={() => {
+                  setReportModalEvalId(kpiEvaluations[0]?.id || '');
+                  setShowReportModal(true);
+                }}
+                className="mt-2 w-full py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-xl flex items-center justify-center space-x-1.5 transition-all shadow-md shadow-cyan-600/20 cursor-pointer"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>Mở Biểu Mẫu &amp; Quyết Định</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Filter and KPI List Table */}
+          <div className="flex-1 p-4 md:p-6 overflow-y-auto space-y-4">
+            {/* Filter Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/60 p-3 rounded-2xl border border-slate-800">
+              <div className="flex items-center flex-wrap gap-2.5">
+                <div className="relative w-64">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Tìm theo tên nhân viên, chức danh..."
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                {/* Filter by Rank */}
+                <select
+                  value={kpiRankFilter}
+                  onChange={(e) => setKpiRankFilter(e.target.value)}
+                  className="bg-slate-800 text-white text-xs px-3 py-1.5 rounded-xl border border-slate-700 focus:outline-none cursor-pointer"
+                >
+                  <option value="all">Tất Cả Xếp Loại</option>
+                  <option value="A+">Loại A+ (Xuất sắc ≥ 95đ)</option>
+                  <option value="A">Loại A (Tốt 85 - 94.9đ)</option>
+                  <option value="B">Loại B (Khá 70 - 84.9đ)</option>
+                  <option value="C">Loại C/D (Cần cải thiện &lt; 70đ)</option>
+                </select>
+
+                {/* Filter by Role */}
+                <select
+                  value={kpiRoleFilter}
+                  onChange={(e) => setKpiRoleFilter(e.target.value)}
+                  className="bg-slate-800 text-white text-xs px-3 py-1.5 rounded-xl border border-slate-700 focus:outline-none cursor-pointer"
+                >
+                  <option value="all">Tất Cả Vị Trí</option>
+                  <option value="Thu Ngân">Thu Ngân</option>
+                  <option value="Nhân Viên Bán Hàng">Nhân Viên Bán Hàng</option>
+                  <option value="Thủ Kho">Thủ Kho</option>
+                  <option value="Kế Toán">Kế Toán</option>
+                  <option value="Quản Lý Cửa Hàng">Quản Lý Cửa Hàng</option>
+                </select>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => {
+                    setReportModalEvalId(kpiEvaluations[0]?.id || '');
+                    setShowReportModal(true);
+                  }}
+                  className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 transition-all shadow cursor-pointer"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>In Hồ Sơ Khen Thưởng</span>
+                </button>
+              </div>
+            </div>
+
+            {/* KPI Evaluations Table */}
+            <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-lg">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-950 text-slate-400 uppercase font-semibold text-[11px] border-b border-slate-800">
+                    <tr>
+                      <th className="py-3.5 px-4">Mã NV</th>
+                      <th className="py-3.5 px-4">Họ và Tên</th>
+                      <th className="py-3.5 px-4">Chức Danh / Phòng Ban</th>
+                      <th className="py-3.5 px-4 text-center">Tự Chấm</th>
+                      <th className="py-3.5 px-4 text-center">Quản Lý Duyệt</th>
+                      <th className="py-3.5 px-4 text-center">Xếp Loại</th>
+                      <th className="py-3.5 px-4 text-right">Lương HĐLĐ</th>
+                      <th className="py-3.5 px-4 text-right">Thưởng KPI</th>
+                      <th className="py-3.5 px-4 text-right">Tổng Thực Lĩnh</th>
+                      <th className="py-3.5 px-4 text-center">Thao Tác</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 font-mono">
+                    {filteredKpiEvaluations.map((ev) => (
+                      <tr key={ev.id} className="hover:bg-slate-800/40 transition-colors">
+                        <td className="py-3 px-4 font-sans font-bold text-slate-400">{ev.employeeCode}</td>
+                        <td className="py-3 px-4 font-sans">
+                          <div className="font-bold text-white text-sm">{ev.employeeName}</div>
+                          <div className="text-[10px] text-slate-400 font-mono">Kỳ: {ev.period}</div>
+                        </td>
+                        <td className="py-3 px-4 font-sans text-slate-300">
+                          <div className="font-semibold text-slate-200">{ev.role}</div>
+                          <div className="text-[10px] text-slate-500">{ev.department}</div>
+                        </td>
+                        <td className="py-3 px-4 text-center text-slate-400">{ev.selfTotalScore}đ</td>
+                        <td className="py-3 px-4 text-center font-bold text-cyan-400 text-sm">
+                          {ev.finalScore}đ
+                        </td>
+                        <td className="py-3 px-4 text-center font-sans">
+                          <span
+                            className={`px-2.5 py-0.5 rounded-full text-xs font-black ${
+                              ev.rank === 'A+'
+                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                : ev.rank === 'A'
+                                ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                                : ev.rank === 'B'
+                                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                                : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                            }`}
+                          >
+                            Loại {ev.rank}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right text-slate-300">{formatVND(ev.baseSalary)}</td>
+                        <td className="py-3 px-4 text-right font-bold text-emerald-400">
+                          +{formatVND(ev.performanceBonus)}
+                        </td>
+                        <td className="py-3 px-4 text-right font-bold text-purple-300 text-sm">
+                          {formatVND(ev.totalGrossPayout)}
+                        </td>
+                        <td className="py-3 px-4 text-center font-sans">
+                          <div className="flex items-center justify-center space-x-1.5">
+                            <button
+                              onClick={() => setScoringEval(ev)}
+                              className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center space-x-1 cursor-pointer"
+                              title="Chấm điểm KPI 3 cấp"
+                            >
+                              <Sliders className="w-3 h-3" />
+                              <span>Chấm Điểm</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                setReportModalEvalId(ev.id);
+                                setShowReportModal(true);
+                              }}
+                              className="p-1 text-slate-400 hover:text-cyan-300 hover:bg-slate-800 rounded-lg transition cursor-pointer"
+                              title="In phiếu đánh giá cá nhân Mẫu 01"
+                            >
+                              <Printer className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 1: NHÂN SỰ & BẢNG LƯƠNG                                               */}
+      {/* ========================================================================= */}
+      {activeTab === 'staff' && (
         <>
           {/* Overview stats */}
           <div className="p-4 md:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0 bg-slate-900/40 border-b border-slate-800/60">
@@ -175,7 +446,7 @@ export const HrView: React.FC<HrViewProps> = ({
                     setEditingEmployee(null);
                     setShowNewModal(true);
                   }}
-                  className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 shadow-lg shadow-emerald-500/20 transition-colors"
+                  className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 shadow-lg shadow-emerald-500/20 transition-colors cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Thêm Nhân Sự Mới</span>
@@ -220,7 +491,7 @@ export const HrView: React.FC<HrViewProps> = ({
                               setEditingEmployee(emp);
                               setShowNewModal(true);
                             }}
-                            className="p-1 text-slate-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-lg transition"
+                            className="p-1 text-slate-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-lg transition cursor-pointer"
                             title="Sửa thông tin"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
@@ -231,7 +502,7 @@ export const HrView: React.FC<HrViewProps> = ({
                                 if (onDeleteEmployee) onDeleteEmployee(emp.id);
                               }
                             }}
-                            className="p-1 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition"
+                            className="p-1 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
                             title="Xóa nhân sự"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -297,6 +568,30 @@ export const HrView: React.FC<HrViewProps> = ({
           onSave={(emp) => {
             if (onSaveEmployee) onSaveEmployee(emp);
           }}
+        />
+      )}
+
+      {/* KPI Interactive Scoring Modal */}
+      {scoringEval && (
+        <KpiScoringModal
+          evaluation={scoringEval}
+          onSave={handleSaveKpiEvaluation}
+          onClose={() => setScoringEval(null)}
+          onOpenReport={(id) => {
+            setReportModalEvalId(id);
+            setShowReportModal(true);
+          }}
+        />
+      )}
+
+      {/* Legal KPI Forms Modal (Bộ 4 Biểu Mẫu Chuẩn BLLĐ 2019) */}
+      {showReportModal && (
+        <KpiEvaluationReportModal
+          evaluations={kpiEvaluations}
+          employees={safeEmployees}
+          settings={settings as StoreSettings}
+          initialEvaluationId={reportModalEvalId || undefined}
+          onClose={() => setShowReportModal(false)}
         />
       )}
     </div>

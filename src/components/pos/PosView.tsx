@@ -44,6 +44,7 @@ import {
   UOMOption,
   EInvoice,
   EInvoiceItem,
+  PaperSize,
 } from '../../types';
 import { formatVND } from '../../utils/vietqr';
 import { numberToVietnameseWords } from '../../utils/numberToWords';
@@ -125,6 +126,7 @@ export const PosView: React.FC<PosViewProps> = ({
   const [showCheckout, setShowCheckout] = useState(false);
   const [lastCompletedOrder, setLastCompletedOrder] = useState<Order | null>(null);
   const [printA4Order, setPrintA4Order] = useState<Order | null>(null);
+  const [posPrintPaperSize, setPosPrintPaperSize] = useState<PaperSize>('A4');
   const [showQuickAddCust, setShowQuickAddCust] = useState(false);
   const [showUomCalculator, setShowUomCalculator] = useState(false);
   const [selectedUomProduct, setSelectedUomProduct] = useState<Product | null>(null);
@@ -443,6 +445,7 @@ export const PosView: React.FC<PosViewProps> = ({
     changeAmount: number;
     paymentStatus: 'paid' | 'unpaid';
     note?: string;
+    paperSize?: PaperSize;
     eInvoiceData?: EInvoiceRequestData;
   }) => {
     const orderCode =
@@ -610,7 +613,16 @@ export const PosView: React.FC<PosViewProps> = ({
       onIssueEInvoice(newEInvoice);
     }
 
-    setLastCompletedOrder(newOrder);
+    if (paymentDetails.paperSize === 'A4' || paymentDetails.paperSize === 'A5') {
+      setPosPrintPaperSize(paymentDetails.paperSize);
+      setPrintA4Order(newOrder);
+      setLastCompletedOrder(null);
+    } else {
+      // K80 / K58 Bill Nhiệt
+      setLastCompletedOrder(newOrder);
+      setPrintA4Order(null);
+    }
+
     setShowCheckout(false);
     clearCart();
 
@@ -1303,6 +1315,7 @@ export const PosView: React.FC<PosViewProps> = ({
         <PrintInvoiceModal
           isOpen={!!printA4Order}
           order={printA4Order}
+          initialPaperSize={posPrintPaperSize}
           settings={settings}
           onClose={() => setPrintA4Order(null)}
         />

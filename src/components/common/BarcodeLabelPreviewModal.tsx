@@ -165,11 +165,36 @@ export const BarcodeLabelPreviewModal: React.FC<BarcodeLabelPreviewModalProps> =
     return list;
   }, [labelItems]);
 
+  // Capped preview list for instant on-screen rendering (< 10ms)
+  const previewLabels = useMemo(() => {
+    return expandedLabels.slice(0, 48);
+  }, [expandedLabels]);
+
+  // Memoized Barcode & QR SVG Cache per code
+  const codeSvgCache = useMemo(() => {
+    const barCache = new Map<string, string>();
+    const qrCache = new Map<string, string>();
+    labelItems.forEach((item) => {
+      const code = item.code || '893000000000';
+      if (!barCache.has(code)) {
+        barCache.set(
+          code,
+          generateBarcodeSVG(code, {
+            height: currentConfig.defaultBarHeight,
+            showText: false,
+            barWidth: 1.5,
+          })
+        );
+      }
+      if (!qrCache.has(code)) {
+        qrCache.set(code, getQRCodeUrl(code, 120));
+      }
+    });
+    return { barCache, qrCache };
+  }, [labelItems, currentConfig.defaultBarHeight]);
+
   // Browser Print Trigger
   const handlePrint = () => {
-    const printContent = printAreaRef.current;
-    if (!printContent) return;
-
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed';
     iframe.style.right = '0';
@@ -185,20 +210,56 @@ export const BarcodeLabelPreviewModal: React.FC<BarcodeLabelPreviewModalProps> =
     const labelWidth = currentConfig.widthMm;
     const labelHeight = currentConfig.heightMm;
 
+    // Generate HTML for all labels directly
+    let cardsHtml = '';
+    expandedLabels.forEach((item) => {
+      const codeVal = item.code || '893000000000';
+      const barcodeSvg = codeSvgCache.barCache.get(codeVal) || '';
+      const qrUrl = codeSvgCache.qrCache.get(codeVal) || '';
+
+      const brandHtml = showBrand
+        ? `<div class="brand-header" style="font-size:${currentConfig.fontSize.brand * fontMultiplier}pt;">${brandText || 'GIA PHÚC COMPUTER'}</div>`
+        : '';
+      const nameHtml = showName
+        ? `<div class="prod-title" style="font-size:${currentConfig.fontSize.title * fontMultiplier}pt;">${item.name}</div>`
+        : '';
+
+      let codeBoxHtml = '';
+      if (codeType === 'barcode') {
+        codeBoxHtml = `<div class="code-box">${barcodeSvg}</div>`;
+      } else if (codeType === 'qrcode') {
+        codeBoxHtml = `<div class="code-box"><img src="${qrUrl}" alt="QR" /></div>`;
+      } else {
+        codeBoxHtml = `<div class="dual-box"><div style="flex:1;max-width:65%;">${barcodeSvg}</div><img src="${qrUrl}" alt="QR" style="max-height:100%;" /></div>`;
+      }
+
+      const codeTextHtml = showCodeText
+        ? `<span class="code-text" style="font-size:${currentConfig.fontSize.code * fontMultiplier}pt;">${codeVal}</span>`
+        : '';
+      const priceHtml = showPrice && item.price !== undefined
+        ? `<span class="price-tag" style="font-size:${currentConfig.fontSize.price * fontMultiplier}pt;">${formatVND(item.price)}${showUnit && item.unit ? ' / ' + item.unit : ''}</span>`
+        : '';
+      const locHtml = showLocation && item.location
+        ? `<span class="location-tag" style="font-size:${(currentConfig.fontSize.code * fontMultiplier) - 0.5}pt;">${item.location}</span>`
+        : '';
+
+      cardsHtml += `<div class="label-card">${brandHtml}${nameHtml}${codeBoxHtml}<div class="footer-row">${codeTextHtml}${priceHtml}${locHtml}</div></div>`;
+    });
+
     doc.open();
-    doc.write('<!DOCTYPE html><html><head><meta charset="utf-8" /><title>' + title + '</title><style>@page { size: ' + labelWidth + 'mm ' + labelHeight + 'mm; margin: 0mm; } @media print { body { margin: 0; padding: 0; background: #fff; } .no-print { display: none !important; } } body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; background: #fff; } .print-grid { display: flex; flex-wrap: wrap; width: 100%; } .label-card { width: ' + labelWidth + 'mm; height: ' + labelHeight + 'mm; box-sizing: border-box; padding: ' + (currentConfig.paddingMm || 1.2) + 'mm; display: flex; flex-direction: column; justify-content: space-between; align-items: ' + (textAlign === 'left' ? 'flex-start' : 'center') + '; text-align: ' + textAlign + '; overflow: hidden; page-break-inside: avoid; background: #fff; border: ' + (showBorder ? '1px dashed #bbb' : 'none') + '; } .brand-header { font-size: ' + (currentConfig.fontSize.brand * fontMultiplier) + 'pt; font-weight: 800; text-transform: uppercase; line-height: 1.1; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .prod-title { font-size: ' + (currentConfig.fontSize.title * fontMultiplier) + 'pt; font-weight: 700; line-height: 1.15; width: 100%; overflow: hidden; display: -webkit-box; -webkit-line-clamp: ' + nameClampLines + '; -webkit-box-orient: vertical; margin: 0.4mm 0; } .code-box { width: 100%; display: flex; justify-content: center; align-items: center; flex: 1; max-height: ' + (labelHeight * 0.5) + 'mm; overflow: hidden; } .code-box svg { max-width: 100%; max-height: 100%; } .code-box img { height: 100%; object-fit: contain; } .dual-box { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 2mm; flex: 1; overflow: hidden; } .dual-box svg { max-width: 65%; max-height: 100%; } .dual-box img { max-height: 100%; object-fit: contain; } .footer-row { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-top: 0.3mm; font-size: ' + (currentConfig.fontSize.code * fontMultiplier) + 'pt; } .price-tag { font-weight: 800; font-size: ' + (currentConfig.fontSize.price * fontMultiplier) + 'pt; } .code-text { font-family: monospace; font-weight: bold; } .location-tag { font-size: ' + ((currentConfig.fontSize.code * fontMultiplier) - 0.5) + 'pt; font-style: italic; color: #444; }</style></head><body><div class="print-grid">' + printContent.innerHTML + '</div><script>window.onload = function() { window.focus(); window.print(); setTimeout(function() { window.parent.document.body.removeChild(window.frameElement); }, 500); };</script></body></html>');
+    doc.write('<!DOCTYPE html><html><head><meta charset="utf-8" /><title>' + title + '</title><style>@page { size: ' + labelWidth + 'mm ' + labelHeight + 'mm; margin: 0mm; } @media print { body { margin: 0; padding: 0; background: #fff; } .no-print { display: none !important; } } body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; background: #fff; } .print-grid { display: flex; flex-wrap: wrap; width: 100%; } .label-card { width: ' + labelWidth + 'mm; height: ' + labelHeight + 'mm; box-sizing: border-box; padding: ' + (currentConfig.paddingMm || 1.2) + 'mm; display: flex; flex-direction: column; justify-content: space-between; align-items: ' + (textAlign === 'left' ? 'flex-start' : 'center') + '; text-align: ' + textAlign + '; overflow: hidden; page-break-inside: avoid; background: #fff; border: ' + (showBorder ? '1px dashed #bbb' : 'none') + '; } .brand-header { font-size: ' + (currentConfig.fontSize.brand * fontMultiplier) + 'pt; font-weight: 800; text-transform: uppercase; line-height: 1.1; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .prod-title { font-size: ' + (currentConfig.fontSize.title * fontMultiplier) + 'pt; font-weight: 700; line-height: 1.15; width: 100%; overflow: hidden; display: -webkit-box; -webkit-line-clamp: ' + nameClampLines + '; -webkit-box-orient: vertical; margin: 0.4mm 0; } .code-box { width: 100%; display: flex; justify-content: center; align-items: center; flex: 1; max-height: ' + (labelHeight * 0.5) + 'mm; overflow: hidden; } .code-box svg { max-width: 100%; max-height: 100%; } .code-box img { height: 100%; object-fit: contain; } .dual-box { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 2mm; flex: 1; overflow: hidden; } .dual-box svg { max-width: 65%; max-height: 100%; } .dual-box img { max-height: 100%; object-fit: contain; } .footer-row { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-top: 0.3mm; font-size: ' + (currentConfig.fontSize.code * fontMultiplier) + 'pt; } .price-tag { font-weight: 800; font-size: ' + (currentConfig.fontSize.price * fontMultiplier) + 'pt; } .code-text { font-family: monospace; font-weight: bold; } .location-tag { font-size: ' + ((currentConfig.fontSize.code * fontMultiplier) - 0.5) + 'pt; font-style: italic; color: #444; }</style></head><body><div class="print-grid">' + cardsHtml + '</div><script>window.onload = function() { window.focus(); window.print(); setTimeout(function() { window.parent.document.body.removeChild(window.frameElement); }, 500); };</script></body></html>');
     doc.close();
   };
 
   // Render single label item internal template
   const renderLabelCard = (item: PrintLabelItem, idx: number, isPreviewSingle = false) => {
     const codeVal = item.code || '893000000000';
-    const barcodeSvg = generateBarcodeSVG(codeVal, {
+    const barcodeSvg = codeSvgCache.barCache.get(codeVal) || generateBarcodeSVG(codeVal, {
       height: currentConfig.defaultBarHeight,
       showText: false,
       barWidth: 1.5,
     });
-    const qrUrl = getQRCodeUrl(codeVal, 120);
+    const qrUrl = codeSvgCache.qrCache.get(codeVal) || getQRCodeUrl(codeVal, 120);
 
     return (
       <div
@@ -874,7 +935,14 @@ export const BarcodeLabelPreviewModal: React.FC<BarcodeLabelPreviewModalProps> =
                     {expandedLabels.length === 0 ? (
                       <div className="p-8 text-center text-slate-400 text-xs">Chưa có sản phẩm nào trong danh sách</div>
                     ) : (
-                      expandedLabels.map((item, idx) => renderLabelCard(item, idx))
+                      <>
+                        {previewLabels.map((item, idx) => renderLabelCard(item, idx))}
+                        {expandedLabels.length > previewLabels.length && (
+                          <div className="w-full py-2 text-center text-[10px] text-slate-500 bg-slate-50 rounded border border-dashed border-slate-300 font-mono">
+                            Đang hiển thị {previewLabels.length} / {expandedLabels.length} tem mẫu xem trước (Toàn bộ {expandedLabels.length} tem sẽ được in đầy đủ khi nhấn In Tem)
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 ) : (

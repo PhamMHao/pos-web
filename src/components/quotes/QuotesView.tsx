@@ -21,14 +21,17 @@ import {
   FileCheck,
   Trophy,
   RotateCcw,
+  ShieldCheck,
 } from 'lucide-react';
-import { PriceQuote, StoreSettings, Product, Customer, QuoteLifecycleStatus } from '../../types';
+import { PriceQuote, StoreSettings, Product, Customer, QuoteLifecycleStatus, SignableDocument, DigitalSignatureMetadata, SignatureAuditLog } from '../../types';
 import { PrintInvoiceModal } from '../common/PrintInvoiceModal';
 import { NewQuoteModal, InitialQuotePrefill } from './NewQuoteModal';
 import { SupplierComparisonModal } from './SupplierComparisonModal';
 import { QuoteAnalyticsReportModal } from './QuoteAnalyticsReportModal';
 import { EquivalentQuoteRecommenderModal } from './EquivalentQuoteRecommenderModal';
 import { QuoteLifecycleModal } from './QuoteLifecycleModal';
+import { DocumentSignerModal } from '../signatures/DocumentSignerModal';
+import { SignatureVerificationBadge } from '../signatures/SignatureVerificationBadge';
 
 interface QuotesViewProps {
   quotes?: PriceQuote[];
@@ -69,6 +72,8 @@ export const QuotesView: React.FC<QuotesViewProps> = ({
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [showEquivalentModal, setShowEquivalentModal] = useState(false);
   const [showLifecycleModal, setShowLifecycleModal] = useState(false);
+  const [showSignerModal, setShowSignerModal] = useState(false);
+  const [quoteSignatures, setQuoteSignatures] = useState<Record<string, DigitalSignatureMetadata>>({});
   const [prefillData, setPrefillData] = useState<InitialQuotePrefill | null>(null);
 
   const formatVND = (amt: number) => {
@@ -291,6 +296,9 @@ export const QuotesView: React.FC<QuotesViewProps> = ({
                     >
                       {STATUS_CONFIG[selectedQuote.status]?.label || selectedQuote.status}
                     </span>
+                    {quoteSignatures[selectedQuote.id] && (
+                      <SignatureVerificationBadge signature={quoteSignatures[selectedQuote.id]} size="sm" />
+                    )}
                   </div>
                   <p className="text-xs text-slate-400 mt-1">
                     Ngày lập: {new Date(selectedQuote.createdAt).toLocaleDateString('vi-VN')} • Hiệu lực đến: {new Date(selectedQuote.validUntil).toLocaleDateString('vi-VN')}
@@ -298,6 +306,16 @@ export const QuotesView: React.FC<QuotesViewProps> = ({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowSignerModal(true)}
+                    className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-emerald-600/25 flex items-center space-x-1.5 transition-all cursor-pointer active:scale-95"
+                    title="Ký số duyệt báo giá trực tiếp qua Viettel/VNPT/FPT SmartCA"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-200" />
+                    <span>{quoteSignatures[selectedQuote.id] ? 'Ký Lại (CA)' : 'Ký Số Báo Giá (CA)'}</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => setShowLifecycleModal(true)}
@@ -505,6 +523,34 @@ export const QuotesView: React.FC<QuotesViewProps> = ({
           quote={selectedQuote}
           onUpdateQuote={handleUpdateQuote}
           onConvertToOrder={onConvertToOrder}
+        />
+      )}
+
+      {/* Quick Digital Signer Modal for Quotes */}
+      {showSignerModal && selectedQuote && (
+        <DocumentSignerModal
+          document={{
+            id: selectedQuote.id,
+            code: selectedQuote.code,
+            title: `Báo Giá Thương Mại - ${selectedQuote.customerCompany || selectedQuote.customerName}`,
+            type: 'quote',
+            typeLabel: 'Báo Giá Dự Án',
+            createdAt: selectedQuote.createdAt,
+            totalAmount: selectedQuote.finalTotal,
+            creatorName: 'Phòng Kinh Doanh POS',
+            recipientName: selectedQuote.customerCompany || selectedQuote.customerName,
+            status: 'pending',
+            legalStandard: 'PAdES B-LT (ETSI EN 319 142)',
+          }}
+          settings={settings}
+          onClose={() => setShowSignerModal(false)}
+          onSignSuccess={(sig) => {
+            setQuoteSignatures((prev) => ({ ...prev, [selectedQuote.id]: sig }));
+            setShowSignerModal(false);
+            if (selectedQuote.status === 'draft') {
+              handleUpdateQuote({ ...selectedQuote, status: 'approved' });
+            }
+          }}
         />
       )}
     </div>

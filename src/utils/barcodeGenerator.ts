@@ -96,12 +96,46 @@ export function generateBarcodeSVG(
   return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + svgWidth + ' ' + svgHeight + '" width="100%" height="100%" style="display:block; max-height:100%;">' + rects.join('') + textElement + '</svg>';
 }
 
+import QRCode from 'qrcode';
+
 /**
- * QR Code Generator (SVG Data URL)
+ * Pure Local Vector SVG QR Code Generator (Instant 0ms latency, 100% offline)
+ */
+export function generateQRCodeSVG(
+  text: string,
+  options: { size?: number; margin?: number; darkColor?: string; lightColor?: string } = {}
+): string {
+  if (!text) return '';
+  const { size = 120, margin = 1, darkColor = '#000000', lightColor = '#ffffff' } = options;
+  try {
+    const qr = QRCode.create(text, { errorCorrectionLevel: 'M' });
+    const moduleCount = qr.modules.size;
+    const fullSize = moduleCount + margin * 2;
+    let pathD = '';
+    for (let r = 0; r < moduleCount; r++) {
+      for (let c = 0; c < moduleCount; c++) {
+        if (qr.modules.get(r, c)) {
+          const x = c + margin;
+          const y = r + margin;
+          pathD += `M${x},${y}h1v1h-1z `;
+        }
+      }
+    }
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${fullSize} ${fullSize}" width="${size}" height="${size}" style="display:block;shape-rendering:crispEdges;background:${lightColor};"><path d="${pathD.trim()}" fill="${darkColor}" /></svg>`;
+  } catch (err) {
+    console.error('QR code generation error:', err);
+    return '';
+  }
+}
+
+/**
+ * Returns instant offline Data-URI SVG with zero network delay
  */
 export function getQRCodeUrl(text: string, size = 150): string {
-  const encodedText = encodeURIComponent(text);
-  return 'https://api.qrserver.com/v1/create-qr-code/?size=' + size + 'x' + size + '&format=svg&data=' + encodedText + '&margin=0';
+  if (!text) return '';
+  const svg = generateQRCodeSVG(text, { size });
+  if (!svg) return '';
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
 }
 
 export type LabelSizePreset = '30x20' | '35x22' | '40x30' | '50x30' | '60x40' | '75x50' | '100x70';

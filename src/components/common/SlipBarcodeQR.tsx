@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { generateBarcodeSVG, getQRCodeUrl } from '../../utils/barcodeGenerator';
+import { generateBarcodeSVG, generateQRCodeSVG, getQRCodeUrl } from '../../utils/barcodeGenerator';
 import { PaperSize } from '../../types';
 
 export interface SlipBarcodeQRProps {
@@ -54,19 +54,21 @@ export const SlipBarcodeQR: React.FC<SlipBarcodeQRProps> = ({
     });
   }, [shouldShowBarcode, docCode, paperSize]);
 
-  // ERP Smart QR Payload for instant lookup in F7 center
-  const erpQrUrl = useMemo(() => {
+  // ERP Smart QR Vector SVG for instant local 0ms rendering
+  const erpQrSvgHtml = useMemo(() => {
     if (!shouldShowQr || !docCode) return '';
     const payload = `GP-ERP://doc?type=${encodeURIComponent(docType)}&code=${encodeURIComponent(
       docCode
     )}&cust=${encodeURIComponent(customerName)}&total=${totalAmount || 0}&date=${encodeURIComponent(date)}`;
-    const size = paperSize === 'K58' ? 90 : paperSize === 'K80' ? 110 : 130;
-    return getQRCodeUrl(payload, size);
+    const size = paperSize === 'K58' ? 75 : paperSize === 'K80' ? 85 : paperSize === 'A5' ? 44 : 50;
+    return generateQRCodeSVG(payload, { size, margin: 1 });
   }, [shouldShowQr, docCode, docType, customerName, totalAmount, date, paperSize]);
 
-  if (!shouldShowBarcode && !shouldShowQr) return null;
-
   const isThermal = paperSize === 'K58' || paperSize === 'K80';
+  const showDocQrCode = shouldShowQr;
+  const showPaymentQr = Boolean(vietQrUrl && (qrPayloadMode === 'vietqr' || qrPayloadMode === 'both'));
+
+  if (!shouldShowBarcode && !showDocQrCode && !showPaymentQr) return null;
 
   if (isThermal) {
     return (
@@ -81,30 +83,32 @@ export const SlipBarcodeQR: React.FC<SlipBarcodeQRProps> = ({
           />
         )}
 
-        {/* QR Code 2D */}
-        {shouldShowQr && (
-          <div className="flex flex-col items-center justify-center">
-            {qrPayloadMode === 'vietqr' && vietQrUrl ? (
-              <div className="p-1 bg-white border border-slate-300 rounded shadow-xs">
-                <img
-                  src={vietQrUrl}
-                  alt={`VietQR ${docCode}`}
-                  className={`${paperSize === 'K58' ? 'w-24 h-24' : 'w-28 h-28'} object-contain`}
-                />
-                <p className="text-[7pt] font-bold text-slate-700 mt-0.5">Quét thanh toán VietQR</p>
-              </div>
-            ) : (
-              <div className="p-1 bg-white border border-slate-300 rounded shadow-xs">
-                <img
-                  src={erpQrUrl}
-                  alt={`QR ERP ${docCode}`}
-                  className={`${paperSize === 'K58' ? 'w-20 h-20' : 'w-24 h-24'} object-contain`}
-                />
-                <p className="text-[7pt] font-mono text-slate-600 mt-0.5">Quét tra cứu phiếu (F7)</p>
-              </div>
-            )}
-          </div>
-        )}
+        {/* QR Codes Section */}
+        <div className="flex items-center justify-center gap-3">
+          {/* ERP Smart QR Tra Cứu */}
+          {showDocQrCode && erpQrSvgHtml && (
+            <div className="p-1 bg-white border border-slate-300 rounded shadow-xs flex flex-col items-center">
+              <div
+                className={`${paperSize === 'K58' ? 'w-16 h-16' : 'w-20 h-20'} flex items-center justify-center`}
+                dangerouslySetInnerHTML={{ __html: erpQrSvgHtml }}
+              />
+              <p className="text-[6.5pt] text-slate-800 font-sans mt-0.5 font-medium">Quét mã tra cứu</p>
+            </div>
+          )}
+
+          {/* VietQR Thanh Toán */}
+          {showPaymentQr && vietQrUrl && (
+            <div className="p-1 bg-white border border-slate-300 rounded shadow-xs flex flex-col items-center">
+              <img
+                src={vietQrUrl}
+                loading="eager"
+                alt={`VietQR ${docCode}`}
+                className={`${paperSize === 'K58' ? 'w-16 h-16' : 'w-20 h-20'} object-contain`}
+              />
+              <p className="text-[6.5pt] font-bold text-slate-700 mt-0.5">VietQR Thanh Toán</p>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -120,32 +124,41 @@ export const SlipBarcodeQR: React.FC<SlipBarcodeQRProps> = ({
           : align === 'right'
           ? 'justify-end'
           : 'justify-center'
-      } gap-4 my-2 select-none ${className}`}
+      } gap-2.5 sm:gap-3 my-0.5 select-none ${className}`}
     >
-      {/* Barcode 1D */}
-      {shouldShowBarcode && barcodeSvgHtml && (
-        <div className="flex flex-col items-center">
-          <div
-            className="max-w-[220px] max-h-[50px] overflow-hidden"
-            dangerouslySetInnerHTML={{ __html: barcodeSvgHtml }}
-          />
-        </div>
-      )}
+      {/* Left / Main Group: Barcode 1D + Mã QR Tra Cứu (Quét mã tra cứu) */}
+      <div className="flex items-center gap-2.5 sm:gap-3">
+        {/* Barcode 1D */}
+        {shouldShowBarcode && barcodeSvgHtml && (
+          <div className="flex flex-col items-center justify-center">
+            <div
+              className="max-w-[190px] sm:max-w-[220px] max-h-[48px] overflow-hidden"
+              dangerouslySetInnerHTML={{ __html: barcodeSvgHtml }}
+            />
+          </div>
+        )}
 
-      {/* QR Code 2D */}
-      {shouldShowQr && (
-        <div className="flex items-center gap-2">
-          {qrPayloadMode === 'vietqr' && vietQrUrl ? (
-            <div className="p-1 bg-white border border-slate-300 rounded flex flex-col items-center">
-              <img src={vietQrUrl} alt="VietQR" className="w-20 h-20 object-contain" />
-              <span className="text-[7pt] font-bold text-slate-700">VietQR Thanh Toán</span>
-            </div>
-          ) : (
-            <div className="p-1 bg-white border border-slate-300 rounded flex flex-col items-center">
-              <img src={erpQrUrl} alt="QR Tra Cứu" className="w-18 h-18 object-contain" />
-              <span className="text-[7pt] text-slate-600 font-mono">Quét Tra Cứu (F7)</span>
-            </div>
-          )}
+        {/* QR Code 2D Tra Cứu */}
+        {showDocQrCode && erpQrSvgHtml && (
+          <div className="flex flex-col items-center justify-center pl-1">
+            <div
+              className="flex items-center justify-center"
+              dangerouslySetInnerHTML={{ __html: erpQrSvgHtml }}
+            />
+            <span className="text-[6.5pt] text-slate-800 font-sans mt-0.5 font-medium whitespace-nowrap">
+              Quét mã tra cứu
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Right / VietQR Payment Box (if enabled) */}
+      {showPaymentQr && vietQrUrl && (
+        <div className="flex items-center">
+          <div className="p-1 bg-white border border-slate-300 rounded flex flex-col items-center shadow-xs">
+            <img src={vietQrUrl} loading="eager" alt="VietQR" className="w-16 h-16 object-contain" />
+            <span className="text-[6.5pt] font-bold text-slate-700">VietQR Thanh Toán</span>
+          </div>
         </div>
       )}
     </div>

@@ -16,14 +16,16 @@ export class InboundInvoicesService {
       throw new ConflictError(`Hóa đơn đầu vào với mã "${input.invoiceCode}" đã tồn tại`);
     }
 
+    const sellerInput = input.seller || input.sellerData || {};
+    const buyerInput = input.buyer || input.buyerData || {};
     const sellerDataStr =
-      typeof input.sellerData === "string"
-        ? input.sellerData
-        : JSON.stringify(input.sellerData);
+      typeof sellerInput === "string"
+        ? sellerInput
+        : JSON.stringify(sellerInput);
     const buyerDataStr =
-      typeof input.buyerData === "string"
-        ? input.buyerData
-        : JSON.stringify(input.buyerData);
+      typeof buyerInput === "string"
+        ? buyerInput
+        : JSON.stringify(buyerInput);
 
     const id = `inbound-${Date.now()}`;
     const iDate = new Date(input.issueDate);
@@ -80,26 +82,51 @@ export class InboundInvoicesService {
     const total = allItems.length;
     const items = allItems.slice(skip, skip + limit);
 
-    const formatted = items.map((i) => ({
-      ...i,
-      subtotal: Number(i.subtotal),
-      taxRate: Number(i.taxRate),
-      taxAmount: Number(i.taxAmount),
-      totalAmount: Number(i.totalAmount),
-      items: (i.items || []).map((item) => ({
-        ...item,
-        quantity: Number(item.quantity),
-        unitPrice: Number(item.unitPrice),
-        subtotal: Number(item.subtotal),
-        taxRate: Number(item.taxRate),
-        taxAmount: Number(item.taxAmount),
-        total: Number(item.total),
-        currentStock: item.currentStock ? Number(item.currentStock) : null,
-        currentCostPrice: item.currentCostPrice ? Number(item.currentCostPrice) : null,
-        ratioToBaseUnit: Number(item.ratioToBaseUnit),
-        suggestedSellingPrice: item.suggestedSellingPrice ? Number(item.suggestedSellingPrice) : null,
-      })),
-    }));
+    const formatted = items.map((i) => {
+      let seller = { name: "Nhà Cung Cấp", taxCode: "", address: "" };
+      let buyer = { name: "Gia Phúc Computer", taxCode: "", address: "" };
+      try {
+        if (i.sellerData) {
+          seller = typeof i.sellerData === "string" ? JSON.parse(i.sellerData) : i.sellerData;
+        }
+      } catch {
+        seller = { name: "Nhà Cung Cấp", taxCode: "", address: "" };
+      }
+      try {
+        if (i.buyerData) {
+          buyer = typeof i.buyerData === "string" ? JSON.parse(i.buyerData) : i.buyerData;
+        }
+      } catch {
+        buyer = { name: "Gia Phúc Computer", taxCode: "", address: "" };
+      }
+
+      return {
+        ...i,
+        seller,
+        buyer,
+        subtotal: Number(i.subtotal),
+        taxRate: Number(i.taxRate),
+        taxAmount: Number(i.taxAmount),
+        totalAmount: Number(i.totalAmount),
+        issueDate: i.issueDate instanceof Date ? i.issueDate.toISOString().split('T')[0] : String(i.issueDate).split('T')[0],
+        receivedDate: i.receivedDate instanceof Date ? i.receivedDate.toISOString() : String(i.receivedDate),
+        importedAt: i.importedAt instanceof Date ? i.importedAt.toISOString() : i.importedAt ? String(i.importedAt) : undefined,
+        items: (i.items || []).map((item) => ({
+          ...item,
+          quantity: Number(item.quantity),
+          unitPrice: Number(item.unitPrice),
+          subtotal: Number(item.subtotal),
+          taxRate: Number(item.taxRate),
+          taxAmount: Number(item.taxAmount),
+          total: Number(item.total),
+          currentStock: item.currentStock ? Number(item.currentStock) : null,
+          currentCostPrice: item.currentCostPrice ? Number(item.currentCostPrice) : null,
+          ratioToBaseUnit: Number(item.ratioToBaseUnit || 1),
+          suggestedSellingPrice: item.suggestedSellingPrice ? Number(item.suggestedSellingPrice) : null,
+          isNewProduct: Boolean(item.isNewProduct),
+        })),
+      };
+    });
 
     return {
       items: formatted,
@@ -125,12 +152,34 @@ export class InboundInvoicesService {
       throw new NotFoundError(`Không tìm thấy hóa đơn đầu vào ID: ${id}`);
     }
 
+    let seller = { name: "Nhà Cung Cấp", taxCode: "", address: "" };
+    let buyer = { name: "Gia Phúc Computer", taxCode: "", address: "" };
+    try {
+      if (invoice.sellerData) {
+        seller = typeof invoice.sellerData === "string" ? JSON.parse(invoice.sellerData) : invoice.sellerData;
+      }
+    } catch {
+      seller = { name: "Nhà Cung Cấp", taxCode: "", address: "" };
+    }
+    try {
+      if (invoice.buyerData) {
+        buyer = typeof invoice.buyerData === "string" ? JSON.parse(invoice.buyerData) : invoice.buyerData;
+      }
+    } catch {
+      buyer = { name: "Gia Phúc Computer", taxCode: "", address: "" };
+    }
+
     return {
       ...invoice,
+      seller,
+      buyer,
       subtotal: Number(invoice.subtotal),
       taxRate: Number(invoice.taxRate),
       taxAmount: Number(invoice.taxAmount),
       totalAmount: Number(invoice.totalAmount),
+      issueDate: invoice.issueDate instanceof Date ? invoice.issueDate.toISOString().split('T')[0] : String(invoice.issueDate).split('T')[0],
+      receivedDate: invoice.receivedDate instanceof Date ? invoice.receivedDate.toISOString() : String(invoice.receivedDate),
+      importedAt: invoice.importedAt instanceof Date ? invoice.importedAt.toISOString() : invoice.importedAt ? String(invoice.importedAt) : undefined,
       items: (invoice.items || []).map((item) => ({
         ...item,
         quantity: Number(item.quantity),
@@ -141,8 +190,9 @@ export class InboundInvoicesService {
         total: Number(item.total),
         currentStock: item.currentStock ? Number(item.currentStock) : null,
         currentCostPrice: item.currentCostPrice ? Number(item.currentCostPrice) : null,
-        ratioToBaseUnit: Number(item.ratioToBaseUnit),
+        ratioToBaseUnit: Number(item.ratioToBaseUnit || 1),
         suggestedSellingPrice: item.suggestedSellingPrice ? Number(item.suggestedSellingPrice) : null,
+        isNewProduct: Boolean(item.isNewProduct),
       })),
     };
   }
@@ -251,11 +301,11 @@ export class InboundInvoicesService {
       }
     }
 
-    // Update invoice status to 'imported'
+    // Update invoice status to 'imported_to_stock'
     await prisma.inboundEInvoice.updateMany({
       where: { id },
       data: {
-        status: "imported",
+        status: "imported_to_stock",
         targetWarehouse,
       },
     });
