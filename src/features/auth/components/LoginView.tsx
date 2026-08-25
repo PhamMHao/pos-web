@@ -14,8 +14,11 @@ import {
   RefreshCw,
   SlidersHorizontal,
   ChevronRight,
+  Send,
+  X,
 } from 'lucide-react';
 import { useAuth, DEMO_ACCOUNTS_LIST, DemoUserAccount } from '../../../core/contexts/AuthContext';
+import { useMasterData } from '../../../core/contexts/MasterDataContext';
 import { GIA_PHUC_LOGO_SVG_DATA_URI } from '../../../components/common/GiaPhucLogo';
 import { StoreSettings } from '../../../types';
 import { SYSTEM_ROLES } from '../../../config/rbac.config';
@@ -27,6 +30,7 @@ interface LoginViewProps {
 
 export const LoginView: React.FC<LoginViewProps> = ({ settings, onLoginSuccess }) => {
   const { login, switchUserDirectly, isLoading } = useAuth();
+  const { requestPasswordReset, emailConfig } = useMasterData();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -35,6 +39,17 @@ export const LoginView: React.FC<LoginViewProps> = ({ settings, onLoginSuccess }
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [selectedDemoUser, setSelectedDemoUser] = useState<DemoUserAccount | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Forgot Password Modal State
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+  const [forgotUsername, setForgotUsername] = useState('');
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotReason, setForgotReason] = useState('');
+  const [forgotSuccessMsg, setForgotSuccessMsg] = useState<string | null>(null);
+  const [isRequestingReset, setIsRequestingReset] = useState(false);
+
+  // Numeric Keypad State (for touch POS)
+  const [showKeypad, setShowKeypad] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -216,9 +231,13 @@ export const LoginView: React.FC<LoginViewProps> = ({ settings, onLoginSuccess }
                     <span>Ghi nhớ đăng nhập</span>
                   </label>
 
-                  <span className="text-[11px] text-blue-400 hover:underline cursor-pointer">
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPasswordModal(true)}
+                    className="text-[11px] text-blue-400 hover:underline cursor-pointer font-semibold"
+                  >
                     Quên mật khẩu?
-                  </span>
+                  </button>
                 </div>
 
                 {/* Alerts */}
@@ -364,6 +383,118 @@ export const LoginView: React.FC<LoginViewProps> = ({ settings, onLoginSuccess }
       <footer className="p-3 text-center text-xs text-slate-500 border-t border-slate-800/60 bg-slate-950/40 z-10">
         Phần Mềm Quản Trị Doanh Nghiệp GP-ERP Enterprise v2026 • Thiết kế tối ưu cho Cửa Hàng Tin Học, Thiết Bị Số & Dịch Vụ Sửa Chữa
       </footer>
+
+      {/* Modal Yêu Cầu Cấp Lại Mật Khẩu Qua Email Quản Trị */}
+      {showForgotPasswordModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-slate-700 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden">
+            <div className="px-6 py-4 bg-slate-850 border-b border-slate-700/80 flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Shield className="w-5 h-5 text-amber-400" />
+                <h3 className="text-sm font-bold text-white">Yêu Cầu Cấp Lại Mật Khẩu (Admin Approval)</h3>
+              </div>
+              <button
+                onClick={() => setShowForgotPasswordModal(false)}
+                className="p-1 text-slate-400 hover:text-white rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!forgotUsername.trim() || !forgotEmail.trim()) return;
+                setIsRequestingReset(true);
+                setForgotSuccessMsg(null);
+                try {
+                  const res = await requestPasswordReset(
+                    forgotUsername.trim(),
+                    forgotEmail.trim(),
+                    forgotReason.trim() || 'Nhân viên quên mật khẩu'
+                  );
+                  setForgotSuccessMsg(res.message);
+                  setTimeout(() => {
+                    setForgotSuccessMsg(null);
+                    setShowForgotPasswordModal(false);
+                  }, 2500);
+                } catch (err: any) {
+                  alert(err.message || 'Lỗi gửi yêu cầu');
+                } finally {
+                  setIsRequestingReset(false);
+                }
+              }}
+              className="p-6 space-y-4"
+            >
+              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 text-xs leading-relaxed">
+                Yêu cầu bảo mật sẽ được gửi trực tiếp đến Email Quản Trị:{' '}
+                <strong className="font-mono text-white">{emailConfig.adminNotificationEmail || 'hrmgpsoft@gmail.com'}</strong>.
+                Admin sẽ xác thực và phê duyệt cấp mật khẩu mới cho bạn.
+              </div>
+
+              {forgotSuccessMsg && (
+                <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-300 text-xs font-bold flex items-center space-x-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>{forgotSuccessMsg}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">Tên đăng nhập (Username) *</label>
+                <input
+                  type="text"
+                  required
+                  value={forgotUsername}
+                  onChange={(e) => setForgotUsername(e.target.value)}
+                  placeholder="VD: thungan01, thukho01, ketoan01..."
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">Email nhận mật khẩu mới *</label>
+                <input
+                  type="email"
+                  required
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  placeholder="VD: nhanvien@vitinhgiaphuc.com"
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-blue-500 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">Lý do yêu cầu</label>
+                <input
+                  type="text"
+                  value={forgotReason}
+                  onChange={(e) => setForgotReason(e.target.value)}
+                  placeholder="VD: Quên mật khẩu sau khi đổi ca..."
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-slate-800 flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPasswordModal(false)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-300 font-semibold text-xs rounded-xl"
+                >
+                  Đóng
+                </button>
+                <button
+                  type="submit"
+                  disabled={isRequestingReset}
+                  className="px-5 py-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold text-xs rounded-xl shadow-lg flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>{isRequestingReset ? 'Đang gửi...' : 'Gửi Yêu Cầu Tới Admin'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

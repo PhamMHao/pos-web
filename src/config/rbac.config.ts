@@ -202,6 +202,12 @@ export const SYSTEM_MODULES: ModulePermissionDef[] = [
     description: 'Quản lý tài khoản người dùng, đổi mật khẩu và tùy biến ma trận phân quyền',
   },
   {
+    id: 'masterdata',
+    label: 'Dữ Liệu Cơ Bản & MDM',
+    category: 'system',
+    description: 'Quản lý danh mục gốc: Khách hàng, NCC, ĐVT quy đổi, Phòng ban, Chức vụ, Vị trí ô kệ, Nhóm hàng & VAT, Cổng Email Gateway',
+  },
+  {
     id: 'settings',
     label: 'Cài Đặt & Cấu Hình',
     category: 'system',
@@ -255,7 +261,7 @@ export const SYSTEM_ACTIONS: ActionPermissionDef[] = [
 // Ma trận quyền mặc định chuẩn
 export const DEFAULT_RBAC_MATRIX: Record<RoleKey, string[]> = {
   admin: [
-    // All 18 modules
+    // All 19 modules
     'pos',
     'quotes',
     'suppliers',
@@ -273,6 +279,7 @@ export const DEFAULT_RBAC_MATRIX: Record<RoleKey, string[]> = {
     'promotions',
     'analytics',
     'accounts',
+    'masterdata',
     'settings',
     // All actions
     'scanner_printer_hub',
@@ -301,6 +308,7 @@ export const DEFAULT_RBAC_MATRIX: Record<RoleKey, string[]> = {
     'customers',
     'promotions',
     'analytics',
+    'masterdata',
     'scanner_printer_hub',
     'quick_stock',
     'ai_copilot',
@@ -340,6 +348,7 @@ export const DEFAULT_RBAC_MATRIX: Record<RoleKey, string[]> = {
     'orders',
     'costing',
     'assets',
+    'masterdata',
     'digital_signature',
     'doc_ocr',
     'ai_copilot',

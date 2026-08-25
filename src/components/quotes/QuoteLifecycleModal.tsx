@@ -240,7 +240,7 @@ export const QuoteLifecycleModal: React.FC<QuoteLifecycleModalProps> = ({
           <div className="w-full md:w-5/12 bg-slate-950 p-5 border-r border-slate-800 space-y-4 overflow-y-auto shrink-0">
             <div className="p-3.5 bg-slate-900 rounded-2xl border border-slate-800 space-y-2">
               <span className="text-slate-400 text-[10px] uppercase font-bold">Trạng Thái Hiện Tại:</span>
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-base font-bold text-white">
                   {LIFECYCLE_STEPS.find((s) => s.status === quote.status)?.label || quote.status}
                 </span>
@@ -248,6 +248,12 @@ export const QuoteLifecycleModal: React.FC<QuoteLifecycleModalProps> = ({
                   Bước {(currentStepIndex >= 0 ? currentStepIndex + 1 : 1)}/6
                 </span>
               </div>
+              {(quote.convertedOrderCode || quote.orderCode) && (
+                <div className="p-2 bg-teal-500/15 border border-teal-500/30 rounded-xl text-teal-300 text-xs font-bold flex items-center space-x-1.5 font-mono">
+                  <CheckCircle2 className="w-4 h-4 text-teal-400 shrink-0" />
+                  <span>Hóa đơn đã tạo: {quote.convertedOrderCode || quote.orderCode}</span>
+                </div>
+              )}
             </div>
 
             {/* Quick Actions */}

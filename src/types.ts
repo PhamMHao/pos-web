@@ -69,6 +69,8 @@ export interface Product {
   expiryDate?: string; // Hạn sử dụng (YYYY-MM-DD)
   manufactureDate?: string; // Ngày sản xuất (YYYY-MM-DD)
   lifecycleLogs?: ProductLifecycleLog[];
+  requiresSerial?: boolean; // Bắt buộc quản lý Serial/IMEI khi xuất kho
+  warrantyPeriodMonths?: number; // Thời hạn bảo hành tiêu chuẩn (tháng)
 }
 
 export interface CartItem {
@@ -80,6 +82,7 @@ export interface CartItem {
   ratioToBase?: number; // Tỷ lệ quy đổi so với đơn vị gốc để trừ kho chính xác
   discountPercent: number; // Giảm % trên từng món
   customPrice?: number;
+  serials?: string[]; // Danh sách số Serial/IMEI thực tế gán cho món hàng
   note?: string;
 }
 
@@ -94,6 +97,8 @@ export type OrderStatus =
   | 'cancelled' // Đã hủy
   | 'refunded'; // Hoàn trả
 
+export type OrderOutboundStatus = 'pending_dispatch' | 'partially_dispatched' | 'dispatched';
+
 export type PaymentMethod = 'cash' | 'transfer' | 'card' | 'momo' | 'debt';
 
 export interface Order {
@@ -101,6 +106,13 @@ export interface Order {
   code: string; // VD: DH-10029
   channel: OrderChannel;
   status: OrderStatus;
+  outboundStatus?: OrderOutboundStatus; // Trạng thái xuất kho thực tế
+  dispatchedAt?: string; // Thời điểm hoàn tất xuất kho
+  dispatchedBy?: string; // Người thực hiện xuất kho (Thủ kho / Thu ngân)
+  outboundNoteCode?: string; // Mã phiếu xuất kho liên kết (VD: XK-2026-001)
+  sourceQuoteId?: string; // ID báo giá gốc nếu chuyển từ báo giá
+  sourceQuoteCode?: string; // Mã báo giá gốc (VD: BG-2026-001)
+  quoteSnapshot?: any; // Snapshot điều khoản, chiết khấu đã thỏa thuận trên báo giá
   customer?: {
     id: string;
     name: string;
@@ -119,6 +131,8 @@ export interface Order {
     costPrice: number;
     discountPercent: number;
     total: number;
+    serials?: string[]; // Danh sách số Serial/IMEI thực tế đã xuất
+    warrantyPeriodMonths?: number; // Thời hạn bảo hành (tháng)
   }[];
   subtotal: number;
   discountAmount: number;
@@ -149,22 +163,58 @@ export interface Order {
   completedAt?: string;
 }
 
-export type CustomerTier = 'Đồng' | 'Bạc' | 'Vàng' | 'Kim Cương';
+export type CustomerTier =
+  | 'Đồng'
+  | 'Bạc'
+  | 'Vàng'
+  | 'Kim Cương'
+  | 'VIP'
+  | 'Hạng Đồng'
+  | 'Hạng Bạc'
+  | 'Hạng Vàng'
+  | 'Hạng Kim Cương'
+  | 'VIP Doanh Nghiệp';
 
 export interface Customer {
   id: string;
   name: string;
   phone: string;
-  email?: string;
-  address?: string;
+  customerType?: string; // 'Khách Hàng Cá Nhân' | 'Doanh Nghiệp B2B' | 'Đại Lý Cấp 1' | 'Đại Lý Cấp 2' | 'Khách Sỉ'
+  groupId?: string;
+  groupName?: string;
   tier: CustomerTier;
   points: number; // Điểm tích lũy (1000đ = 1đ)
+  email?: string;
+  invoiceEmail?: string; // Email Chuyên Nhận Hóa Đơn Điện Tử TT78
+  quoteEmail?: string; // Email Chuyên Nhận Báo Giá Dự Án
+  address?: string;
+  companyName?: string; // Tên Pháp Nhân Công Ty (Xuất VAT)
+  taxCode?: string; // Mã Số Thuế (MST)
+  bankAccount?: string; // Số Tài Khoản Ngân Hàng
+  bankName?: string; // Ngân Hàng Thụ Hưởng
+  creditLimit?: number; // Hạn Mức Nợ Tối Đa (VNĐ)
+  creditDays?: number; // Thời Hạn Công Nợ (Ngày)
   totalSpent: number;
   totalOrders: number;
   debt: number; // Công nợ
   note?: string;
   createdAt: string;
 }
+
+export interface MasterCustomerTier {
+  id: string;
+  code: string; // e.g. TIER-DONG, TIER-BAC, TIER-VANG, TIER-KIMCUONG, TIER-VIP
+  name: string; // e.g. Hạng Đồng, Hạng Bạc, Hạng Vàng, Hạng Kim Cương, VIP Doanh Nghiệp
+  minPoints: number; // Điểm tích lũy tối thiểu
+  minSpent: number; // Tổng chi tiêu tối thiểu (VND)
+  discountPercent: number; // Chiết khấu ưu đãi %
+  color: string; // slate, blue, amber, purple, emerald
+  benefits: string; // Quyền lợi đặc quyền
+  customerCount?: number;
+  status: 'active' | 'inactive';
+  createdAt: string;
+}
+
 
 export interface InventoryLog {
   id: string;
@@ -421,7 +471,22 @@ export interface PriceQuote {
   negotiationNotes?: string;
   completedAt?: string;
   orderCode?: string;
+  convertedOrderId?: string;
+  convertedOrderCode?: string;
+  lockedByPosSession?: string | null;
+  lockExpiry?: string;
+  quoteSnapshot?: any;
   lifecycleHistory?: QuoteLifecycleEvent[];
+}
+
+export interface LoadedQuoteData {
+  quoteId: string;
+  quoteCode: string;
+  items: CartItem[];
+  customer?: Customer | null;
+  validUntil?: string;
+  originalNotes?: string;
+  quoteSnapshot?: any;
 }
 
 export interface ProductCosting {
@@ -558,21 +623,57 @@ export interface WarrantyTicket {
   timeline: WarrantyTimelineEvent[];
 }
 
+export type SerialInventoryStatus = 'in_stock' | 'reserved' | 'sold' | 'under_warranty' | 'defective' | 'returned_to_vendor';
+
 export interface SerialDeviceRecord {
   id: string;
-  serialNumber: string; // Số Serial / IMEI
+  serialNumber: string; // Số Serial / IMEI duy nhất
+  productId?: string;
   productName: string;
   sku: string;
+  status?: SerialInventoryStatus; // Trạng thái tồn kho / bán / bảo hành của số Serial
+  warehouseLocation?: string; // Vị trí ngăn kệ trong kho khi status = in_stock
   soldOrderCode?: string;
   soldDate?: string;
   customerName?: string;
   customerPhone?: string;
+  customerAddress?: string;
   warrantyPeriodMonths: number;
   warrantyExpiryDate: string;
   warrantyStatus: 'valid' | 'expired' | 'voided';
   totalRepairsCount: number;
   totalMaintenancesCount: number;
+  replacedBySerial?: string; // Số Serial mới thay thế (khi đổi mới 1-1)
+  previousSerial?: string; // Số Serial tiền nhiệm được kế thừa hạn bảo hành
+  reservedByOrderCode?: string; // Mã đơn đang tạm giữ Serial (Concurrency Lock)
+  lockExpiry?: string; // Thời điểm hết hạn tạm giữ
   notes?: string;
+}
+
+export interface StockOutboundNote {
+  id: string;
+  code: string; // e.g. 'XK-2026-001'
+  orderCode: string;
+  orderId?: string;
+  customerName: string;
+  customerPhone: string;
+  customerAddress?: string;
+  warehouseName: string;
+  dispatchedBy: string;
+  dispatchedAt: string;
+  items: {
+    productId: string;
+    productName: string;
+    sku: string;
+    unit: string;
+    quantity: number;
+    serials: string[];
+    warrantyPeriodMonths?: number;
+  }[];
+  totalQuantity: number;
+  notes?: string;
+  status: 'completed' | 'cancelled';
+  createdAt: string;
 }
 
 // Electronic Invoice (Hóa Đơn Điện Tử - TT78 & NĐ123)
@@ -1171,6 +1272,196 @@ export interface SignableDocument {
   status: 'pending' | 'signed' | 'rejected';
   signature?: DigitalSignatureMetadata;
   legalStandard: string; // VD: 'XML-DSig TT78', 'PAdES B-LT ETSI EN 319 142'
+}
+
+// ==========================================
+// Master Data Management (MDM) Types
+// ==========================================
+
+export interface Department {
+  id: string;
+  code: string; // e.g., 'PB-BGD', 'PB-KD', 'PB-KT', 'PB-KHO'
+  name: string; // e.g., 'Phòng Kinh Doanh & Dự Án'
+  headOfDepartment: string; // Trưởng bộ phận
+  phone: string; // Số máy nhánh / Hotline
+  email: string; // Email phòng ban
+  location: string; // Vị trí / Tầng / Khu vực làm việc
+  description?: string;
+  employeeCount?: number;
+  status: 'active' | 'inactive';
+  createdAt: string;
+}
+
+export interface JobPosition {
+  id: string;
+  code: string; // e.g., 'CV-CEO', 'CV-KTT', 'CV-NVKD', 'CV-TK'
+  title: string; // e.g., 'Kế Toán Trưởng & Tài Chính'
+  departmentId: string;
+  departmentName?: string;
+  baseSalary: number; // Mức lương cơ sở tham chiếu (VND)
+  responsibilityAllowance: number; // Phụ cấp trách nhiệm (VND)
+  salaryCoefficient: number; // Hệ số lương (e.g. 1.0, 1.5, 2.0)
+  linkedRole: string; // RoleKey: 'admin' | 'manager' | 'cashier' | 'warehouse' | 'accountant' | 'sales' | 'technician'
+  description?: string;
+  status: 'active' | 'inactive';
+  createdAt: string;
+}
+
+export interface WarehouseLocation {
+  id: string;
+  code: string; // e.g., 'LOC-A1-01', 'LOC-RACK-B2', 'LOC-PALLET-01'
+  name: string; // e.g., 'Kệ A1 - Tầng 1 (Linh Kiện Mainboard/CPU)'
+  warehouseName: string; // e.g., 'Kho Chính Gia Phúc Computer'
+  zone: string; // Khu A, Khu B, Khu Linh Kiện, Khu Bảo Hành
+  shelf?: string; // Kệ A1, Kệ A2, Tủ 01
+  bin?: string; // Ô 01, Ô 02
+  barcode: string; // Barcode quét vị trí
+  maxCapacity: number; // Sức chứa tối đa (sản phẩm/kg)
+  currentUsage?: number;
+  storageType: 'rack' | 'bin' | 'pallet' | 'bulk' | 'cold' | 'secure';
+  note?: string;
+  status: 'active' | 'inactive';
+  createdAt: string;
+}
+
+export interface UnitOfMeasure {
+  id: string;
+  code: string; // e.g., 'CAI', 'BO', 'THUNG', 'HOP', 'CUON', 'MET', 'KG'
+  name: string; // e.g., 'Cái', 'Bộ', 'Thùng', 'Hộp', 'Cuộn'
+  symbol: string;
+  isBaseUnit: boolean; // Có phải là ĐVT cơ sở chuẩn không
+  baseUnitId?: string;
+  baseUnitName?: string;
+  conversionRate: number; // 1 ĐVT này = bao nhiêu ĐVT cơ sở (e.g., 1 Thùng = 10 Cái)
+  description?: string;
+  status: 'active' | 'inactive';
+  createdAt: string;
+}
+
+export interface MasterProductCategory {
+  id: string;
+  code: string; // e.g., 'CAT-PC', 'CAT-CAM', 'CAT-NET', 'CAT-LK'
+  name: string; // e.g., 'Linh Kiện PC & Laptop'
+  defaultVatRate: number; // 8, 10, 5, 0 (%)
+  icon?: string;
+  parentCategoryId?: string;
+  parentCategoryName?: string;
+  description?: string;
+  productCount?: number;
+  status: 'active' | 'inactive';
+  createdAt: string;
+}
+
+export interface CustomerGroup {
+  id: string;
+  code: string; // e.g., 'GRP-SI', 'GRP-DUAN', 'GRP-VIP', 'GRP-LE'
+  name: string; // e.g., 'Khách Hàng Mua Sỉ / Đại Lý Cấp 1'
+  discountPercent: number; // Chiết khấu mặc định %
+  defaultDebtLimit: number; // Hạn mức công nợ tối đa (VND)
+  paymentTermsDays: number; // Thời hạn thanh toán (ngày)
+  priorityLevel: 'standard' | 'high' | 'vip';
+  note?: string;
+  customerCount?: number;
+  createdAt: string;
+}
+
+export interface MasterSupplierCategory {
+  id: string;
+  code: string; // e.g., 'SUP-CAT-CHINHHANG', 'SUP-CAT-DAILY1', 'SUP-CAT-XUONG'
+  name: string; // e.g., 'Nhà Phân Phối Chính Hãng (Synnex FPT, DGW, Viễn Sơn)'
+  description?: string;
+  defaultPaymentTerms: string; // e.g., 'Gối đầu 30 ngày', 'Thanh toán ngay khi giao'
+  supplierCount?: number;
+  createdAt: string;
+}
+
+export type EnterpriseProjectStatus = 'in_progress' | 'completed' | 'planning' | 'on_hold';
+
+export interface EnterpriseProject {
+  id: string;
+  code: string; // e.g. 'DA-2026-001'
+  name: string; // e.g. 'Dự Án Camera Giám Sát Nhà Máy KCN VSIP 2'
+  status: EnterpriseProjectStatus;
+  customerName: string; // 'Công Ty TNHH Polytex Far Eastern'
+  customerId?: string;
+  managerName: string; // 'Trần Hoàng Long (Kỹ thuật trưởng)'
+  managerId?: string;
+  budget: number; // Tổng mức đầu tư / ngân sách (VND)
+  startDate: string; // '2026-01-10'
+  endDate?: string;
+  sector: string; // 'Sản Xuất & Khu Công Nghiệp' | 'Xây Dựng & Bất Động Sản' | 'Giáo Dục & Đào Tạo' | ...
+  description: string; // 'Lắp đặt hệ thống 32 camera IP ColorVu 4MP, 2 đầu ghi 16 kênh NVR 4K và tủ Rack NOC trung tâm.'
+  linkedDeviceCount?: number; // 3
+  createdAt: string;
+}
+
+export interface EmailGatewayConfig {
+  smtpHost: string; // e.g., 'smtp.gmail.com'
+  smtpPort: number; // 587 hoặc 465
+  secure: boolean;
+  authUser: string; // e.g., 'hethonggiaphuc@gmail.com'
+  authPasswordMasked: string; // '••••••••••••••••'
+  defaultSenderName: string; // e.g., 'GIA PHÚC Computer - Hệ Thống GPSOFT'
+  defaultSenderEmail: string; // e.g., 'no-reply@vitinhgiaphuc.com'
+  adminNotificationEmail: string; // e.g., 'hrmgpsoft@gmail.com'
+  accountingEmail: string; // e.g., 'ketoan@vitinhgiaphuc.com'
+  salesEmail: string; // e.g., 'sales@vitinhgiaphuc.com'
+  signatureHtml: string;
+  isGatewayActive: boolean;
+  lastTestSuccessAt?: string;
+}
+
+export type EmailTemplateType =
+  | 'einvoice_vat'
+  | 'quote_proposal'
+  | 'purchase_order'
+  | 'password_reset_request'
+  | 'password_reset_approved'
+  | 'kpi_monthly_report'
+  | 'warranty_status_update'
+  | 'custom';
+
+export interface EmailTemplate {
+  id: string;
+  type: EmailTemplateType;
+  name: string;
+  subject: string;
+  bodyHtml: string;
+  availableVariables: string[]; // e.g. ['{{customerName}}', '{{invoiceCode}}', '{{totalAmount}}', '{{xmlUrl}}', '{{pdfUrl}}']
+  isActive: boolean;
+  updatedAt: string;
+}
+
+export interface EmailDispatchLog {
+  id: string;
+  timestamp: string;
+  recipientEmail: string;
+  recipientName: string;
+  subject: string;
+  type: EmailTemplateType;
+  typeLabel: string;
+  status: 'sent' | 'failed' | 'queued';
+  responseTimeMs: number;
+  referenceCode?: string; // Mã hóa đơn / báo giá / ticket
+  errorMessage?: string;
+}
+
+export interface PasswordResetRequest {
+  id: string;
+  timestamp: string;
+  userId: string;
+  username: string;
+  fullName: string;
+  userEmail: string;
+  adminEmail: string; // 'hrmgpsoft@gmail.com'
+  verificationCode: string; // 6-digit PIN
+  reason: string;
+  status: 'pending_admin_approval' | 'approved' | 'rejected' | 'completed';
+  requestedAt: string;
+  approvedAt?: string;
+  approvedBy?: string;
+  tempPassword?: string;
+  adminNote?: string;
 }
 
 

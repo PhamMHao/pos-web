@@ -273,6 +273,11 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                         <div className="text-[10px] text-slate-400 font-mono">
                           {item.sku}
                         </div>
+                        {item.serials && item.serials.length > 0 && (
+                          <div className="text-[9px] font-mono font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1 py-0.5 rounded mt-0.5 block">
+                            S/N: {item.serials.join(', ')}
+                          </div>
+                        )}
                         {item.discountPercent > 0 && (
                           <span className="text-[9px] text-rose-600 font-medium">
                             (Giảm {item.discountPercent}%)

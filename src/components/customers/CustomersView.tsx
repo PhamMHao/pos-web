@@ -30,11 +30,17 @@ interface CustomersViewProps {
   onRefreshDb?: () => void;
 }
 
-const TIER_CONFIG: Record<CustomerTier, { bg: string; text: string; border: string }> = {
+const TIER_CONFIG: Record<string, { bg: string; text: string; border: string }> = {
   Đồng: { bg: 'bg-amber-950/40', text: 'text-amber-400', border: 'border-amber-700/40' },
+  'Hạng Đồng': { bg: 'bg-amber-950/40', text: 'text-amber-400', border: 'border-amber-700/40' },
   Bạc: { bg: 'bg-slate-700/40', text: 'text-slate-200', border: 'border-slate-600/40' },
+  'Hạng Bạc': { bg: 'bg-slate-700/40', text: 'text-slate-200', border: 'border-slate-600/40' },
   Vàng: { bg: 'bg-yellow-950/40', text: 'text-yellow-300', border: 'border-yellow-600/40' },
+  'Hạng Vàng': { bg: 'bg-yellow-950/40', text: 'text-yellow-300', border: 'border-yellow-600/40' },
   'Kim Cương': { bg: 'bg-cyan-950/40', text: 'text-cyan-300', border: 'border-cyan-500/40' },
+  'Hạng Kim Cương': { bg: 'bg-cyan-950/40', text: 'text-cyan-300', border: 'border-cyan-500/40' },
+  VIP: { bg: 'bg-purple-950/40', text: 'text-purple-300', border: 'border-purple-500/40' },
+  'VIP Doanh Nghiệp': { bg: 'bg-emerald-950/40', text: 'text-emerald-300', border: 'border-emerald-500/40' },
 };
 
 export const CustomersView: React.FC<CustomersViewProps> = ({

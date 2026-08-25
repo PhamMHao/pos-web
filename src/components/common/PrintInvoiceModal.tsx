@@ -262,8 +262,8 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
         unitPrice: it.unitPrice,
         total: it.total,
         discountPercent: it.discountPercent || 0,
-        serialNumber: 'E32131315F',
-        warranty: '12-24 Tháng',
+        serialNumber: (it as any).serials && (it as any).serials.length > 0 ? (it as any).serials.join(', ') : '',
+        warranty: (it as any).warrantyPeriodMonths ? `${(it as any).warrantyPeriodMonths} Tháng` : '24 Tháng',
       }));
     }
     // Default samples from real Excel photos

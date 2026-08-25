@@ -23,6 +23,7 @@ const AssetsView = lazy(() => import('./components/assets/AssetsView').then((m) 
 const WarrantyView = lazy(() => import('./components/warranty/WarrantyView').then((m) => ({ default: m.WarrantyView })));
 const SuppliersView = lazy(() => import('./components/suppliers/SuppliersView').then((m) => ({ default: m.SuppliersView })));
 const AccountsManagerView = lazy(() => import('./components/accounts/AccountsManagerView').then((m) => ({ default: m.AccountsManagerView })));
+const MasterDataManagerView = lazy(() => import('./components/masterdata/MasterDataManagerView').then((m) => ({ default: m.MasterDataManagerView })));
 
 // Lazy-loaded Modals & Drawers (Chỉ tải khi mở)
 const FraudModal = lazy(() => import('./components/ai/FraudModal').then((m) => ({ default: m.FraudModal })));
@@ -88,6 +89,7 @@ import {
   PurchaseOrder,
   ReturnOrder,
   StockTransfer,
+  LoadedQuoteData,
 } from './types';
 
 export function App() {
@@ -153,6 +155,7 @@ export function App() {
     | 'promotions'
     | 'analytics'
     | 'accounts'
+    | 'masterdata'
     | 'settings'
     | 'einvoices'
     | 'contracts'
@@ -349,7 +352,7 @@ export function App() {
   const [scannerHubInitialTab, setScannerHubInitialTab] = useState<'lookup' | 'register' | 'batch_serial' | 'printer_hub'>('lookup');
   const [barcodeModalProduct, setBarcodeModalProduct] = useState<Product | null>(null);
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
-  const [loadedQuoteData, setLoadedQuoteData] = useState<{ items: CartItem[]; customer?: Customer | null } | null>(null);
+  const [loadedQuoteData, setLoadedQuoteData] = useState<LoadedQuoteData | null>(null);
   const [showDocOcrModal, setShowDocOcrModal] = useState(false);
   const [showUniversalDocSearch, setShowUniversalDocSearch] = useState(false);
   const [showDigitalSignatureHubModal, setShowDigitalSignatureHubModal] = useState(false);
@@ -603,6 +606,8 @@ export function App() {
     });
 
     setLoadedQuoteData({
+      quoteId: 'ocr-' + Date.now(),
+      quoteCode: 'BG-OCR-' + Date.now().toString().slice(-4),
       items: quoteItems,
       customer: customers[0] || null,
     });
@@ -914,6 +919,48 @@ export function App() {
     } catch (err: any) {
       console.warn('API createOrder warning:', err.message);
     }
+
+    // Auto-complete Source Price Quote if order was converted from Quote
+    if (newOrder.sourceQuoteId) {
+      const quoteId = newOrder.sourceQuoteId;
+      setQuotes((prevQuotes) =>
+        prevQuotes.map((q) => {
+          if (q.id === quoteId || q.code === newOrder.sourceQuoteCode) {
+            const completedQuote: PriceQuote = {
+              ...q,
+              status: 'completed',
+              orderCode: newOrder.code,
+              convertedOrderCode: newOrder.code,
+              convertedOrderId: newOrder.id,
+              completedAt: new Date().toISOString(),
+              lockedByPosSession: null,
+              lockExpiry: undefined,
+              lifecycleHistory: [
+                {
+                  id: `tl-${Date.now()}`,
+                  timestamp: new Date().toISOString(),
+                  author: newOrder.dispatchedBy || currentShift?.staffName || 'Thu Ngân POS',
+                  fromStatus: q.status,
+                  toStatus: 'completed',
+                  note: `Đã hoàn tất thanh toán hóa đơn ${newOrder.code} tại quầy POS (Tổng thanh toán: ${newOrder.total.toLocaleString('vi-VN')} đ)`,
+                },
+                ...(q.lifecycleHistory || []),
+              ],
+            };
+
+            // Call backend API async
+            quotesApi.updateQuote(q.id, completedQuote).catch((err: any) => {
+              console.warn('API updateQuote on complete warning:', err.message);
+            });
+
+            return completedQuote;
+          }
+          return q;
+        })
+      );
+
+      setLoadedQuoteData(null);
+    }
   };
 
   const handleUpdateProductStock = (productId: string, quantityDeducted: number) => {
@@ -1189,6 +1236,28 @@ export function App() {
   };
 
   const handleConvertQuoteToOrder = async (quote: PriceQuote) => {
+    // 1. Double conversion prevention
+    if (quote.status === 'completed' || quote.convertedOrderCode) {
+      alert(`Báo giá "${quote.code}" đã được thanh toán và hoàn tất trong hóa đơn ${quote.convertedOrderCode || quote.orderCode}!`);
+      return;
+    }
+
+    // 2. Concurrency lock check (15 minutes)
+    if (
+      quote.lockedByPosSession &&
+      quote.lockExpiry &&
+      new Date(quote.lockExpiry).getTime() > Date.now()
+    ) {
+      if (
+        !window.confirm(
+          `Báo giá "${quote.code}" đang được nạp tại một phiên POS khác. Bạn có chắc muốn ghi đè phiên và tiếp tục không?`
+        )
+      ) {
+        return;
+      }
+    }
+
+    // 3. Price preservation: preserve quote unitPrice, customPrice, discountPercent
     const cartItems: CartItem[] = quote.items.map((item, idx) => {
       const matchedProd = products.find(
         (p) =>
@@ -1216,7 +1285,7 @@ export function App() {
         unitPrice: item.unitPrice,
         costPrice: item.unitPrice * 0.7,
         ratioToBase: 1,
-        discountPercent: 0,
+        discountPercent: quote.discountPercent || 0,
         customPrice: item.unitPrice,
       };
     });
@@ -1239,26 +1308,92 @@ export function App() {
         createdAt: new Date().toISOString(),
       };
 
+    const quoteSnapshot = {
+      quoteId: quote.id,
+      quoteCode: quote.code,
+      totalAmount: quote.totalAmount,
+      discountPercent: quote.discountPercent,
+      finalTotal: quote.finalTotal,
+      validUntil: quote.validUntil,
+      items: quote.items,
+    };
+
     setLoadedQuoteData({
+      quoteId: quote.id,
+      quoteCode: quote.code,
       items: cartItems,
       customer: matchingCustomer,
+      validUntil: quote.validUntil,
+      originalNotes: quote.notes,
+      quoteSnapshot,
     });
 
-    setQuotes((prev) =>
-      prev.map((q) =>
-        q.id === quote.id ? { ...q, status: 'converted_to_order' } : q
-      )
-    );
+    const lockExpiry = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    const updatedQuote: PriceQuote = {
+      ...quote,
+      status: 'converted_to_order',
+      lockedByPosSession: 'pos_session_' + Date.now(),
+      lockExpiry,
+      quoteSnapshot,
+      lifecycleHistory: [
+        {
+          id: `tl-${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          author: settings.defaultCreatorName || 'Nhân Viên Bán Hàng',
+          fromStatus: quote.status,
+          toStatus: 'converted_to_order',
+          note: `Đã nạp báo giá vào giỏ hàng POS để tiến hành quét Serial và thanh toán`,
+        },
+        ...(quote.lifecycleHistory || []),
+      ],
+    };
+
+    setQuotes((prev) => prev.map((q) => (q.id === quote.id ? updatedQuote : q)));
 
     try {
-      await quotesApi.updateQuote(quote.id, {
-        status: 'converted_to_order',
-      });
+      await quotesApi.updateQuote(quote.id, updatedQuote);
     } catch (e: any) {
       console.warn('API quote status update warning:', e.message);
     }
 
     setActiveTab('pos');
+  };
+
+  const handleCancelLoadedQuote = async () => {
+    if (loadedQuoteData?.quoteId) {
+      const quoteId = loadedQuoteData.quoteId;
+      setQuotes((prevQuotes) =>
+        prevQuotes.map((q) => {
+          if (q.id === quoteId && q.status !== 'completed') {
+            const revertedQuote: PriceQuote = {
+              ...q,
+              status: 'approved',
+              lockedByPosSession: null,
+              lockExpiry: undefined,
+              lifecycleHistory: [
+                {
+                  id: `tl-${Date.now()}`,
+                  timestamp: new Date().toISOString(),
+                  author: 'Thu Ngân POS',
+                  fromStatus: q.status,
+                  toStatus: 'approved',
+                  note: 'Đã hủy nạp báo giá tại quầy POS, giải phóng khóa và trả về trạng thái Đã Duyệt',
+                },
+                ...(q.lifecycleHistory || []),
+              ],
+            };
+
+            quotesApi.updateQuote(q.id, revertedQuote).catch((err: any) => {
+              console.warn('API updateQuote on cancel warning:', err.message);
+            });
+
+            return revertedQuote;
+          }
+          return q;
+        })
+      );
+    }
+    setLoadedQuoteData(null);
   };
 
   const handleSaveAccountingRecord = async (newRecord: AccountingRecord) => {
@@ -1559,6 +1694,9 @@ export function App() {
                     onIssueEInvoice={handleIssueEInvoice}
                     loadedQuoteData={loadedQuoteData}
                     onClearLoadedQuoteData={() => setLoadedQuoteData(null)}
+                    onCancelLoadedQuote={handleCancelLoadedQuote}
+                    serialRecords={serialRecords}
+                    onSaveSerialRecords={setSerialRecords}
                   />
                 )}
 
@@ -1687,6 +1825,10 @@ export function App() {
                     onOpenDocOcrScanner={(mode) => handleOpenDocOcrScanner(mode || 'stock_in')}
                     onSavePartner={handleSaveSupplier}
                     onSaveEmployee={handleSaveEmployee}
+                    orders={orders}
+                    onSaveOrder={handleSaveOrder}
+                    serialRecords={serialRecords}
+                    setSerialRecords={setSerialRecords}
                   />
                 )}
 
@@ -1705,7 +1847,10 @@ export function App() {
                     onSaveWarranty={handleSaveWarranty}
                     onUpdateWarranty={handleUpdateWarranty}
                     serialRecords={serialRecords}
+                    onSaveSerialRecords={setSerialRecords}
                     products={products}
+                    onSaveProduct={handleSaveProduct}
+                    onAdjustStock={handleAdjustStock}
                     customers={customers}
                     orders={orders}
                     settings={settings}
@@ -1764,6 +1909,10 @@ export function App() {
 
                 {activeTab === 'accounts' && (
                   <AccountsManagerView />
+                )}
+
+                {activeTab === 'masterdata' && (
+                  <MasterDataManagerView />
                 )}
 
                 {activeTab === 'settings' && (

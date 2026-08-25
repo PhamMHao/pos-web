@@ -47,7 +47,10 @@ interface WarrantyViewProps {
   onSaveWarranty: (ticket: WarrantyTicket) => void;
   onUpdateWarranty: (ticket: WarrantyTicket) => void;
   serialRecords?: SerialDeviceRecord[];
+  onSaveSerialRecords?: (records: SerialDeviceRecord[] | ((prev: SerialDeviceRecord[]) => SerialDeviceRecord[])) => void;
   products?: Product[];
+  onSaveProduct?: (product: Product) => void;
+  onAdjustStock?: (log: any) => void;
   customers?: Customer[];
   orders?: Order[];
   settings?: StoreSettings;
@@ -58,7 +61,10 @@ export const WarrantyView: React.FC<WarrantyViewProps> = ({
   onSaveWarranty,
   onUpdateWarranty,
   serialRecords = [],
+  onSaveSerialRecords,
   products = [],
+  onSaveProduct,
+  onAdjustStock,
   customers = [],
   orders = [],
   settings,
@@ -789,6 +795,11 @@ export const WarrantyView: React.FC<WarrantyViewProps> = ({
           ticket={selectedTicket}
           onUpdateTicket={onUpdateWarranty}
           onOpenPrint={handleOpenPrint}
+          serialRecords={safeSerials}
+          onSaveSerialRecords={onSaveSerialRecords}
+          products={products}
+          onSaveProduct={onSaveProduct}
+          onAdjustStock={onAdjustStock}
         />
       )}
 

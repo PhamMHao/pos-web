@@ -24,6 +24,7 @@ import {
   Truck,
   UserCog,
   LogOut,
+  Database,
 } from 'lucide-react';
 import { Order, Product } from '../types';
 import { useAuth } from '../core/contexts/AuthContext';
@@ -156,6 +157,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'accounts',
       label: 'Quản Lý Tài Khoản & RBAC',
       icon: UserCog,
+    },
+    {
+      id: 'masterdata',
+      label: 'Dữ Liệu Cơ Bản & MDM',
+      icon: Database,
     },
     {
       id: 'settings',

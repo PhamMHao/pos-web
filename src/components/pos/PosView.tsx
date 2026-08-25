@@ -45,6 +45,8 @@ import {
   EInvoice,
   EInvoiceItem,
   PaperSize,
+  SerialDeviceRecord,
+  LoadedQuoteData,
 } from '../../types';
 import { formatVND } from '../../utils/vietqr';
 import { numberToVietnameseWords } from '../../utils/numberToWords';
@@ -53,6 +55,11 @@ import { ReceiptModal } from './ReceiptModal';
 import { PrintInvoiceModal } from '../common/PrintInvoiceModal';
 import { UomCalculatorModal } from './UomCalculatorModal';
 import { SelectProductUomModal } from './SelectProductUomModal';
+import { SerialInputModal } from './SerialInputModal';
+import {
+  executeSalesOutboundTransaction,
+  dispatchSalesOrderCompletedEvent,
+} from '../../utils/serialTransactionManager';
 
 interface PosViewProps {
   products: Product[];
@@ -66,8 +73,11 @@ interface PosViewProps {
   onOpenDevices?: () => void;
   onOpenAiAssistant?: () => void;
   onIssueEInvoice?: (invoice: EInvoice) => void;
-  loadedQuoteData?: { items: CartItem[]; customer?: Customer | null } | null;
+  loadedQuoteData?: LoadedQuoteData | null;
   onClearLoadedQuoteData?: () => void;
+  onCancelLoadedQuote?: () => void;
+  serialRecords?: SerialDeviceRecord[];
+  onSaveSerialRecords?: (records: SerialDeviceRecord[] | ((prev: SerialDeviceRecord[]) => SerialDeviceRecord[])) => void;
 }
 
 const CATEGORIES: ('Tất cả' | ProductCategory)[] = [
@@ -97,6 +107,9 @@ export const PosView: React.FC<PosViewProps> = ({
   onIssueEInvoice,
   loadedQuoteData,
   onClearLoadedQuoteData,
+  onCancelLoadedQuote,
+  serialRecords = [],
+  onSaveSerialRecords,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<'Tất cả' | ProductCategory>('Tất cả');
@@ -109,16 +122,26 @@ export const PosView: React.FC<PosViewProps> = ({
   const [promoError, setPromoError] = useState('');
   const [applyTax, setApplyTax] = useState(true);
 
+  // Serial Number Modal State
+  const [isSerialModalOpen, setIsSerialModalOpen] = useState(false);
+  const [selectedCartItemIndex, setSelectedCartItemIndex] = useState<number | null>(null);
+
+  // Active Quote Source State
+  const [activeQuoteSource, setActiveQuoteSource] = useState<LoadedQuoteData | null>(null);
+
   // Sync cart from B2B Quote if transferred
   useEffect(() => {
     if (loadedQuoteData) {
+      setActiveQuoteSource(loadedQuoteData);
       if (loadedQuoteData.items && loadedQuoteData.items.length > 0) {
         setCart(loadedQuoteData.items);
       }
       if (loadedQuoteData.customer) {
         setSelectedCustomer(loadedQuoteData.customer);
       }
-      if (onClearLoadedQuoteData) onClearLoadedQuoteData();
+      if (loadedQuoteData.originalNotes) {
+        setOrderNote(loadedQuoteData.originalNotes);
+      }
     }
   }, [loadedQuoteData]);
 
@@ -316,6 +339,10 @@ export const PosView: React.FC<PosViewProps> = ({
     setDiscountCode('');
     setPromoError('');
     setSelectedCustomer(null);
+    setCustomerDeliveryAddress('');
+    setOrderNote('');
+    setActiveQuoteSource(null);
+    if (onClearLoadedQuoteData) onClearLoadedQuoteData();
   };
 
   // Barcode quick scan
@@ -473,6 +500,8 @@ export const PosView: React.FC<PosViewProps> = ({
         total: Math.round(
           effectivePrice * (1 - item.discountPercent / 100) * item.quantity
         ),
+        serials: item.serials && item.serials.length > 0 ? item.serials : undefined,
+        warrantyPeriodMonths: item.product.warrantyPeriodMonths || 24,
       };
     });
 
@@ -484,6 +513,12 @@ export const PosView: React.FC<PosViewProps> = ({
       code: orderCode,
       channel: 'Tại quầy (POS)',
       status: 'completed',
+      outboundStatus: 'dispatched',
+      dispatchedAt: new Date().toISOString(),
+      dispatchedBy: currentShift?.staffName || 'Thu Ngân POS',
+      sourceQuoteId: activeQuoteSource?.quoteId,
+      sourceQuoteCode: activeQuoteSource?.quoteCode,
+      quoteSnapshot: activeQuoteSource?.quoteSnapshot,
       customer: selectedCustomer
         ? {
             id: selectedCustomer.id,
@@ -519,6 +554,20 @@ export const PosView: React.FC<PosViewProps> = ({
       completedAt: new Date().toISOString(),
     };
 
+    // Execute ACID Outbound Transaction with Serials if serialRecords exist
+    const transactionResult = executeSalesOutboundTransaction({
+      order: newOrder,
+      products,
+      serialRecords,
+      dispatchedBy: currentShift?.staffName || 'Thu Ngân POS',
+      warehouseName: 'Kho Chính Showroom',
+      notes: `Xuất bán trực tiếp tại quầy POS theo đơn ${newOrder.code}`,
+    });
+
+    if (transactionResult.success && transactionResult.updatedSerialRecords && onSaveSerialRecords) {
+      onSaveSerialRecords(transactionResult.updatedSerialRecords);
+    }
+
     // Deduct stock in BASE UNITS based on quantity * ratioToBase
     const stockDeductionMap: { [productId: string]: number } = {};
     cart.forEach((item) => {
@@ -532,6 +581,9 @@ export const PosView: React.FC<PosViewProps> = ({
     });
 
     onSaveOrder(newOrder);
+
+    // Event-Driven Non-blocking Background Dispatcher
+    dispatchSalesOrderCompletedEvent(newOrder);
 
     // Issue E-Invoice if requested
     if (paymentDetails.eInvoiceData?.requestEInvoice && onIssueEInvoice) {
@@ -1042,6 +1094,51 @@ export const PosView: React.FC<PosViewProps> = ({
           )}
         </div>
 
+        {/* Active B2B Quote Source Banner */}
+        {activeQuoteSource && (
+          <div className="mx-3 my-2 p-3 bg-gradient-to-r from-purple-950/70 via-indigo-950/70 to-slate-900 border border-purple-500/40 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-lg shadow-purple-950/20">
+            <div className="flex items-center space-x-2.5 overflow-hidden">
+              <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center justify-center shrink-0">
+                <FileText className="w-4 h-4" />
+              </div>
+              <div className="overflow-hidden">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-xs font-bold text-white">Đang xử lý Báo Giá:</span>
+                  <span className="text-xs font-mono font-black text-amber-300 bg-amber-500/15 px-2 py-0.5 rounded-md border border-amber-500/30">
+                    {activeQuoteSource.quoteCode}
+                  </span>
+                  {activeQuoteSource.validUntil && new Date(activeQuoteSource.validUntil).getTime() < Date.now() && (
+                    <span className="text-[10px] font-bold text-rose-300 bg-rose-500/20 px-1.5 py-0.5 rounded border border-rose-500/30">
+                      ⚠️ Đã hết hạn hiệu lực
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-300 truncate mt-0.5">
+                  Khách hàng: <strong className="text-white">{selectedCustomer?.name || activeQuoteSource.customer?.name || 'Khách Hàng Báo Giá'}</strong> • Đơn giá & chiết khấu được bảo toàn theo hợp đồng
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm('Bạn có chắc muốn hủy nạp Báo Giá này khỏi giỏ hàng? Báo Giá sẽ được giải phóng khóa và trả về trạng thái Đã Duyệt.')) {
+                  setActiveQuoteSource(null);
+                  setCart([]);
+                  setSelectedCustomer(null);
+                  setOrderNote('');
+                  if (onCancelLoadedQuote) onCancelLoadedQuote();
+                }
+              }}
+              className="px-3 py-1.5 bg-slate-800 hover:bg-rose-950/60 text-slate-300 hover:text-rose-300 border border-slate-700 hover:border-rose-500/40 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 transition-all cursor-pointer shrink-0"
+              title="Hủy nạp báo giá và giải phóng khóa phiên"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Hủy Nạp Báo Giá</span>
+            </button>
+          </div>
+        )}
+
         {/* Cart Items List */}
         <div className="flex-1 p-3 overflow-y-auto divide-y divide-slate-800/80">
           {cart.length === 0 ? (
@@ -1066,6 +1163,16 @@ export const PosView: React.FC<PosViewProps> = ({
 
               return (
                 <div key={`${item.product.id}_${activeUnit}_${idx}`} className="py-3 first:pt-0 last:pb-0 space-y-2">
+                  {/* Stock Shortage Warning Alert */}
+                  {item.quantity > (item.product.stock || 0) && (
+                    <div className="px-2.5 py-1 bg-amber-500/15 border border-amber-500/30 rounded-lg text-amber-300 text-[11px] flex items-center space-x-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+                      <span>
+                        Kho chỉ còn <strong>{item.product.stock} {item.product.unit}</strong> (Đang chọn <strong>{item.quantity} {activeUnit}</strong>)
+                      </span>
+                    </div>
+                  )}
+
                   {/* Product Title & Remove */}
                   <div className="flex items-start justify-between">
                     <div className="flex-1 pr-2">
@@ -1173,6 +1280,35 @@ export const PosView: React.FC<PosViewProps> = ({
                         {formatVND(itemTotal)}
                       </span>
                     </div>
+                  </div>
+
+                  {/* Serial / IMEI Action Bar */}
+                  <div className="flex items-center justify-between bg-slate-850/80 rounded-lg p-1.5 border border-slate-800">
+                    <div className="flex items-center space-x-1.5 overflow-hidden">
+                      <Barcode className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                      <span className="text-[10px] text-slate-400 font-bold">Serial:</span>
+                      {item.serials && item.serials.length > 0 ? (
+                        <span className="text-[10px] font-bold font-mono text-emerald-300 bg-emerald-500/15 px-1.5 py-0.2 rounded border border-emerald-500/30 truncate max-w-[150px]">
+                          {item.serials.length}/{item.quantity} ({item.serials.join(', ')})
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-semibold text-amber-400 bg-amber-500/10 px-1.5 py-0.2 rounded border border-amber-500/20">
+                          Chưa gán (0/{item.quantity})
+                        </span>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedCartItemIndex(idx);
+                        setIsSerialModalOpen(true);
+                      }}
+                      className="px-2 py-0.5 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/40 rounded text-[10px] font-bold flex items-center space-x-1 transition-all cursor-pointer shrink-0"
+                    >
+                      <Barcode className="w-3 h-3" />
+                      <span>{item.serials && item.serials.length > 0 ? 'Sửa Serial' : '+ Quét Serial'}</span>
+                    </button>
                   </div>
                 </div>
               );
@@ -1338,6 +1474,28 @@ export const PosView: React.FC<PosViewProps> = ({
           addToCart(prod, unit, qty, unitPrice, costPrice, ratioToBase);
         }}
       />
+
+      {/* Serial / IMEI Scanning & Selection Modal */}
+      {isSerialModalOpen && selectedCartItemIndex !== null && cart[selectedCartItemIndex] && (
+        <SerialInputModal
+          isOpen={isSerialModalOpen}
+          cartItem={cart[selectedCartItemIndex]}
+          serialRecords={serialRecords}
+          onClose={() => {
+            setIsSerialModalOpen(false);
+            setSelectedCartItemIndex(null);
+          }}
+          onSaveSerials={(serials) => {
+            if (selectedCartItemIndex !== null) {
+              setCart((prev) =>
+                prev.map((item, idx) =>
+                  idx === selectedCartItemIndex ? { ...item, serials } : item
+                )
+              );
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

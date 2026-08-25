@@ -30,6 +30,7 @@ import {
   Eye,
   Globe,
   Truck,
+  AlertCircle,
 } from 'lucide-react';
 import {
   Product,
@@ -43,6 +44,9 @@ import {
   Employee,
   StockTransfer,
   StockTransferItem,
+  Order,
+  SerialDeviceRecord,
+  StockOutboundNote,
 } from '../../types';
 import { formatVND } from '../../utils/vietqr';
 import { COMMON_UNITS, solveUomChain, getUomEquivalentsSummary } from '../../utils/uomConverter';
@@ -58,6 +62,8 @@ import { QuickAddMasterDataModal, MasterDataType } from '../common/QuickAddMaste
 import { WebImagePickerModal } from '../common/WebImagePickerModal';
 import { StockTransferModal } from './StockTransferModal';
 import { BatchBarcodeLabelModal, BatchPrintItem } from './BatchBarcodeLabelModal';
+import { OrderOutboundDispatchModal } from './OrderOutboundDispatchModal';
+import { PrintInvoiceModal } from '../common/PrintInvoiceModal';
 
 const LIFECYCLE_STAGE_BADGES: Record<string, { label: string; badge: string }> = {
   new_inbound: { label: 'Nhập Mới', badge: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
@@ -93,6 +99,10 @@ interface InventoryViewProps {
   onOpenDocOcrScanner?: (mode?: 'stock_in') => void;
   onSavePartner?: (partner: any) => void | Promise<void>;
   onSaveEmployee?: (employee: Employee) => void | Promise<void>;
+  orders?: Order[];
+  onSaveOrder?: (order: Order) => void;
+  serialRecords?: SerialDeviceRecord[];
+  setSerialRecords?: (records: SerialDeviceRecord[] | ((prev: SerialDeviceRecord[]) => SerialDeviceRecord[])) => void;
 }
 
 const CATEGORIES: ProductCategory[] = [
@@ -152,8 +162,12 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   onOpenDocOcrScanner,
   onSavePartner,
   onSaveEmployee,
+  orders = [],
+  onSaveOrder,
+  serialRecords = [],
+  setSerialRecords,
 }) => {
-  const [activeTab, setActiveTab] = useState<'catalog' | 'logs'>('catalog');
+  const [activeTab, setActiveTab] = useState<'catalog' | 'outbound' | 'logs'>('catalog');
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [warehouseFilter, setWarehouseFilter] = useState<string>('all');
@@ -177,6 +191,13 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   const [previewModalItems, setPreviewModalItems] = useState<PrintLabelItem[]>([]);
   const [showLifecycleModal, setShowLifecycleModal] = useState(false);
   const [lifecycleModalProduct, setLifecycleModalProduct] = useState<Product | null>(null);
+
+  // Outbound Dispatch State
+  const [selectedDispatchOrder, setSelectedDispatchOrder] = useState<Order | null>(null);
+  const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
+  const [printOutboundOrder, setPrintOutboundOrder] = useState<Order | null>(null);
+  const [outboundSearchTerm, setOutboundSearchTerm] = useState('');
+  const [outboundStatusFilter, setOutboundStatusFilter] = useState<'all' | 'pending' | 'dispatched'>('all');
 
   // Inter-Branch Transfer & Batch Barcode Modals
   const [showTransferModal, setShowTransferModal] = useState(false);
@@ -306,6 +327,30 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       return matchCat && matchWh && matchStage && matchStock && matchSearch;
     });
   }, [safeProducts, categoryFilter, warehouseFilter, lifecycleStageFilter, stockFilter, searchTerm]);
+
+  const filteredOutboundOrders = useMemo(() => {
+    return orders
+      .filter((o) => o.status !== 'cancelled')
+      .filter((o) => {
+        if (outboundStatusFilter === 'pending') {
+          return o.outboundStatus !== 'dispatched';
+        }
+        if (outboundStatusFilter === 'dispatched') {
+          return o.outboundStatus === 'dispatched';
+        }
+        return true;
+      })
+      .filter((o) => {
+        if (!outboundSearchTerm) return true;
+        const q = outboundSearchTerm.toLowerCase().trim();
+        return (
+          o.code.toLowerCase().includes(q) ||
+          (o.customer?.name && o.customer.name.toLowerCase().includes(q)) ||
+          (o.customer?.phone && o.customer.phone.includes(q)) ||
+          o.items.some((it) => it.productName.toLowerCase().includes(q) || it.sku.toLowerCase().includes(q))
+        );
+      });
+  }, [orders, outboundStatusFilter, outboundSearchTerm]);
 
   const openAddModal = () => {
     const randomSku = 'SKU-' + Math.floor(1000 + Math.random() * 9000);
@@ -1023,6 +1068,17 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               Danh Mục Sản Phẩm ({products.length})
             </button>
             <button
+              onClick={() => setActiveTab('outbound')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 ${
+                activeTab === 'outbound'
+                  ? 'bg-emerald-500 text-slate-950 shadow'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Boxes className="w-3.5 h-3.5" />
+              <span>Xuất Kho Đơn Hàng ({orders.filter((o) => o.status !== 'cancelled').length})</span>
+            </button>
+            <button
               onClick={() => setActiveTab('logs')}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 ${
                 activeTab === 'logs'
@@ -1034,6 +1090,53 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               <span>Lịch Sử Nhập Xuất ({inventoryLogs.length})</span>
             </button>
           </div>
+
+          {activeTab === 'outbound' && (
+            <div className="flex flex-wrap gap-2 w-full md:w-auto items-center">
+              {/* Search Outbound */}
+              <div className="relative flex-1 md:w-64">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                <input
+                  type="text"
+                  value={outboundSearchTerm}
+                  onChange={(e) => setOutboundSearchTerm(e.target.value)}
+                  placeholder="Tìm mã đơn, khách hàng, Serial..."
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              {/* Status Filter Pills */}
+              <div className="flex space-x-1 bg-slate-800 p-0.5 rounded-xl border border-slate-700 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setOutboundStatusFilter('all')}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                    outboundStatusFilter === 'all' ? 'bg-emerald-500 text-slate-950' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Tất cả
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOutboundStatusFilter('pending')}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                    outboundStatusFilter === 'pending' ? 'bg-amber-500 text-slate-950' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Chờ xuất kho
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOutboundStatusFilter('dispatched')}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                    outboundStatusFilter === 'dispatched' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Đã xuất kho
+                </button>
+              </div>
+            </div>
+          )}
 
           {activeTab === 'catalog' && (
             <div className="flex flex-wrap gap-2 w-full md:w-auto">
@@ -1334,6 +1437,153 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                               title="Xóa sản phẩm"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Outbound Orders Dispatch Tab */}
+      {activeTab === 'outbound' && (
+        <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="bg-slate-950/60 text-slate-400 border-b border-slate-800 uppercase tracking-wider font-semibold">
+                  <th className="py-3.5 px-4">Mã Đơn Hàng</th>
+                  <th className="py-3.5 px-4">Thời Gian</th>
+                  <th className="py-3.5 px-4">Khách Hàng & Nơi Giao</th>
+                  <th className="py-3.5 px-4">Sản Phẩm & Tiến Độ Serial</th>
+                  <th className="py-3.5 px-4 text-right">Tổng Tiền</th>
+                  <th className="py-3.5 px-4 text-center">Trạng Thái Xuất Kho</th>
+                  <th className="py-3.5 px-4 text-right">Thao Tác</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                {filteredOutboundOrders.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-12 text-center text-slate-500">
+                      <div className="flex flex-col items-center justify-center space-y-2">
+                        <Boxes className="w-8 h-8 text-slate-600" />
+                        <p className="text-sm font-semibold">Không tìm thấy đơn hàng cần xuất kho</p>
+                        <p className="text-xs text-slate-500">
+                          Các đơn hàng tạo từ POS, Báo Giá hoặc Bán Hàng sẽ hiển thị tại đây để quét Serial và xuất kho.
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredOutboundOrders.map((ord) => {
+                    const isDispatched = ord.outboundStatus === 'dispatched';
+                    const totalQty = ord.items.reduce((s, i) => s + i.quantity, 0);
+                    const totalAssignedSerials = ord.items.reduce(
+                      (s, i) => s + (i.serials ? i.serials.length : 0),
+                      0
+                    );
+
+                    return (
+                      <tr key={ord.id} className="hover:bg-slate-850/60 transition-colors">
+                        <td className="py-3 px-4">
+                          <div className="font-mono font-bold text-indigo-400">{ord.code}</div>
+                          <span className="text-[10px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700 mt-0.5 inline-block">
+                            {ord.channel || 'Tại quầy (POS)'}
+                          </span>
+                        </td>
+
+                        <td className="py-3 px-4 text-slate-400">
+                          <div>{new Date(ord.createdAt).toLocaleDateString('vi-VN')}</div>
+                          <div className="text-[10px] text-slate-500 font-mono">
+                            {new Date(ord.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </td>
+
+                        <td className="py-3 px-4">
+                          <div className="font-bold text-slate-200">{ord.customer?.name || 'Khách Lẻ Mua Tại Quầy'}</div>
+                          {ord.customer?.phone && (
+                            <div className="text-[11px] text-slate-400">{ord.customer.phone}</div>
+                          )}
+                          {ord.customer?.address && (
+                            <div className="text-[10px] text-slate-500 line-clamp-1 max-w-xs">{ord.customer.address}</div>
+                          )}
+                        </td>
+
+                        <td className="py-3 px-4">
+                          <div className="text-slate-300 font-medium">
+                            {ord.items.length} món ({totalQty} cái)
+                          </div>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {ord.items.map((it, itIdx) => (
+                              <span
+                                key={itIdx}
+                                className={`text-[10px] px-1.5 py-0.5 rounded font-mono border ${
+                                  it.serials && it.serials.length > 0
+                                    ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20'
+                                    : 'bg-slate-800 text-slate-400 border-slate-700'
+                                }`}
+                                title={it.serials && it.serials.length > 0 ? `Serials: ${it.serials.join(', ')}` : 'Chưa gán Serial'}
+                              >
+                                {it.productName.slice(0, 16)}... ({it.serials ? it.serials.length : 0}/{it.quantity} SN)
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+
+                        <td className="py-3 px-4 text-right">
+                          <span className="font-mono font-bold text-emerald-400">
+                            {formatVND(ord.total)}
+                          </span>
+                          <div className="text-[10px] text-slate-400 capitalize">
+                            {ord.paymentStatus === 'paid' ? '✓ Đã thanh toán' : 'Chưa thanh toán'}
+                          </div>
+                        </td>
+
+                        <td className="py-3 px-4 text-center">
+                          {isDispatched ? (
+                            <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Đã xuất kho</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                              <AlertCircle className="w-3.5 h-3.5" />
+                              <span>Chờ xuất kho</span>
+                            </span>
+                          )}
+                        </td>
+
+                        <td className="py-3 px-4 text-right">
+                          <div className="flex items-center justify-end space-x-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedDispatchOrder(ord);
+                                setIsDispatchModalOpen(true);
+                              }}
+                              className={`px-2.5 py-1.5 rounded-xl font-bold text-xs flex items-center space-x-1 transition-all cursor-pointer ${
+                                isDispatched
+                                  ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
+                                  : 'bg-blue-600 hover:bg-blue-500 text-white shadow-md shadow-blue-500/20'
+                              }`}
+                              title="Xuất kho & Quét Serial"
+                            >
+                              <Boxes className="w-3.5 h-3.5" />
+                              <span>{isDispatched ? 'Xem / Sửa Serial' : 'Xuất Kho'}</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setPrintOutboundOrder(ord)}
+                              className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl border border-slate-700 transition-colors cursor-pointer"
+                              title="In Phiếu Xuất Kho Kiêm Bàn Giao"
+                            >
+                              <Printer className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </td>
@@ -2487,6 +2737,50 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           sourceDocCode={batchBarcodeData.sourceDocCode}
           items={batchBarcodeData.items}
           settings={settings}
+        />
+      )}
+
+      {/* Warehouse Outbound Dispatch & Serial Management Modal */}
+      {isDispatchModalOpen && selectedDispatchOrder && (
+        <OrderOutboundDispatchModal
+          isOpen={isDispatchModalOpen}
+          order={selectedDispatchOrder}
+          products={products}
+          serialRecords={serialRecords}
+          onClose={() => {
+            setIsDispatchModalOpen(false);
+            setSelectedDispatchOrder(null);
+          }}
+          onConfirmOutbound={(result) => {
+            if (result.updatedOrder && onSaveOrder) {
+              onSaveOrder(result.updatedOrder);
+            }
+            if (result.updatedProducts) {
+              result.updatedProducts.forEach((p) => onSaveProduct(p));
+            }
+            if (result.updatedSerialRecords && setSerialRecords) {
+              setSerialRecords(result.updatedSerialRecords);
+            }
+            if (result.inventoryLogs) {
+              result.inventoryLogs.forEach((log) => onAdjustStock(log));
+            }
+          }}
+          onPrintDeliveryNote={(ord) => {
+            setPrintOutboundOrder(ord);
+          }}
+          currentUserName={settings.defaultCreatorName || 'Thủ Kho Trưởng'}
+        />
+      )}
+
+      {/* Print Delivery Note / Outbound Note Modal */}
+      {printOutboundOrder && (
+        <PrintInvoiceModal
+          isOpen={!!printOutboundOrder}
+          order={printOutboundOrder}
+          initialDocType="delivery_note"
+          initialPaperSize="A4"
+          settings={settings}
+          onClose={() => setPrintOutboundOrder(null)}
         />
       )}
     </div>

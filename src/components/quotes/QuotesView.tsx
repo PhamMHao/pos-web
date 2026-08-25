@@ -287,7 +287,7 @@ export const QuotesView: React.FC<QuotesViewProps> = ({
               {/* Quote Main Info */}
               <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
                 <div>
-                  <div className="flex items-center space-x-3">
+                  <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-xl font-bold text-white font-mono">{selectedQuote.code}</h3>
                     <span
                       className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
@@ -296,12 +296,23 @@ export const QuotesView: React.FC<QuotesViewProps> = ({
                     >
                       {STATUS_CONFIG[selectedQuote.status]?.label || selectedQuote.status}
                     </span>
+                    {(selectedQuote.convertedOrderCode || selectedQuote.orderCode) && (
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-500/20 text-teal-300 border border-teal-500/30 flex items-center space-x-1 font-mono">
+                        <CheckCircle2 className="w-3 h-3 text-teal-400" />
+                        <span>Hóa Đơn: {selectedQuote.convertedOrderCode || selectedQuote.orderCode}</span>
+                      </span>
+                    )}
                     {quoteSignatures[selectedQuote.id] && (
                       <SignatureVerificationBadge signature={quoteSignatures[selectedQuote.id]} size="sm" />
                     )}
                   </div>
                   <p className="text-xs text-slate-400 mt-1">
                     Ngày lập: {new Date(selectedQuote.createdAt).toLocaleDateString('vi-VN')} • Hiệu lực đến: {new Date(selectedQuote.validUntil).toLocaleDateString('vi-VN')}
+                    {selectedQuote.completedAt && (
+                      <span className="text-teal-400 font-semibold ml-2">
+                        • Đã hoàn tất: {new Date(selectedQuote.completedAt).toLocaleString('vi-VN')}
+                      </span>
+                    )}
                   </p>
                 </div>
 
@@ -332,13 +343,24 @@ export const QuotesView: React.FC<QuotesViewProps> = ({
                     <Printer className="w-3.5 h-3.5" />
                     <span>In Báo Giá (A4/A5)</span>
                   </button>
-                  <button
-                    onClick={() => onConvertToOrder && selectedQuote && onConvertToOrder(selectedQuote)}
-                    className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 shadow transition-colors cursor-pointer"
-                  >
-                    <ShoppingCart className="w-3.5 h-3.5" />
-                    <span>Chuyển Thành Đơn Hàng POS</span>
-                  </button>
+
+                  {selectedQuote.status === 'completed' || selectedQuote.convertedOrderCode ? (
+                    <div
+                      className="px-3.5 py-1.5 bg-teal-950/80 text-teal-300 text-xs font-bold rounded-xl border border-teal-500/40 flex items-center space-x-1.5 shadow-sm"
+                      title={`Báo giá đã hoàn tất đơn hàng ${selectedQuote.convertedOrderCode || selectedQuote.orderCode}`}
+                    >
+                      <Trophy className="w-3.5 h-3.5 text-teal-400" />
+                      <span>Đã Hoàn Tất Bán Hàng</span>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => onConvertToOrder && selectedQuote && onConvertToOrder(selectedQuote)}
+                      className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 shadow transition-colors cursor-pointer active:scale-95"
+                    >
+                      <ShoppingCart className="w-3.5 h-3.5" />
+                      <span>Chuyển Thành Đơn Hàng POS</span>
+                    </button>
+                  )}
                 </div>
               </div>
 

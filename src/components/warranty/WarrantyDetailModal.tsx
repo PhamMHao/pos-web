@@ -27,8 +27,11 @@ import {
   WarrantyStatus,
   WarrantyPartItem,
   WarrantyTimelineEvent,
+  SerialDeviceRecord,
+  Product,
 } from '../../types';
 import { formatVND } from '../../utils/vietqr';
+import { executeSwapSerialTransaction } from '../../utils/serialTransactionManager';
 
 interface WarrantyDetailModalProps {
   isOpen: boolean;
@@ -36,6 +39,11 @@ interface WarrantyDetailModalProps {
   ticket: WarrantyTicket | null;
   onUpdateTicket: (updated: WarrantyTicket) => void;
   onOpenPrint: (ticket: WarrantyTicket, mode: 'receipt' | 'handover') => void;
+  serialRecords?: SerialDeviceRecord[];
+  onSaveSerialRecords?: (records: SerialDeviceRecord[] | ((prev: SerialDeviceRecord[]) => SerialDeviceRecord[])) => void;
+  products?: Product[];
+  onSaveProduct?: (product: Product) => void;
+  onAdjustStock?: (log: any) => void;
 }
 
 export const WarrantyDetailModal: React.FC<WarrantyDetailModalProps> = ({
@@ -44,6 +52,11 @@ export const WarrantyDetailModal: React.FC<WarrantyDetailModalProps> = ({
   ticket,
   onUpdateTicket,
   onOpenPrint,
+  serialRecords = [],
+  onSaveSerialRecords,
+  products = [],
+  onSaveProduct,
+  onAdjustStock,
 }) => {
   if (!isOpen || !ticket) return null;
 
@@ -57,6 +70,11 @@ export const WarrantyDetailModal: React.FC<WarrantyDetailModalProps> = ({
   const [returnedToPerson, setReturnedToPerson] = useState(ticket.returnedToPerson || ticket.customerName);
   const [returnNote, setReturnNote] = useState(ticket.returnNote || '');
   const [warrantyExtensionMonths, setWarrantyExtensionMonths] = useState(ticket.warrantyExtensionMonths || 6);
+
+  // Swap Serial State (Đổi mới 1-1)
+  const [swapNewSerial, setSwapNewSerial] = useState('');
+  const [swapError, setSwapError] = useState<string | null>(null);
+  const [swapSuccessMessage, setSwapSuccessMessage] = useState<string | null>(null);
 
   // Parts List
   const [parts, setParts] = useState<WarrantyPartItem[]>(ticket.parts || []);
@@ -139,6 +157,44 @@ export const WarrantyDetailModal: React.FC<WarrantyDetailModalProps> = ({
 
     onUpdateTicket(updatedTicket);
     setNewTimelineNote('');
+  };
+
+  const handleExecuteSwapSerial = () => {
+    if (!swapNewSerial.trim()) {
+      setSwapError('Vui lòng nhập hoặc quét số Serial mới để đổi cho khách hàng!');
+      return;
+    }
+
+    const swapResult = executeSwapSerialTransaction({
+      oldSerialNumber: ticket.serialNumber,
+      newSerialNumber: swapNewSerial.trim(),
+      technicianName,
+      ticketCode: ticket.code,
+      warrantyExtensionMonths,
+      serialRecords,
+      products,
+    });
+
+    if (!swapResult.success) {
+      setSwapError(swapResult.error || 'Lỗi khi thực thi đổi mới Serial!');
+      return;
+    }
+
+    if (swapResult.updatedSerialRecords && onSaveSerialRecords) {
+      onSaveSerialRecords(swapResult.updatedSerialRecords);
+    }
+    if (swapResult.updatedProducts && onSaveProduct) {
+      swapResult.updatedProducts.forEach((p) => onSaveProduct(p));
+    }
+    if (swapResult.replacementLog && onAdjustStock) {
+      onAdjustStock(swapResult.replacementLog);
+    }
+
+    setSwapSuccessMessage(`Đã đổi mới thành công sang Serial "${swapNewSerial.trim().toUpperCase()}". Serial cũ đã chuyển sang hỏng (defective) và Serial mới đã kế thừa thời hạn bảo hành.`);
+    setSwapError(null);
+
+    // Update ticket status to replaced_new
+    handleStatusChange('replaced_new');
   };
 
   const handleSaveFull = () => {
@@ -285,6 +341,54 @@ export const WarrantyDetailModal: React.FC<WarrantyDetailModalProps> = ({
                 </button>
               ))}
             </div>
+
+            {/* Swap Serial (Đổi Mới 1-1) Interactive Panel */}
+            {status === 'replaced_new' && (
+              <div className="p-4 bg-cyan-950/40 border border-cyan-500/40 rounded-2xl space-y-3 animate-in fade-in duration-200">
+                <div className="flex items-center space-x-2 text-cyan-300 font-bold text-xs">
+                  <Sparkles className="w-4 h-4 text-cyan-400" />
+                  <span>QUY TRÌNH ĐỔI MỚI THIẾT BỊ 1-1 & KẾ THỪA BẢO HÀNH</span>
+                </div>
+                <p className="text-[11px] text-slate-300">
+                  Serial cũ (<strong className="font-mono text-white">{ticket.serialNumber}</strong>) sẽ được chuyển sang trạng thái <em>Lỗi kỹ thuật (defective)</em>. Serial mới sẽ được xuất kho và kế thừa thời hạn bảo hành còn lại của khách hàng.
+                </p>
+
+                <div className="flex flex-col sm:flex-row gap-2 items-center">
+                  <div className="relative flex-1 w-full">
+                    <input
+                      type="text"
+                      value={swapNewSerial}
+                      onChange={(e) => setSwapNewSerial(e.target.value.toUpperCase())}
+                      placeholder="Nhập hoặc quét số Serial mới thay thế..."
+                      className="w-full pl-3 pr-3 py-2 bg-slate-900 border border-cyan-500/50 rounded-xl text-white text-xs font-mono font-bold focus:outline-none focus:border-cyan-400 uppercase"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleExecuteSwapSerial}
+                    className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-cyan-500/25 flex items-center justify-center space-x-1.5 cursor-pointer transition-all shrink-0"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>Xác Nhận Đổi Mới 1-1</span>
+                  </button>
+                </div>
+
+                {swapError && (
+                  <div className="p-2.5 bg-rose-500/15 border border-rose-500/30 rounded-xl text-rose-300 text-xs flex items-center space-x-2">
+                    <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
+                    <span>{swapError}</span>
+                  </div>
+                )}
+
+                {swapSuccessMessage && (
+                  <div className="p-2.5 bg-emerald-500/15 border border-emerald-500/30 rounded-xl text-emerald-300 text-xs flex items-center space-x-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                    <span>{swapSuccessMessage}</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Grid Information: Device, Customer & QR Code */}
