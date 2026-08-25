@@ -21,6 +21,8 @@ model User {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
   shifts       CashShift[]
+
+  @@map("NguoiDung")
 }
 
 // 2. SẢN PHẨM & ĐƠN VỊ TÍNH QUY ĐỔI (MULTI-UOM)
@@ -47,6 +49,8 @@ model Product {
   orderItems      OrderItem[]
   receiptItems    StockGoodsReceiptItem[]
   inventoryLogs   InventoryLog[]
+
+  @@map("SanPham")
 }
 
 model ProductUOMConversion {
@@ -62,6 +66,8 @@ model ProductUOMConversion {
   referenceUnit  String?
   conversionRate Decimal? @db.Decimal(18, 4)
   description    String?
+
+  @@map("QuyDoiDonViTinh")
 }
 
 // 3. KHÁCH HÀNG & CRM
@@ -80,6 +86,8 @@ model Customer {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   orders      Order[]
+
+  @@map("KhachHang")
 }
 
 // 4. BÁN HÀNG POS & ĐƠN HÀNG
@@ -115,6 +123,8 @@ model Order {
   completedAt     DateTime?
   items           OrderItem[]
   eInvoices       EInvoice[]
+
+  @@map("HoaDon")
 }
 
 model OrderItem {
@@ -132,6 +142,8 @@ model OrderItem {
   costPrice       Decimal  @db.Decimal(18, 2)
   discountPercent Decimal  @default(0) @db.Decimal(5, 2)
   total           Decimal  @db.Decimal(18, 2)
+
+  @@map("ChiTietHoaDon")
 }
 
 // 5. CA LÀM VIỆC THU NGÂN
@@ -154,6 +166,8 @@ model CashShift {
   actualEndingCash   Decimal?  @db.Decimal(18, 2)
   note               String?   @db.NVarChar(Max)
   status             String    @default("open") // 'open' | 'closed'
+
+  @@map("CaBanHang")
 }
 
 // 6. NHẬT KÝ KHO & PHIẾU NHẬP KHO
@@ -171,6 +185,8 @@ model InventoryLog {
   reason         String   @db.NVarChar(Max)
   performedBy    String
   timestamp      DateTime @default(now())
+
+  @@map("NhatKyKho")
 }
 
 model StockGoodsReceipt {
@@ -192,6 +208,8 @@ model StockGoodsReceipt {
   paymentStatus      String                  @default("paid") // 'paid' | 'debt_pending' | 'partial'
   notes              String?                 @db.NVarChar(Max)
   items              StockGoodsReceiptItem[]
+
+  @@map("PhieuNhapKho")
 }
 
 model StockGoodsReceiptItem {
@@ -215,6 +233,8 @@ model StockGoodsReceiptItem {
   warehouse       String?
   category        String?
   notes           String?
+
+  @@map("ChiTietPhieuNhapKho")
 }
 
 // 7. BÁO GIÁ (PRICE QUOTES)
@@ -228,10 +248,12 @@ model PriceQuote {
   discountPercent Decimal          @default(0) @db.Decimal(5, 2)
   finalTotal      Decimal          @db.Decimal(18, 2)
   validUntil      DateTime
-  status          String           @default("draft") // 'draft'|'sent'|'approved'|'converted_to_order'|'rejected'
+  status          String           @default("draft") // 'draft'|'sent'|'approved'|'converted_to_order'|'completed'|'rejected'
   createdAt       DateTime         @default(now())
   notes           String?          @db.NVarChar(Max)
   items           PriceQuoteItem[]
+
+  @@map("BaoGia")
 }
 
 model PriceQuoteItem {
@@ -244,6 +266,8 @@ model PriceQuoteItem {
   quantity    Decimal    @db.Decimal(18, 2)
   unitPrice   Decimal    @db.Decimal(18, 2)
   total       Decimal    @db.Decimal(18, 2)
+
+  @@map("ChiTietBaoGia")
 }
 
 // 8. ĐỊNH MỨC BOM & TÍNH GIÁ THÀNH
@@ -259,6 +283,8 @@ model ProductCosting {
   grossMarginPercent       Decimal         @db.Decimal(5, 2)
   lastUpdated              DateTime        @default(now())
   bomItems                 CostingBOMItem[]
+
+  @@map("DinhMucSanXuat")
 }
 
 model CostingBOMItem {
@@ -270,6 +296,8 @@ model CostingBOMItem {
   unit         String
   unitCost     Decimal        @db.Decimal(18, 2)
   totalCost    Decimal        @db.Decimal(18, 2)
+
+  @@map("ChiTietDinhMucBOM")
 }
 
 // 9. TÀI SẢN DOANH NGHIỆP
@@ -285,6 +313,8 @@ model EnterpriseAsset {
   assignedTo          String
   status              String    @default("good") // 'good'|'maintenance_required'|'broken'|'liquidated'
   lastMaintenanceDate DateTime?
+
+  @@map("TaiSanDoanhNghiep")
 }
 
 // 10. BẢO HÀNH & SERIAL/IMEI
@@ -324,6 +354,8 @@ model WarrantyTicket {
   warrantyExtensionMonths Int                     @default(0)
   parts                   WarrantyPartItem[]
   timeline                WarrantyTimelineEvent[]
+
+  @@map("PhieuBaoHanh")
 }
 
 model WarrantyPartItem {
@@ -337,6 +369,8 @@ model WarrantyPartItem {
   unitPrice       Decimal        @db.Decimal(18, 2)
   isUnderWarranty Boolean        @default(true)
   warrantyMonths  Int            @default(0)
+
+  @@map("LinhKienBaoHanh")
 }
 
 model WarrantyTimelineEvent {
@@ -348,6 +382,8 @@ model WarrantyTimelineEvent {
   actor      String
   notes      String?        @db.NVarChar(Max)
   status     String
+
+  @@map("NhatKyBaoHanh")
 }
 
 model SerialDeviceRecord {
@@ -365,6 +401,8 @@ model SerialDeviceRecord {
   totalRepairsCount      Int       @default(0)
   totalMaintenancesCount Int       @default(0)
   notes                  String?   @db.NVarChar(Max)
+
+  @@map("SoSerialThietBi")
 }
 
 // 11. HÓA ĐƠN ĐIỆN TỬ (TT78) & ĐẦU VÀO XML
@@ -397,6 +435,8 @@ model EInvoice {
   digitalSignature String?        @db.NVarChar(Max) // JSON
   cqtStatusMessage String?
   items            EInvoiceItem[]
+
+  @@map("HoaDonDienTu")
 }
 
 model EInvoiceItem {
@@ -414,6 +454,8 @@ model EInvoiceItem {
   taxRate         Decimal  @db.Decimal(5, 2)
   taxAmount       Decimal  @db.Decimal(18, 2)
   total           Decimal  @db.Decimal(18, 2)
+
+  @@map("ChiTietHoaDonDienTu")
 }
 
 model InboundEInvoice {
@@ -446,6 +488,8 @@ model InboundEInvoice {
   notes              String?              @db.NVarChar(Max)
   rawXmlContent      String?              @db.NVarChar(Max)
   items              InboundInvoiceItem[]
+
+  @@map("HoaDonDauVao")
 }
 
 model InboundInvoiceItem {
@@ -476,6 +520,8 @@ model InboundInvoiceItem {
   suggestedSellingPrice   Decimal?        @db.Decimal(18, 2)
   customSku               String?
   customBarcode           String?
+
+  @@map("ChiTietHoaDonDauVao")
 }
 
 // 12. HỢP ĐỒNG LAO ĐỘNG & NHÂN SỰ HR
@@ -496,6 +542,8 @@ model LaborContract {
   termsData      String   @db.NVarChar(Max) // JSON
   signaturesData String   @db.NVarChar(Max) // JSON
   notes          String?  @db.NVarChar(Max)
+
+  @@map("HopDongLaoDong")
 }
 
 model Employee {
@@ -513,6 +561,8 @@ model Employee {
   avatar         String?
   joinedDate     DateTime @default(now())
   shiftSchedule  String?
+
+  @@map("NhanVien")
 }
 
 // 13. KẾ TOÁN, KHUYẾN MÃI, CẢNH BÁO FRAUD & CÀI ĐẶT
@@ -528,6 +578,8 @@ model AccountingRecord {
   status        String   @default("completed")
   note          String?  @db.NVarChar(Max)
   receiptNumber String?
+
+  @@map("SoThuChiKeToan")
 }
 
 model Promotion {
@@ -543,6 +595,8 @@ model Promotion {
   startDate     DateTime
   endDate       DateTime
   isActive      Boolean  @default(true)
+
+  @@map("ChuongTrinhKhuyenMai")
 }
 
 model FraudAlert {
@@ -554,6 +608,8 @@ model FraudAlert {
   source          String   // 'POS' | 'CashShift' | 'Inventory' | 'Accounting'
   status          String   @default("unresolved") // 'unresolved' | 'investigating' | 'resolved'
   suggestedAction String   @db.NVarChar(Max)
+
+  @@map("CanhBaoGianLan")
 }
 
 model StoreSettings {
@@ -569,6 +625,8 @@ model StoreSettings {
   bankCode     String?
   settingsJson String   @db.NVarChar(Max) // Lưu toàn bộ JSON cấu hình mở rộng (in ấn, máy in, scanner, ...)
   updatedAt    DateTime @updatedAt
+
+  @@map("CauHinhCuaHang")
 }
 
 // 14. NHÀ CUNG CẤP & BẢNG GIÁ ĐỐI TÁC
@@ -598,6 +656,8 @@ model Supplier {
   updatedAt      DateTime             @updatedAt
   priceList      SupplierPriceItem[]
   purchaseOrders PurchaseOrder[]
+
+  @@map("NhaCungCap")
 }
 
 model SupplierPriceItem {
@@ -609,6 +669,8 @@ model SupplierPriceItem {
   costPrice      Decimal  @db.Decimal(18, 2)
   warrantyMonths Int      @default(24)
   moq            Int      @default(1)
+
+  @@map("BangGiaNhaCungCap")
 }
 
 // 15. ĐƠN ĐẶT HÀNG MUA (PURCHASE ORDERS - PO)
@@ -639,6 +701,8 @@ model PurchaseOrder {
   createdAt            DateTime            @default(now())
   updatedAt            DateTime            @updatedAt
   items                PurchaseOrderItem[]
+
+  @@map("DonDatHangMua")
 }
 
 model PurchaseOrderItem {
@@ -652,6 +716,8 @@ model PurchaseOrderItem {
   quantity        Decimal       @db.Decimal(18, 2)
   unitPrice       Decimal       @db.Decimal(18, 2)
   total           Decimal       @db.Decimal(18, 2)
+
+  @@map("ChiTietDonDatHangMua")
 }
 
 // 16. PHIẾU TRẢ HÀNG & HOÀN TIỀN (CUSTOMER RETURN & SUPPLIER RMA)
@@ -677,6 +743,8 @@ model ReturnOrder {
   notes               String?           @db.NVarChar(Max)
   createdAt           DateTime          @default(now())
   items               ReturnOrderItem[]
+
+  @@map("PhieuTraHang")
 }
 
 model ReturnOrderItem {
@@ -694,6 +762,8 @@ model ReturnOrderItem {
   totalRefund     Decimal     @db.Decimal(18, 2)
   serialNumber    String?
   condition       String      @default("normal") // 'normal' | 'damaged' | 'unopened'
+
+  @@map("ChiTietPhieuTraHang")
 }
 
 // 17. CHUYỂN KHO NỘI BỘ (INTER-BRANCH STOCK TRANSFERS)
@@ -714,6 +784,8 @@ model StockTransfer {
   notes           String?             @db.NVarChar(Max)
   createdAt       DateTime            @default(now())
   items           StockTransferItem[]
+
+  @@map("PhieuDieuChuyenKho")
 }
 
 model StockTransferItem {
@@ -727,6 +799,6 @@ model StockTransferItem {
   quantity      Decimal       @db.Decimal(18, 2)
   unitCost      Decimal       @db.Decimal(18, 2)
   totalCost     Decimal       @db.Decimal(18, 2)
+
+  @@map("ChiTietDieuChuyenKho")
 }
-
-
