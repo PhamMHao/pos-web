@@ -1018,6 +1018,7 @@ interface MasterDataContextType {
   // Universal Quick-Add Helper
   quickAddMasterItem: (type: MasterDataType, data: any) => any;
   resetMasterDataToDefaults: () => void;
+  refreshMasterDataFromDb: () => Promise<void>;
 }
 
 const MasterDataContext = createContext<MasterDataContextType | undefined>(undefined);
@@ -1177,28 +1178,29 @@ export const MasterDataProvider: React.FC<{ children: ReactNode }> = ({ children
   }, [passwordResetRequests]);
 
   // Fetch and sync directly from SQL Server Database on mount
-  useEffect(() => {
-    const fetchFromDb = async () => {
-      try {
-        const data = await masterDataApi.getAll();
-        if (data) {
-          if (data.departments && data.departments.length > 0) setDepartments(data.departments);
-          if (data.jobPositions && data.jobPositions.length > 0) setJobPositions(data.jobPositions);
-          if (data.warehouseLocations && data.warehouseLocations.length > 0) setWarehouseLocations(data.warehouseLocations);
-          if (data.unitsOfMeasure && data.unitsOfMeasure.length > 0) setUnitsOfMeasure(data.unitsOfMeasure);
-          if (data.productCategories && data.productCategories.length > 0) setProductCategories(data.productCategories);
-          if (data.customerGroups && data.customerGroups.length > 0) setCustomerGroups(data.customerGroups);
-          if (data.customerTiers && data.customerTiers.length > 0) setCustomerTiers(data.customerTiers);
-          if (data.supplierCategories && data.supplierCategories.length > 0) setSupplierCategories(data.supplierCategories);
-          if (data.projects && data.projects.length > 0) setProjects(data.projects);
-          if (data.customers && data.customers.length > 0) setCustomers(data.customers);
-          if (data.suppliers && data.suppliers.length > 0) setSuppliers(data.suppliers);
-        }
-      } catch (err) {
-        console.warn('Could not load master data from DB, using cache/defaults:', err);
+  const refreshMasterDataFromDb = async () => {
+    try {
+      const data = await masterDataApi.getAll();
+      if (data) {
+        if (Array.isArray(data.departments)) setDepartments(data.departments);
+        if (Array.isArray(data.jobPositions)) setJobPositions(data.jobPositions);
+        if (Array.isArray(data.warehouseLocations)) setWarehouseLocations(data.warehouseLocations);
+        if (Array.isArray(data.unitsOfMeasure)) setUnitsOfMeasure(data.unitsOfMeasure);
+        if (Array.isArray(data.productCategories)) setProductCategories(data.productCategories);
+        if (Array.isArray(data.customerGroups)) setCustomerGroups(data.customerGroups);
+        if (Array.isArray(data.customerTiers)) setCustomerTiers(data.customerTiers);
+        if (Array.isArray(data.supplierCategories)) setSupplierCategories(data.supplierCategories);
+        if (Array.isArray(data.projects)) setProjects(data.projects);
+        if (Array.isArray(data.customers)) setCustomers(data.customers);
+        if (Array.isArray(data.suppliers)) setSuppliers(data.suppliers);
       }
-    };
-    fetchFromDb();
+    } catch (err) {
+      console.warn('Could not load master data from DB, using cache/defaults:', err);
+    }
+  };
+
+  useEffect(() => {
+    refreshMasterDataFromDb();
   }, []);
 
   // ==========================================
@@ -1802,6 +1804,7 @@ export const MasterDataProvider: React.FC<{ children: ReactNode }> = ({ children
 
         quickAddMasterItem,
         resetMasterDataToDefaults,
+        refreshMasterDataFromDb,
       }}
     >
       {children}

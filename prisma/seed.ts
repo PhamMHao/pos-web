@@ -454,7 +454,180 @@ async function main() {
     }
   }
 
-  console.log("🎉 SEED THÀNH CÔNG: Toàn bộ 16 danh mục dữ liệu mẫu đã được nạp trơn tru vào SQL Server!");
+  // 17. Phòng ban & Bộ phận (Departments)
+  console.log("17. Seeding Departments...");
+  const INITIAL_DEPARTMENTS = [
+    { id: "dept-bgd", code: "PB-BGD", name: "Ban Giám Đốc & Điều Hành", managerName: "Phạm Gia Phúc (Tổng Giám Đốc)", budget: 500000000, memberCount: 2, status: "active", description: "Hoạch định chiến lược kinh doanh, quản trị tài chính và phát triển hệ sinh thái ERP" },
+    { id: "dept-kd", code: "PB-KD", name: "Phòng Kinh Doanh & Dự Án B2B", managerName: "Trần Quốc Bảo (Trưởng Phòng)", budget: 200000000, memberCount: 6, status: "active", description: "Tư vấn giải pháp CNTT, bán lẻ POS, lập báo giá dự án doanh nghiệp và trường học" },
+    { id: "dept-kt", code: "PB-KT", name: "Phòng Kỹ Thuật & Triển Khai", managerName: "Trần Văn Hưng (Kỹ Thuật Trưởng)", budget: 150000000, memberCount: 8, status: "active", description: "Lắp ráp PC Gaming/Workstation, thi công mạng LAN/Server, xử lý bảo hành RMA" },
+    { id: "dept-kho", code: "PB-KHO", name: "Bộ Phận Kho Vận & Logistics", managerName: "Lê Hoàng Long (Quản Kho)", budget: 80000000, memberCount: 4, status: "active", description: "Quản lý tồn kho WMS, kiểm đếm nhập - xuất hàng hóa, đóng gói giao nhận" },
+    { id: "dept-ketoan", code: "PB-TCKT", name: "Phòng Tài Chính - Kế Toán", managerName: "Lê Thị Mỹ Hạnh (Kế Toán Trưởng)", budget: 120000000, memberCount: 3, status: "active", description: "Quản lý thu chi sổ quỹ, phát hành hóa đơn điện tử TT78, theo dõi công nợ NCC & Khách hàng" }
+  ];
+  for (const item of INITIAL_DEPARTMENTS) {
+    const exists = await prisma.department.findMany({ where: { code: item.code } });
+    if (exists.length === 0) {
+      const dt = new Date();
+      await prisma.$executeRaw`
+        INSERT INTO [PhongBan] (id, code, name, managerName, budget, memberCount, status, description, createdAt, updatedAt)
+        VALUES (${item.id}, ${item.code}, ${item.name}, ${item.managerName}, ${item.budget}, ${item.memberCount}, ${item.status}, ${item.description}, ${dt}, ${dt})
+      `;
+    }
+  }
+
+  // 18. Chức vụ & Cấp bậc (Job Positions)
+  console.log("18. Seeding Job Positions...");
+  const INITIAL_JOB_POSITIONS = [
+    { id: "pos-ceo", code: "CV-CEO", title: "Tổng Giám Đốc (CEO)", departmentId: "dept-bgd", departmentName: "Ban Giám Đốc & Điều Hành", baseSalary: 45000000, responsibilityAllowance: 15000000, status: "active", description: "Đại diện pháp luật, ra quyết định toàn diện mọi hoạt động kinh doanh" },
+    { id: "pos-sales-lead", code: "CV-TP-KD", title: "Trưởng Phòng Kinh Doanh B2B", departmentId: "dept-kd", departmentName: "Phòng Kinh Doanh & Dự Án B2B", baseSalary: 18000000, responsibilityAllowance: 7000000, status: "active", description: "Chịu trách nhiệm KPI doanh số toàn công ty, phát triển khách hàng đại lý và dự án" },
+    { id: "pos-tech-lead", code: "CV-TP-KT", title: "Trưởng Phòng Kỹ Thuật IT", departmentId: "dept-kt", departmentName: "Phòng Kỹ Thuật & Triển Khai", baseSalary: 16000000, responsibilityAllowance: 5000000, status: "active", description: "Phụ trách chất lượng dịch vụ bảo hành sửa chữa, thẩm định kỹ thuật sản phẩm" },
+    { id: "pos-sales", code: "CV-NV-BH", title: "Nhân Viên Tư Vấn Bán Hàng & POS", departmentId: "dept-kd", departmentName: "Phòng Kinh Doanh & Dự Án B2B", baseSalary: 8500000, responsibilityAllowance: 2000000, status: "active", description: "Bán hàng trực tiếp tại quầy POS, tư vấn cấu hình máy tính cho khách hàng" },
+    { id: "pos-warehouse", code: "CV-NV-KHO", title: "Nhân Viên Thủ Kho & Điều Vận", departmentId: "dept-kho", departmentName: "Bộ Phận Kho Vận & Logistics", baseSalary: 8000000, responsibilityAllowance: 1500000, status: "active", description: "Thực hiện nhập kho NCC, xuất kho bán hàng và kiểm kê định kỳ" },
+    { id: "pos-accountant", code: "CV-NV-KT", title: "Chuyên Viên Kế Toán Tổng Hợp", departmentId: "dept-ketoan", departmentName: "Phòng Tài Chính - Kế Toán", baseSalary: 11000000, responsibilityAllowance: 3000000, status: "active", description: "Lập báo cáo tài chính, xuất hóa đơn VAT, thu hồi công nợ đối tác" }
+  ];
+  for (const item of INITIAL_JOB_POSITIONS) {
+    const exists = await prisma.jobPosition.findMany({ where: { code: item.code } });
+    if (exists.length === 0) {
+      const dt = new Date();
+      await prisma.$executeRaw`
+        INSERT INTO [ChucVu] (id, code, title, departmentId, departmentName, baseSalary, responsibilityAllowance, status, description, createdAt, updatedAt)
+        VALUES (${item.id}, ${item.code}, ${item.title}, ${item.departmentId}, ${item.departmentName}, ${item.baseSalary}, ${item.responsibilityAllowance}, ${item.status}, ${item.description}, ${dt}, ${dt})
+      `;
+    }
+  }
+
+  // 19. Vị trí lưu kho (Warehouse Locations)
+  console.log("19. Seeding Warehouse Locations...");
+  const INITIAL_LOCATIONS = [
+    { id: "loc-a1-01", code: "VT-A1-01", name: "Kệ A1 - Tầng 1 (CPU & Vi Xử Lý)", warehouseName: "Kho Tổng Gia Phúc TP.HCM", zone: "Khu A - Linh Kiện Nhỏ Giá Trị Cao", shelf: "Kệ A1", tier: "Tầng 1 (Tầm Mắt)", bin: "Ngăn 01", capacity: 200, currentUsage: 85, status: "active", notes: "Có khóa an ninh, nhiệt độ phòng 22-25 độ C" },
+    { id: "loc-a2-01", code: "VT-A2-01", name: "Kệ A2 - Tầng 2 (VGA & Card Màn Hình)", warehouseName: "Kho Tổng Gia Phúc TP.HCM", zone: "Khu A - Linh Kiện Nhỏ Giá Trị Cao", shelf: "Kệ A2", tier: "Tầng 2", bin: "Ngăn 01-04", capacity: 120, currentUsage: 42, status: "active", notes: "Khu vực trang bị camera giám sát 24/7 chống thất thoát" },
+    { id: "loc-b1-01", code: "VT-B1-01", name: "Kệ B1 - Tầng 1 (RAM & Ổ Cứng SSD)", warehouseName: "Kho Tổng Gia Phúc TP.HCM", zone: "Khu B - Thiết Bị Lưu Trữ & Bộ Nhớ", shelf: "Kệ B1", tier: "Tầng 1", bin: "Ngăn 01-08", capacity: 350, currentUsage: 190, status: "active", notes: "Khu vực khô ráo, đóng gói chống ẩm" },
+    { id: "loc-c1-01", code: "VT-C1-01", name: "Khu Pallet C1 (Màn Hình & Vỏ Case)", warehouseName: "Kho Tổng Gia Phúc TP.HCM", zone: "Khu C - Hàng Cồng Kềnh", shelf: "Pallet C1-C4", tier: "Mặt sàn", bin: "Khu mở", capacity: 60, currentUsage: 28, status: "active", notes: "Xếp tối đa 3 thùng chồng lên nhau theo khuyến cáo nhà sản xuất" }
+  ];
+  for (const item of INITIAL_LOCATIONS) {
+    const exists = await prisma.warehouseLocation.findMany({ where: { code: item.code } });
+    if (exists.length === 0) {
+      const dt = new Date();
+      await prisma.$executeRaw`
+        INSERT INTO [ViTriLuuKho] (id, code, name, warehouseName, zone, shelf, tier, bin, capacity, currentUsage, status, notes, createdAt, updatedAt)
+        VALUES (${item.id}, ${item.code}, ${item.name}, ${item.warehouseName}, ${item.zone}, ${item.shelf}, ${item.tier}, ${item.bin}, ${item.capacity}, ${item.currentUsage}, ${item.status}, ${item.notes}, ${dt}, ${dt})
+      `;
+    }
+  }
+
+  // 20. Đơn vị tính (Units of Measure)
+  console.log("20. Seeding Units of Measure...");
+  const INITIAL_UOMS = [
+    { id: "uom-cai", code: "DVT-CAI", name: "Cái (Chiếc)", symbol: "Cái", isBaseUnit: true, referenceUnit: null, conversionFactor: 1, status: "active", description: "Đơn vị tính cơ sở chuẩn cho hầu hết các thiết bị IT và linh kiện máy tính" },
+    { id: "uom-bo", code: "DVT-BO", name: "Bộ (Combo / Fullset)", symbol: "Bộ", isBaseUnit: false, referenceUnit: "Cái", conversionFactor: 1, status: "active", description: "Bộ linh kiện kèm phụ kiện hoặc trọn bộ máy tính nguyên thùng" },
+    { id: "uom-hop", code: "DVT-HOP", name: "Hộp (Box)", symbol: "Hộp", isBaseUnit: false, referenceUnit: "Cái", conversionFactor: 10, status: "active", description: "Quy cách đóng gói hộp phụ kiện, hạt mạng, keo tản nhiệt" },
+    { id: "uom-thung", code: "DVT-THUNG", name: "Thùng (Carton)", symbol: "Thùng", isBaseUnit: false, referenceUnit: "Cái", conversionFactor: 20, status: "active", description: "Quy cách nhập khẩu nguyên đai nguyên kiện từ hãng" },
+    { id: "uom-cuon", code: "DVT-CUON", name: "Cuộn (Thùng Cáp 305m)", symbol: "Cuộn", isBaseUnit: false, referenceUnit: "Mét", conversionFactor: 305, status: "active", description: "Thùng cáp mạng Cat6 UTP/FTP chính hãng 305 mét" },
+    { id: "uom-met", code: "DVT-MET", name: "Mét (Dây Cáp Cắt Lẻ)", symbol: "m", isBaseUnit: true, referenceUnit: null, conversionFactor: 1, status: "active", description: "Đơn vị đo chiều dài cáp mạng, cáp quang, dây nguồn thi công" }
+  ];
+  for (const item of INITIAL_UOMS) {
+    const exists = await prisma.masterUnitOfMeasure.findMany({ where: { code: item.code } });
+    if (exists.length === 0) {
+      const dt = new Date();
+      await prisma.$executeRaw`
+        INSERT INTO [DanhMucDonViTinh] (id, code, name, symbol, isBaseUnit, referenceUnit, conversionFactor, status, description, createdAt, updatedAt)
+        VALUES (${item.id}, ${item.code}, ${item.name}, ${item.symbol}, ${item.isBaseUnit ? 1 : 0}, ${item.referenceUnit}, ${item.conversionFactor}, ${item.status}, ${item.description}, ${dt}, ${dt})
+      `;
+    }
+  }
+
+  // 21. Danh mục ngành hàng (Product Categories)
+  console.log("21. Seeding Product Categories...");
+  const INITIAL_CATEGORIES = [
+    { id: "cat-vga", code: "DM-VGA", name: "Card Màn Hình (VGA)", slug: "card-man-hinh-vga", icon: "Monitor", sortOrder: 1, status: "active", description: "NVIDIA GeForce RTX, AMD Radeon chính hãng bảo hành 36 tháng" },
+    { id: "cat-cpu", code: "DM-CPU", name: "Bộ Vi Xử Lý (CPU)", slug: "bo-vi-xu-ly-cpu", icon: "Cpu", sortOrder: 2, status: "active", description: "Intel Core i3/i5/i7/i9 Gen 12-14, AMD Ryzen 5000/7000/9000 Series" },
+    { id: "cat-main", code: "DM-MAIN", name: "Bo Mạch Chủ (Mainboard)", slug: "bo-mach-chu-mainboard", icon: "CircuitBoard", sortOrder: 3, status: "active", description: "ASUS, MSI, Gigabyte, ASRock chipset B760, Z790, B650, X670" },
+    { id: "cat-ram", code: "DM-RAM", name: "Bộ Nhớ Trong (RAM)", slug: "bo-nho-ram", icon: "Layers", sortOrder: 4, status: "active", description: "DDR4, DDR5 bus 3200MHz - 6000MHz Kingston, Corsair, G.Skill" },
+    { id: "cat-ssd", code: "DM-SSD", name: "Ổ Cứng SSD & HDD", slug: "o-cung-ssd-hdd", icon: "HardDrive", sortOrder: 5, status: "active", description: "SSD M.2 NVMe PCIe Gen 4/Gen 5 Samsung, Kingston, WD Black" },
+    { id: "cat-monitor", code: "DM-MONITOR", name: "Màn Hình Máy Tính", slug: "man-hinh-may-tinh", icon: "Tv", sortOrder: 6, status: "active", description: "Màn hình Gaming 144Hz-240Hz, màn hình đồ họa 2K/4K IPS" }
+  ];
+  for (const item of INITIAL_CATEGORIES) {
+    const exists = await prisma.masterProductCategory.findMany({ where: { code: item.code } });
+    if (exists.length === 0) {
+      const dt = new Date();
+      await prisma.$executeRaw`
+        INSERT INTO [DanhMucNganhHang] (id, code, name, slug, icon, sortOrder, status, description, createdAt, updatedAt)
+        VALUES (${item.id}, ${item.code}, ${item.name}, ${item.slug}, ${item.icon}, ${item.sortOrder}, ${item.status}, ${item.description}, ${dt}, ${dt})
+      `;
+    }
+  }
+
+  // 22. Nhóm khách hàng (Customer Groups)
+  console.log("22. Seeding Customer Groups...");
+  const INITIAL_CUSTOMER_GROUPS = [
+    { id: "grp-retail", code: "NKH-LE", name: "Khách Hàng Mua Lẻ (Showroom / Web)", discountPercent: 0, paymentTerms: "Thanh toán ngay (Tiền mặt / Chuyển khoản / Quẹt thẻ)", creditLimit: 0, description: "Khách hàng cá nhân mua sắm nâng cấp máy tính tại quầy và online", customerCount: 45 },
+    { id: "grp-b2b", code: "NKH-DOANH-NGHIEP", name: "Khách Hàng Doanh Nghiệp & Phòng Net (B2B)", discountPercent: 5, paymentTerms: "Gối đầu 15 - 30 ngày theo hợp đồng nguyên tắc", creditLimit: 200000000, description: "Công ty, văn phòng, chuỗi Cyber Game mua số lượng lớn theo dự án", customerCount: 12 },
+    { id: "grp-dealer", code: "NKH-DAI-LY", name: "Đại Lý Cấp 2 & Thợ Kỹ Thuật (Sỉ)", discountPercent: 8, paymentTerms: "Chuyển khoản cọc 50%, thanh toán đủ khi nhận hàng", creditLimit: 50000000, description: "Cửa hàng tin học địa phương, kỹ thuật viên lắp ráp mua sỉ linh kiện", customerCount: 18 }
+  ];
+  for (const item of INITIAL_CUSTOMER_GROUPS) {
+    const exists = await prisma.customerGroup.findMany({ where: { code: item.code } });
+    if (exists.length === 0) {
+      const dt = new Date();
+      await prisma.$executeRaw`
+        INSERT INTO [NhomKhachHang] (id, code, name, discountPercent, paymentTerms, creditLimit, description, customerCount, createdAt, updatedAt)
+        VALUES (${item.id}, ${item.code}, ${item.name}, ${item.discountPercent}, ${item.paymentTerms}, ${item.creditLimit}, ${item.description}, ${item.customerCount}, ${dt}, ${dt})
+      `;
+    }
+  }
+
+  // 23. Hạng thành viên (Customer Tiers)
+  console.log("23. Seeding Customer Tiers...");
+  const INITIAL_CUSTOMER_TIERS = [
+    { id: "tier-bronze", code: "H-DONG", name: "Đồng", minSpend: 0, discountPercent: 0, pointMultiplier: 1.0, color: "#CD7F32", badge: "Thành Viên Mới", benefits: "Tích lũy 1% giá trị đơn hàng làm điểm thưởng quy đổi" },
+    { id: "tier-silver", code: "H-BAC", name: "Bạc", minSpend: 15000000, discountPercent: 2, pointMultiplier: 1.2, color: "#C0C0C0", badge: "Khách Quen", benefits: "Chiết khấu trực tiếp 2% trên mọi đơn hàng linh kiện, vệ sinh PC miễn phí" },
+    { id: "tier-gold", code: "H-VANG", name: "Vàng", minSpend: 50000000, discountPercent: 5, pointMultiplier: 1.5, color: "#FFD700", badge: "Khách VIP Vàng", benefits: "Chiết khấu 5%, ưu tiên bảo hành 1 đổi 1 tận nơi trong 24h, tặng quà sinh nhật" },
+    { id: "tier-diamond", code: "H-KIMCUONG", name: "Kim Cương", minSpend: 150000000, discountPercent: 8, pointMultiplier: 2.0, color: "#00E5FF", badge: "Đối Tác Kim Cương", benefits: "Chiết khấu kịch sàn 8%, kỹ thuật viên riêng hỗ trợ 24/7, mượn thiết bị thay thế" }
+  ];
+  for (const item of INITIAL_CUSTOMER_TIERS) {
+    const exists = await prisma.masterCustomerTier.findMany({ where: { code: item.code } });
+    if (exists.length === 0) {
+      const dt = new Date();
+      await prisma.$executeRaw`
+        INSERT INTO [HangThanhVien] (id, code, name, minSpend, discountPercent, pointMultiplier, color, badge, benefits, createdAt, updatedAt)
+        VALUES (${item.id}, ${item.code}, ${item.name}, ${item.minSpend}, ${item.discountPercent}, ${item.pointMultiplier}, ${item.color}, ${item.badge}, ${item.benefits}, ${dt}, ${dt})
+      `;
+    }
+  }
+
+  // 24. Phân loại nhà cung cấp (Supplier Categories)
+  console.log("24. Seeding Supplier Categories...");
+  const INITIAL_SUPPLIER_CATEGORIES = [
+    { id: "supcat-tier1", code: "PL-T1", name: "Nhà Phân Phối Cấp 1 Chính Hãng (Tier-1 Distributor)", description: "Các tổng kho phân phối được hãng ủy quyền trực tiếp tại Việt Nam (Synnex FPT, Viễn Sơn, SPC, Dầu Khí PSD)", defaultPaymentTerms: "Gối đầu 30 ngày / Hạn mức 500 Triệu", supplierCount: 4 },
+    { id: "supcat-master-dealer", code: "PL-TONG-DL", name: "Tổng Đại Lý & Nhập Khẩu Trực Tiếp", description: "Đơn vị cung cấp nguồn hàng xách tay chính hãng hoặc phụ kiện chuyên biệt số lượng lớn", defaultPaymentTerms: "Gối đầu 15 ngày / Thanh toán theo từng đợt", supplierCount: 3 }
+  ];
+  for (const item of INITIAL_SUPPLIER_CATEGORIES) {
+    const exists = await prisma.masterSupplierCategory.findMany({ where: { code: item.code } });
+    if (exists.length === 0) {
+      const dt = new Date();
+      await prisma.$executeRaw`
+        INSERT INTO [PhanLoaiNhaCungCap] (id, code, name, description, defaultPaymentTerms, supplierCount, createdAt, updatedAt)
+        VALUES (${item.id}, ${item.code}, ${item.name}, ${item.description}, ${item.defaultPaymentTerms}, ${item.supplierCount}, ${dt}, ${dt})
+      `;
+    }
+  }
+
+  // 25. Dự án doanh nghiệp (Enterprise Projects)
+  console.log("25. Seeding Enterprise Projects...");
+  const INITIAL_PROJECTS = [
+    { id: "proj-2026-01", code: "DA-2026-FPT", name: "Triển Khai Phòng Lab AI & Đồ Họa Đại Học FPT", status: "in_progress", customerName: "Đại Học FPT TP.HCM", customerId: "cust-01", managerName: "Trần Quốc Bảo (Phòng Dự Án)", managerId: "emp-01", budget: 680000000, startDate: "2026-02-10", endDate: "2026-04-30", sector: "Giáo Dục & Nghiên Cứu CNTT", description: "Cung cấp 40 bộ máy Workstation cấu hình i7-14700K / RTX 4070 Ti Super kèm hệ thống mạng 10Gbps", linkedDeviceCount: 40 },
+    { id: "proj-2026-02", code: "DA-2026-CYBER", name: "Lắp Đặt Trọn Gói Chuỗi Cyber Game Kingdom Quận 10", status: "in_progress", customerName: "Kingdom Cyber Gaming Hub", customerId: "cust-02", managerName: "Trần Văn Hưng (Kỹ Thuật)", managerId: "emp-02", budget: 950000000, startDate: "2026-01-15", endDate: "2026-03-25", sector: "Dịch Vụ & Thể Thao Điện Tử", description: "Hệ thống Bootrom Server + 60 máy trạm Gaming màn hình 240Hz cong và hệ thống thanh toán tự động", linkedDeviceCount: 60 }
+  ];
+  for (const item of INITIAL_PROJECTS) {
+    const exists = await prisma.enterpriseProject.findMany({ where: { code: item.code } });
+    if (exists.length === 0) {
+      const dt = new Date();
+      await prisma.$executeRaw`
+        INSERT INTO [DuAnDoanhNghiep] (id, code, name, status, customerName, customerId, managerName, managerId, budget, startDate, endDate, sector, description, linkedDeviceCount, createdAt, updatedAt)
+        VALUES (${item.id}, ${item.code}, ${item.name}, ${item.status}, ${item.customerName}, ${item.customerId}, ${item.managerName}, ${item.managerId}, ${item.budget}, ${item.startDate}, ${item.endDate}, ${item.sector}, ${item.description}, ${item.linkedDeviceCount}, ${dt}, ${dt})
+      `;
+    }
+  }
+
+  console.log("🎉 SEED THÀNH CÔNG: Toàn bộ 25 danh mục dữ liệu mẫu & Master Data MDM đã được nạp vĩnh viễn vào SQL Server!");
 }
 
 main()

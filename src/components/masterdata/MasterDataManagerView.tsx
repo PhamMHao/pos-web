@@ -155,6 +155,7 @@ export const MasterDataManagerView: React.FC = () => {
     rejectPasswordReset,
 
     resetMasterDataToDefaults,
+    refreshMasterDataFromDb,
   } = useMasterData();
 
   const { user: currentUser } = useAuth();
@@ -351,6 +352,18 @@ export const MasterDataManagerView: React.FC = () => {
 
         {/* Global Action Buttons */}
         <div className="flex items-center space-x-2">
+          <button
+            onClick={async () => {
+              await refreshMasterDataFromDb();
+              showToast('Đã tải lại toàn bộ dữ liệu trực tiếp từ SQL Server Database');
+            }}
+            className="px-3 py-2 bg-slate-800 hover:bg-slate-750 text-cyan-300 hover:text-cyan-200 rounded-xl text-xs font-bold border border-cyan-500/30 flex items-center space-x-1.5 transition-colors cursor-pointer"
+            title="Đồng bộ & Tải lại dữ liệu mới nhất từ SQL Server"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Tải Lại Từ DB</span>
+          </button>
+
           <button
             onClick={() => {
               if (window.confirm('Bạn có chắc muốn khôi phục toàn bộ Dữ liệu cơ bản về mặc định chuẩn?')) {
