@@ -16,8 +16,9 @@ import {
   ChevronRight,
   Send,
   X,
+  Layers,
 } from 'lucide-react';
-import { useAuth, DEMO_ACCOUNTS_LIST, DemoUserAccount } from '../../../core/contexts/AuthContext';
+import { useAuth } from '../../../core/contexts/AuthContext';
 import { useMasterData } from '../../../core/contexts/MasterDataContext';
 import { GIA_PHUC_LOGO_SVG_DATA_URI } from '../../../components/common/GiaPhucLogo';
 import { StoreSettings } from '../../../types';
@@ -29,7 +30,7 @@ interface LoginViewProps {
 }
 
 export const LoginView: React.FC<LoginViewProps> = ({ settings, onLoginSuccess }) => {
-  const { login, switchUserDirectly, isLoading } = useAuth();
+  const { login, isLoading } = useAuth();
   const { requestPasswordReset, emailConfig } = useMasterData();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -37,7 +38,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ settings, onLoginSuccess }
   const [rememberMe, setRememberMe] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [selectedDemoUser, setSelectedDemoUser] = useState<DemoUserAccount | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Forgot Password Modal State
@@ -47,9 +47,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ settings, onLoginSuccess }
   const [forgotReason, setForgotReason] = useState('');
   const [forgotSuccessMsg, setForgotSuccessMsg] = useState<string | null>(null);
   const [isRequestingReset, setIsRequestingReset] = useState(false);
-
-  // Numeric Keypad State (for touch POS)
-  const [showKeypad, setShowKeypad] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,9 +62,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ settings, onLoginSuccess }
     try {
       await login(username.trim(), password);
       setSuccessMessage('Đăng nhập thành công! Đang chuyển hướng...');
-      setTimeout(() => {
-        if (onLoginSuccess) onLoginSuccess();
-      }, 600);
+      if (onLoginSuccess) {
+        setTimeout(() => {
+          onLoginSuccess();
+        }, 500);
+      }
     } catch (err: any) {
       setErrorMessage(err.message || 'Tên đăng nhập hoặc mật khẩu không chính xác');
     } finally {
@@ -75,426 +74,372 @@ export const LoginView: React.FC<LoginViewProps> = ({ settings, onLoginSuccess }
     }
   };
 
-  const handleQuickLogin = async (acc: DemoUserAccount) => {
-    setIsSubmitting(true);
-    setErrorMessage(null);
-    setSuccessMessage(null);
-    setSelectedDemoUser(acc);
+  const handleRequestPasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotUsername.trim()) {
+      alert('Vui lòng nhập Tên đăng nhập cần khôi phục!');
+      return;
+    }
 
+    setIsRequestingReset(true);
     try {
-      switchUserDirectly(acc.username);
-      setSuccessMessage(`Đã đăng nhập thành công với vai trò: ${acc.roleNameVi}`);
-      setTimeout(() => {
-        if (onLoginSuccess) onLoginSuccess();
-      }, 500);
+      const res = await requestPasswordReset(
+        forgotUsername.trim(),
+        forgotEmail.trim(),
+        forgotReason.trim() || 'Người dùng yêu cầu cấp lại mật khẩu từ màn hình Đăng nhập'
+      );
+
+      if (res.success) {
+        setForgotSuccessMsg(
+          `Yêu cầu cấp lại mật khẩu cho tài khoản "${forgotUsername}" đã được gửi tới Quản Trị Viên (Admin) và Cổng Email hệ thống thành công!`
+        );
+        setTimeout(() => {
+          setForgotSuccessMsg(null);
+          setShowForgotPasswordModal(false);
+          setForgotUsername('');
+          setForgotEmail('');
+          setForgotReason('');
+        }, 3500);
+      } else {
+        alert(res.message || 'Không thể gửi yêu cầu cấp lại mật khẩu.');
+      }
     } catch (err: any) {
-      setErrorMessage('Lỗi đăng nhập nhanh');
+      alert('Lỗi: ' + (err.message || 'Không thể kết nối máy chủ'));
     } finally {
-      setIsSubmitting(false);
+      setIsRequestingReset(false);
     }
   };
 
   return (
-    <div className="min-h-screen w-screen bg-[#070b14] text-slate-100 flex flex-col justify-between relative overflow-x-hidden select-none font-sans">
-      {/* Background Decorative Gradients & Grid Pattern */}
-      <div className="fixed inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(0,128,255,0.15),rgba(255,255,255,0))] pointer-events-none" />
-      <div className="fixed inset-0 bg-[radial-gradient(ellipse_50%_50%_at_85%_80%,rgba(139,92,246,0.1),rgba(255,255,255,0))] pointer-events-none" />
-      <div
-        className="fixed inset-0 opacity-[0.03] pointer-events-none"
-        style={{
-          backgroundImage:
-            'radial-gradient(#ffffff 1px, transparent 1px), radial-gradient(#ffffff 1px, #070b14 1px)',
-          backgroundSize: '32px 32px',
-        }}
-      />
+    <div className="min-h-screen w-full bg-slate-950 flex flex-col justify-between relative overflow-hidden font-sans text-slate-100 selection:bg-blue-600 selection:text-white">
+      {/* Dynamic Background Glows */}
+      <div className="absolute -top-40 -left-40 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/2 -right-40 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-40 left-1/3 w-96 h-96 bg-emerald-600/10 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Top Banner Header */}
-      <header className="p-4 md:px-8 flex items-center justify-between z-10 border-b border-slate-800/60 bg-slate-950/40 backdrop-blur-md">
+      {/* Top Navbar Brand */}
+      <header className="relative z-10 w-full px-6 py-4 flex items-center justify-between border-b border-slate-900 bg-slate-950/40 backdrop-blur-md">
         <div className="flex items-center space-x-3">
-          <div className="h-10 px-2.5 rounded-xl bg-white flex items-center justify-center shadow-lg shadow-blue-500/10 border border-slate-700">
-            {settings?.logoUrl ? (
-              <img
-                src={settings.logoUrl}
-                alt="Logo"
-                className="h-7 max-w-[120px] object-contain"
-              />
-            ) : (
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-black text-xs">
-                GP
-              </div>
-            )}
-          </div>
+          <img
+            src={GIA_PHUC_LOGO_SVG_DATA_URI}
+            alt="GP-ERP Logo"
+            className="w-9 h-9 rounded-xl shadow-lg border border-slate-800"
+          />
           <div>
-            <div className="flex items-center space-x-2">
-              <h1 className="font-extrabold text-sm md:text-base tracking-tight text-white">
-                {settings?.brandName || settings?.storeName || 'GIA PHÚC Computer'}
-              </h1>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-500/20 text-blue-400 border border-blue-500/30">
-                ERP 2026 RBAC
+            <div className="text-sm font-black tracking-tight text-white flex items-center space-x-1.5">
+              <span>{settings?.storeName || 'GIA PHÚC COMPUTER'}</span>
+              <span className="px-1.5 py-0.2 bg-blue-600/30 border border-blue-500/40 text-blue-400 text-[10px] font-bold rounded-md">
+                ENTERPRISE
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 hidden sm:block">
-              Hệ Thống Quản Trị Doanh Nghiệp Toàn Diện & Phân Quyền Vai Trò
-            </p>
+            <p className="text-[11px] text-slate-400">Hệ Thống Quản Trị ERP & Phân Quyền Đa Chi Nhánh</p>
           </div>
         </div>
 
-        <div className="flex items-center space-x-3 text-xs">
-          <div className="hidden md:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 text-slate-300">
-            <Shield className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Bảo Mật RBAC 7 Vai Trò</span>
-          </div>
-          <div className="hidden lg:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 text-slate-300">
-            <Building2 className="w-3.5 h-3.5 text-blue-400" />
-            <span>18 Modules Nghiệp Vụ</span>
-          </div>
+        <div className="hidden sm:flex items-center space-x-2 text-xs text-slate-400">
+          <Building2 className="w-4 h-4 text-slate-500" />
+          <span>Hotline: <strong className="text-slate-200">{settings?.phone || '0985.862.609'}</strong></span>
         </div>
       </header>
 
-      {/* Main Content: Split Grid */}
-      <main className="flex-1 flex items-center justify-center p-4 md:p-8 z-10">
-        <div className="max-w-5xl w-full grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-stretch">
-          {/* LEFT: Login Form (5 columns) */}
-          <div className="lg:col-span-5 bg-slate-900/90 border border-slate-800/90 rounded-3xl p-6 md:p-8 shadow-2xl backdrop-blur-xl flex flex-col justify-between relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/10 rounded-full blur-2xl pointer-events-none" />
-
+      {/* Main Content Area */}
+      <main className="relative z-10 flex-1 flex items-center justify-center p-4 md:p-8">
+        <div className="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+          
+          {/* Left Column: Direct Database Login Form */}
+          <div className="lg:col-span-5 bg-slate-900/90 backdrop-blur-xl border border-slate-800/90 rounded-3xl p-6 md:p-8 shadow-2xl space-y-6">
             <div>
-              <div className="mb-6">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-400 flex items-center justify-center mb-3 shadow-inner">
-                  <Lock className="w-5 h-5" />
+              <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-bold mb-3">
+                <Shield className="w-3.5 h-3.5" />
+                <span>Bảo Mật Cơ Sở Dữ Liệu SQL Server</span>
+              </div>
+              <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight">
+                Đăng Nhập Hệ Thống
+              </h2>
+              <p className="text-xs md:text-sm text-slate-400 mt-1">
+                Nhập tài khoản nhân viên được cấp để truy cập phân hệ
+              </p>
+            </div>
+
+            {/* Error / Success Alerts */}
+            {errorMessage && (
+              <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center space-x-2.5 animate-in fade-in">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
+
+            {successMessage && (
+              <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center space-x-2.5 animate-in fade-in">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>{successMessage}</span>
+              </div>
+            )}
+
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                  Tên Đăng Nhập / Mã Nhân Viên *
+                </label>
+                <div className="relative">
+                  <User className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="VD: admin / manager / ketoan"
+                    className="w-full bg-slate-950 border border-slate-700/80 focus:border-blue-500 rounded-2xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none transition"
+                    disabled={isSubmitting || isLoading}
+                    autoFocus
+                  />
                 </div>
-                <h2 className="text-xl md:text-2xl font-black text-white tracking-tight">
-                  Đăng Nhập Hệ Thống
-                </h2>
-                <p className="text-xs text-slate-400 mt-1">
-                  Nhập thông tin tài khoản hoặc chọn vai trò trải nghiệm nhanh
-                </p>
               </div>
 
-              {/* Form */}
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1.5 flex items-center justify-between">
-                    <span>Tên đăng nhập:</span>
-                    <span className="text-[10px] text-slate-500 font-normal">
-                      (admin, thungan01, thukho01, ...)
-                    </span>
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-slate-300">
+                    Mật Khẩu *
                   </label>
-                  <div className="relative">
-                    <User className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      placeholder="Nhập tên đăng nhập..."
-                      autoComplete="username"
-                      className="w-full pl-10 pr-4 py-2.5 bg-slate-950/80 border border-slate-700/80 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-500 transition-all font-medium"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1.5 flex items-center justify-between">
-                    <span>Mật khẩu:</span>
-                    <span className="text-[10px] text-slate-500 font-normal">
-                      (Mặc định: 123456)
-                    </span>
-                  </label>
-                  <div className="relative">
-                    <KeyRound className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      autoComplete="current-password"
-                      className="w-full pl-10 pr-10 py-2.5 bg-slate-950/80 border border-slate-700/80 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-500 transition-all font-medium"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 cursor-pointer"
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between text-xs pt-1">
-                  <label className="flex items-center space-x-2 text-slate-400 cursor-pointer hover:text-slate-300">
-                    <input
-                      type="checkbox"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      className="rounded bg-slate-950 border-slate-700 text-blue-600 focus:ring-0 w-3.5 h-3.5"
-                    />
-                    <span>Ghi nhớ đăng nhập</span>
-                  </label>
-
                   <button
                     type="button"
                     onClick={() => setShowForgotPasswordModal(true)}
-                    className="text-[11px] text-blue-400 hover:underline cursor-pointer font-semibold"
+                    className="text-[11px] text-blue-400 hover:text-blue-300 font-semibold cursor-pointer transition hover:underline"
                   >
                     Quên mật khẩu?
                   </button>
                 </div>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Nhập mật khẩu..."
+                    className="w-full bg-slate-950 border border-slate-700/80 focus:border-blue-500 rounded-2xl pl-10 pr-10 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none transition"
+                    disabled={isSubmitting || isLoading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 top-3 text-slate-500 hover:text-slate-300 transition"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
 
-                {/* Alerts */}
-                {errorMessage && (
-                  <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center space-x-2 animate-in fade-in">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span>{errorMessage}</span>
-                  </div>
+              <div className="flex items-center justify-between text-xs pt-1">
+                <label className="flex items-center space-x-2 text-slate-400 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="w-4 h-4 rounded border-slate-700 bg-slate-950 text-blue-600 focus:ring-blue-500 focus:ring-offset-slate-900"
+                  />
+                  <span>Ghi nhớ phiên đăng nhập</span>
+                </label>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting || isLoading}
+                className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:scale-[0.98] text-white font-bold rounded-2xl text-sm transition-all shadow-lg shadow-blue-600/30 flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50"
+              >
+                {isSubmitting || isLoading ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Đang xác thực CSDL...</span>
+                  </>
+                ) : (
+                  <>
+                    <KeyRound className="w-4 h-4" />
+                    <span>Đăng Nhập Vào Hệ Thống</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
                 )}
-
-                {successMessage && (
-                  <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center space-x-2 animate-in fade-in">
-                    <CheckCircle2 className="w-4 h-4 shrink-0" />
-                    <span>{successMessage}</span>
-                  </div>
-                )}
-
-                {/* Submit Button */}
-                <button
-                  type="submit"
-                  disabled={isSubmitting || isLoading}
-                  className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl transition-all shadow-lg shadow-blue-600/30 flex items-center justify-center space-x-2 disabled:opacity-60 cursor-pointer hover:scale-[1.01] active:scale-99"
-                >
-                  {isSubmitting || isLoading ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Đang xác thực...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Đăng Nhập Vào Hệ Thống</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
-              </form>
-            </div>
-
-            <div className="mt-6 pt-4 border-t border-slate-800/80 text-[11px] text-slate-500 text-center">
-              GP-ERP Enterprise © 2026 • Bảo mật theo tiêu chuẩn TT78 & ISO
-            </div>
+              </button>
+            </form>
           </div>
 
-          {/* RIGHT: Fast 1-Click Role Switcher & Feature Highlight (7 columns) */}
-          <div className="lg:col-span-7 bg-slate-900/60 border border-slate-800/80 rounded-3xl p-6 md:p-8 backdrop-blur-xl flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
-                    <Sparkles className="w-4 h-4" />
+          {/* Right Column: 7 System Roles & Security Info */}
+          <div className="lg:col-span-7 space-y-6">
+            <div className="bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-3xl p-6 md:p-7 shadow-xl">
+              <div className="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-400 flex items-center justify-center font-bold">
+                    <Layers className="w-4 h-4" />
                   </div>
                   <div>
                     <h3 className="text-sm md:text-base font-bold text-white leading-tight">
-                      Chuyển Nhanh 7 Vai Trò Nghiệp Vụ (1-Click Demo)
+                      Cơ Chế Phân Quyền 7 Vai Trò Hệ Thống (RBAC Matrix)
                     </h3>
                     <p className="text-[11px] text-slate-400">
-                      Bấm vào tài khoản bất kỳ để trải nghiệm giao diện phân quyền tức thì
+                      Hệ thống tự động điều hướng giao diện phù hợp dựa trên vai trò trong cơ sở dữ liệu
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Demo Accounts Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                {DEMO_ACCOUNTS_LIST.map((acc) => {
-                  const isSelected = selectedDemoUser?.username === acc.username;
-                  return (
-                    <button
-                      key={acc.id}
-                      type="button"
-                      onClick={() => handleQuickLogin(acc)}
-                      disabled={isSubmitting || isLoading}
-                      className={`p-3 rounded-2xl border text-left transition-all group relative overflow-hidden cursor-pointer ${
-                        isSelected
-                          ? 'bg-blue-950/60 border-blue-500 ring-2 ring-blue-500/40 shadow-lg shadow-blue-500/20'
-                          : 'bg-slate-950/70 border-slate-800/80 hover:bg-slate-800/80 hover:border-slate-700'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-3">
-                        <div
-                          className={`w-10 h-10 rounded-xl bg-gradient-to-tr ${acc.colorGradient} flex items-center justify-center font-black text-white shadow-md shrink-0 text-sm`}
-                        >
-                          {acc.avatarLetter}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center space-x-1.5 mb-0.5">
-                            <span className="text-xs font-bold text-white truncate group-hover:text-blue-300 transition-colors">
-                              {acc.name.split(' (')[0]}
-                            </span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${acc.badgeBg}`}>
-                              {acc.roleNameVi}
-                            </span>
-                          </div>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all shrink-0" />
-                      </div>
-                    </button>
-                  );
-                })}
+              {/* System Roles Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {SYSTEM_ROLES.map((role) => (
+                  <div
+                    key={role.id}
+                    className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800/80 hover:border-slate-700 transition-all flex flex-col justify-between space-y-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-white">{role.nameVi}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${role.badgeColor}`}>
+                        {role.id.toUpperCase()}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 leading-snug">
+                      {role.description}
+                    </p>
+                  </div>
+                ))}
               </div>
 
-              {/* Role Explanations */}
-              <div className="mt-5 p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-2 text-xs">
+              {/* Security Standards Footer */}
+              <div className="mt-5 p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-1.5 text-xs">
                 <div className="font-bold text-slate-300 flex items-center space-x-1.5 text-[11px]">
                   <SlidersHorizontal className="w-3.5 h-3.5 text-blue-400" />
-                  <span>Cơ Chế Phân Quyền Động (Dynamic RBAC Matrix):</span>
+                  <span>Tiêu Chuẩn Bảo Mật Doanh Nghiệp:</span>
                 </div>
                 <div className="text-[11px] text-slate-400 leading-relaxed grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                   <div className="flex items-start space-x-1.5">
-                    <span className="text-rose-400 font-bold">• Admin:</span>
-                    <span>18/18 Modules, Cấu hình DB, Quản lý tài khoản & RBAC.</span>
+                    <span className="text-blue-400 font-bold">• SQL Server:</span>
+                    <span>Xác thực mật khẩu mã hóa BCrypt / SHA-256 an toàn.</span>
                   </div>
                   <div className="flex items-start space-x-1.5">
-                    <span className="text-emerald-400 font-bold">• Thu Ngân:</span>
-                    <span>POS, Két tiền ca, Đơn hàng, Khách hàng, Tiếp nhận BH.</span>
-                  </div>
-                  <div className="flex items-start space-x-1.5">
-                    <span className="text-amber-400 font-bold">• Thủ Kho:</span>
-                    <span>Kho hàng, Nhà cung cấp, Mua hàng PO, BOM, Nhập xuất kho.</span>
-                  </div>
-                  <div className="flex items-start space-x-1.5">
-                    <span className="text-purple-400 font-bold">• Kế Toán:</span>
-                    <span>Sổ quỹ, HĐĐT TT78, HĐLĐ, Lương KPI, Ký số CA, Báo cáo.</span>
+                    <span className="text-emerald-400 font-bold">• Token JWT:</span>
+                    <span>Phiên làm việc bảo mật với cơ chế tự động gia hạn token.</span>
                   </div>
                 </div>
               </div>
-            </div>
-
-            <div className="mt-4 flex items-center justify-between text-[11px] text-slate-400 pt-3 border-t border-slate-800/80">
-              <span className="flex items-center space-x-1">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                <span>SQL Server 2008 - 2025 Ready</span>
-              </span>
-              <span className="font-mono text-slate-500">Mật khẩu mẫu chung: 123456</span>
             </div>
           </div>
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="p-3 text-center text-xs text-slate-500 border-t border-slate-800/60 bg-slate-950/40 z-10">
-        Phần Mềm Quản Trị Doanh Nghiệp GP-ERP Enterprise v2026 • Thiết kế tối ưu cho Cửa Hàng Tin Học, Thiết Bị Số & Dịch Vụ Sửa Chữa
-      </footer>
-
-      {/* Modal Yêu Cầu Cấp Lại Mật Khẩu Qua Email Quản Trị */}
+      {/* Forgot Password Modal */}
       {showForgotPasswordModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-slate-900 border border-slate-700 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden">
-            <div className="px-6 py-4 bg-slate-850 border-b border-slate-700/80 flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Shield className="w-5 h-5 text-amber-400" />
-                <h3 className="text-sm font-bold text-white">Yêu Cầu Cấp Lại Mật Khẩu (Admin Approval)</h3>
+        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center font-bold">
+                  <KeyRound className="w-4 h-4" />
+                </div>
+                <h3 className="text-base font-bold text-white">Yêu Cầu Cấp Lại Mật Khẩu</h3>
               </div>
               <button
+                type="button"
                 onClick={() => setShowForgotPasswordModal(false)}
-                className="p-1 text-slate-400 hover:text-white rounded-lg"
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                if (!forgotUsername.trim() || !forgotEmail.trim()) return;
-                setIsRequestingReset(true);
-                setForgotSuccessMsg(null);
-                try {
-                  const res = await requestPasswordReset(
-                    forgotUsername.trim(),
-                    forgotEmail.trim(),
-                    forgotReason.trim() || 'Nhân viên quên mật khẩu'
-                  );
-                  setForgotSuccessMsg(res.message);
-                  setTimeout(() => {
-                    setForgotSuccessMsg(null);
-                    setShowForgotPasswordModal(false);
-                  }, 2500);
-                } catch (err: any) {
-                  alert(err.message || 'Lỗi gửi yêu cầu');
-                } finally {
-                  setIsRequestingReset(false);
-                }
-              }}
-              className="p-6 space-y-4"
-            >
-              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 text-xs leading-relaxed">
-                Yêu cầu bảo mật sẽ được gửi trực tiếp đến Email Quản Trị:{' '}
-                <strong className="font-mono text-white">{emailConfig.adminNotificationEmail || 'hrmgpsoft@gmail.com'}</strong>.
-                Admin sẽ xác thực và phê duyệt cấp mật khẩu mới cho bạn.
-              </div>
-
-              {forgotSuccessMsg && (
-                <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-300 text-xs font-bold flex items-center space-x-2">
+            {forgotSuccessMsg ? (
+              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs space-y-2">
+                <div className="flex items-center space-x-2 font-bold text-emerald-200">
                   <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  <span>{forgotSuccessMsg}</span>
+                  <span>Đã gửi yêu cầu thành công!</span>
                 </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Tên đăng nhập (Username) *</label>
-                <input
-                  type="text"
-                  required
-                  value={forgotUsername}
-                  onChange={(e) => setForgotUsername(e.target.value)}
-                  placeholder="VD: thungan01, thukho01, ketoan01..."
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-blue-500"
-                />
+                <p className="leading-relaxed">{forgotSuccessMsg}</p>
               </div>
+            ) : (
+              <form onSubmit={handleRequestPasswordReset} className="space-y-3.5 text-xs">
+                <p className="text-slate-400 leading-relaxed">
+                  Vui lòng cung cấp tên đăng nhập hoặc mã nhân viên. Yêu cầu sẽ được chuyển tới Quản Trị Viên (Admin) và Cổng Email của cửa hàng.
+                </p>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Email nhận mật khẩu mới *</label>
-                <input
-                  type="email"
-                  required
-                  value={forgotEmail}
-                  onChange={(e) => setForgotEmail(e.target.value)}
-                  placeholder="VD: nhanvien@vitinhgiaphuc.com"
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-blue-500 font-mono"
-                />
-              </div>
+                <div>
+                  <label className="block font-bold text-slate-300 mb-1">
+                    Tên Đăng Nhập / Mã Nhân Viên *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={forgotUsername}
+                    onChange={(e) => setForgotUsername(e.target.value)}
+                    placeholder="VD: admin / manager / nv01"
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Lý do yêu cầu</label>
-                <input
-                  type="text"
-                  value={forgotReason}
-                  onChange={(e) => setForgotReason(e.target.value)}
-                  placeholder="VD: Quên mật khẩu sau khi đổi ca..."
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-blue-500"
-                />
-              </div>
+                <div>
+                  <label className="block font-bold text-slate-300 mb-1">
+                    Email Nhận Thông Báo (Tùy chọn)
+                  </label>
+                  <input
+                    type="email"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    placeholder="VD: user@vitinhgiaphuc.com"
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
 
-              <div className="pt-3 border-t border-slate-800 flex justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={() => setShowForgotPasswordModal(false)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-300 font-semibold text-xs rounded-xl"
-                >
-                  Đóng
-                </button>
-                <button
-                  type="submit"
-                  disabled={isRequestingReset}
-                  className="px-5 py-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold text-xs rounded-xl shadow-lg flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>{isRequestingReset ? 'Đang gửi...' : 'Gửi Yêu Cầu Tới Admin'}</span>
-                </button>
-              </div>
-            </form>
+                <div>
+                  <label className="block font-bold text-slate-300 mb-1">
+                    Lý Do / Ghi Chú Cần Cấp Lại
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={forgotReason}
+                    onChange={(e) => setForgotReason(e.target.value)}
+                    placeholder="VD: Quên mật khẩu đăng nhập ca làm việc..."
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end space-x-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPasswordModal(false)}
+                    className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-semibold transition"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isRequestingReset}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow transition flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    {isRequestingReset ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Đang gửi...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-3.5 h-3.5" />
+                        <span>Gửi Yêu Cầu Cho Admin</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
+
+      {/* Footer */}
+      <footer className="relative z-10 w-full px-6 py-3 border-t border-slate-900 bg-slate-950/60 backdrop-blur-md flex flex-wrap items-center justify-between text-[11px] text-slate-500">
+        <div>
+          © {new Date().getFullYear()} {settings?.storeName || 'Gia Phúc Computer'}. All rights reserved.
+        </div>
+        <div className="flex items-center space-x-4">
+          <span>Phiên bản Enterprise v2.6.0</span>
+          <span>•</span>
+          <span>SQL Server Database Live Connected</span>
+        </div>
+      </footer>
     </div>
   );
 };

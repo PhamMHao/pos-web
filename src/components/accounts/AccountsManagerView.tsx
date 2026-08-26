@@ -33,7 +33,8 @@ import {
   DEFAULT_RBAC_MATRIX,
   normalizeRoleKey,
 } from '../../config/rbac.config';
-import { useAuth, UserProfile, DEMO_ACCOUNTS_LIST } from '../../core/contexts/AuthContext';
+import { useAuth, UserProfile } from '../../core/contexts/AuthContext';
+import apiClient from '../../core/api/apiClient';
 import { NewUserModal } from './NewUserModal';
 
 export const AccountsManagerView: React.FC = () => {
@@ -49,30 +50,33 @@ export const AccountsManagerView: React.FC = () => {
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  // User Accounts State (loaded from storage or seeded default demo accounts)
+  // User Accounts State (loaded from storage or DB)
   const [users, setUsers] = useState<UserProfile[]>(() => {
     const saved = localStorage.getItem('gp_erp_accounts_list');
     if (saved) {
       try {
         return JSON.parse(saved);
       } catch {
-        // fallback
+        return [];
       }
     }
-    // Convert DEMO_ACCOUNTS_LIST to UserProfile[]
-    return DEMO_ACCOUNTS_LIST.map((acc) => ({
-      id: acc.id,
-      username: acc.username,
-      fullName: acc.name,
-      email: acc.email,
-      phone: acc.phone,
-      role: acc.role,
-      status: 'active',
-      isActive: true,
-      avatar: null,
-      createdAt: new Date().toISOString(),
-    }));
+    return [];
   });
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const res = await apiClient.get('/auth/users');
+        if (res.data?.success && Array.isArray(res.data.data) && res.data.data.length > 0) {
+          setUsers(res.data.data);
+          localStorage.setItem('gp_erp_accounts_list', JSON.stringify(res.data.data));
+        }
+      } catch (err) {
+        console.warn('Could not fetch /auth/users:', err);
+      }
+    };
+    fetchUsers();
+  }, []);
 
   const saveUsersToStorage = (updated: UserProfile[]) => {
     setUsers(updated);
