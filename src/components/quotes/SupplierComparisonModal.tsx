@@ -2,22 +2,14 @@ import React, { useState } from 'react';
 import {
   X,
   Sparkles,
-  TrendingUp,
-  Building2,
-  ShieldCheck,
-  Truck,
-  Award,
   CheckCircle2,
-  Layers,
   ArrowRight,
   Sliders,
-  DollarSign,
-  ChevronRight,
-  Filter,
 } from 'lucide-react';
 import { Product, StoreSettings } from '../../types';
 import { formatVND } from '../../utils/vietqr';
 import { sounds } from '../../utils/soundEffects';
+import { useMasterData } from '../../core/contexts/MasterDataContext';
 
 export interface SupplierOption {
   id: string;
@@ -62,6 +54,7 @@ export const SupplierComparisonModal: React.FC<SupplierComparisonModalProps> = (
   settings,
   onApplyPricingToNewQuote,
 }) => {
+  const { suppliers: masterSuppliers } = useMasterData();
   const [pricingStrategy, setPricingStrategy] = useState<'aggressive' | 'balanced' | 'premium'>('balanced');
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>(() =>
     products.slice(0, 4).map((p) => p.id)
@@ -93,64 +86,41 @@ export const SupplierComparisonModal: React.FC<SupplierComparisonModalProps> = (
 
   const getProductSuppliers = (prod: Product): SupplierOption[] => {
     const baseCost = prod.costPrice || 500000;
-    return [
-      {
-        id: 'sup-synnex',
-        supplierName: 'Nhà Phân Phối Synnex FPT',
-        supplierCode: 'NCC-FPT-01',
-        costPrice: Math.round(baseCost * 1.02),
-        qualityRating: 9.9,
-        reputationRating: 9.9,
-        warrantyPolicy: '1 đổi 1 trong 24h, bảo hành chính hãng 24 tháng',
-        warrantyMonths: 24,
-        deliveryDays: 1,
-        creditDays: 30,
+    const list = masterSuppliers || [];
+
+    if (list.length === 0) {
+      return [];
+    }
+
+    return list.map((sup) => {
+      // Find matching price item in supplier's price list if present
+      const matchedPriceItem = (sup.priceList || []).find(
+        (item) =>
+          (item.sku && prod.sku && item.sku.toLowerCase() === prod.sku.toLowerCase()) ||
+          (item.productName && prod.name && item.productName.toLowerCase().includes(prod.name.toLowerCase()))
+      );
+
+      const costPrice = matchedPriceItem
+        ? Number(matchedPriceItem.costPrice)
+        : Math.round(baseCost * (1 - ((sup.ratingPrice || 9) - 8.5) * 0.04));
+
+      const warrantyMonths = matchedPriceItem?.warrantyMonths || (sup.ratingWarranty >= 9 ? 24 : 12);
+
+      return {
+        id: sup.id,
+        supplierName: sup.name,
+        supplierCode: sup.code,
+        costPrice: Math.max(1000, costPrice),
+        qualityRating: Number(sup.ratingQuality) || 9.0,
+        reputationRating: Number(sup.ratingPrice) || 9.0,
+        warrantyPolicy: sup.notes || `Bảo hành chính hãng ${warrantyMonths} tháng, hỗ trợ đổi mới`,
+        warrantyMonths,
+        deliveryDays: (sup.ratingOnTime || 9) >= 9.5 ? 1 : 2,
+        creditDays: sup.creditDays || 30,
         stockAvailability: 'in_stock',
-        isOfficialDistributor: true,
-      },
-      {
-        id: 'sup-psd',
-        supplierName: 'Công Ty Dầu Khí PSD (Petrosetco)',
-        supplierCode: 'NCC-PSD-02',
-        costPrice: Math.round(baseCost * 0.98),
-        qualityRating: 9.5,
-        reputationRating: 9.6,
-        warrantyPolicy: 'Bảo hành chính hãng 24T, chiết khấu dự án lớn',
-        warrantyMonths: 24,
-        deliveryDays: 1,
-        creditDays: 21,
-        stockAvailability: 'in_stock',
-        isOfficialDistributor: true,
-      },
-      {
-        id: 'sup-lehoang',
-        supplierName: 'Viễn Thông Lê Hoàng / An Phát',
-        supplierCode: 'NCC-LH-03',
-        costPrice: Math.round(baseCost * 0.94),
-        qualityRating: 9.3,
-        reputationRating: 9.4,
-        warrantyPolicy: 'Hàng chính hãng Master, đổi trả 7 ngày',
-        warrantyMonths: 24,
-        deliveryDays: 2,
-        creditDays: 15,
-        stockAvailability: 'in_stock',
-        isOfficialDistributor: true,
-      },
-      {
-        id: 'sup-thmn',
-        supplierName: 'Tin Học Miền Nam (Kho Sỉ Giá Tốt)',
-        supplierCode: 'NCC-TM-04',
-        costPrice: Math.round(baseCost * 0.88),
-        qualityRating: 8.6,
-        reputationRating: 8.8,
-        warrantyPolicy: 'Bảo hành tem phân phối 12 tháng',
-        warrantyMonths: 12,
-        deliveryDays: 1,
-        creditDays: 7,
-        stockAvailability: 'in_stock',
-        isOfficialDistributor: false,
-      },
-    ];
+        isOfficialDistributor: sup.tier?.includes('Tier 1') || sup.tier?.includes('Chính Hãng') || false,
+      };
+    });
   };
 
   const handleApplyToQuote = () => {
@@ -162,11 +132,12 @@ export const SupplierComparisonModal: React.FC<SupplierComparisonModalProps> = (
 
     const quoteItems = selectedProds.map((prod) => {
       const sups = getProductSuppliers(prod);
-      const minPrice = Math.min(...sups.map((s) => s.costPrice));
+      const minPrice = sups.length > 0 ? Math.min(...sups.map((s) => s.costPrice)) : prod.costPrice || 0;
       const scored = sups.map((s) => ({ ...s, score: calculateSupplierScore(s, minPrice) }));
       const bestSup = scored.sort((a, b) => b.score - a.score)[0];
       const margin = marginRates[pricingStrategy];
-      const sellingPrice = Math.round((bestSup.costPrice * (1 + margin)) / 1000) * 1000;
+      const costPrice = bestSup ? bestSup.costPrice : (prod.costPrice || 0);
+      const sellingPrice = Math.round((costPrice * (1 + margin)) / 1000) * 1000;
 
       return {
         productId: prod.id,
@@ -175,9 +146,9 @@ export const SupplierComparisonModal: React.FC<SupplierComparisonModalProps> = (
         unit: prod.unit || 'Cái',
         quantity: 1,
         unitPrice: sellingPrice,
-        costPrice: bestSup.costPrice,
-        supplierName: bestSup.supplierName,
-        warrantyMonths: bestSup.warrantyMonths,
+        costPrice,
+        supplierName: bestSup ? bestSup.supplierName : 'Nhà phân phối chính thức',
+        warrantyMonths: bestSup ? bestSup.warrantyMonths : 24,
       };
     });
 
@@ -219,11 +190,11 @@ export const SupplierComparisonModal: React.FC<SupplierComparisonModalProps> = (
               <h3 className="text-base font-extrabold text-white flex items-center space-x-2">
                 <span>So Sánh Giá Nhà Cung Ứng & Thuật Toán Tối Ưu Báo Giá</span>
                 <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold">
-                  AI Weighted Engine
+                  SQL Server Live Data
                 </span>
               </h3>
               <p className="text-xs text-slate-400">
-                Đánh giá đa tiêu chí: Đơn giá (35%), Chất lượng (25%), Uy tín (20%), Hậu mãi (15%), Giao hàng (5%)
+                Đánh giá đa tiêu chí từ dữ liệu NCC thực tế: Đơn giá (35%), Chất lượng (25%), Uy tín (20%), Hậu mãi (15%), Giao hàng (5%)
               </p>
             </div>
           </div>
@@ -298,12 +269,13 @@ export const SupplierComparisonModal: React.FC<SupplierComparisonModalProps> = (
         <div className="flex-1 p-6 overflow-y-auto space-y-6 bg-slate-900/60">
           {products.slice(0, 10).map((prod) => {
             const suppliers = getProductSuppliers(prod);
-            const minCost = Math.min(...suppliers.map((s) => s.costPrice));
+            const minCost = suppliers.length > 0 ? Math.min(...suppliers.map((s) => s.costPrice)) : prod.costPrice || 0;
             const isSelected = selectedProductIds.includes(prod.id);
             const scoredSuppliers = suppliers.map((s) => ({ ...s, score: calculateSupplierScore(s, minCost) }));
-            const bestSupplier = [...scoredSuppliers].sort((a, b) => b.score - a.score)[0];
+            const bestSupplier = scoredSuppliers.length > 0 ? [...scoredSuppliers].sort((a, b) => b.score - a.score)[0] : null;
             const margin = marginRates[pricingStrategy];
-            const suggestedSellingPrice = Math.round((bestSupplier.costPrice * (1 + margin)) / 1000) * 1000;
+            const costPrice = bestSupplier ? bestSupplier.costPrice : (prod.costPrice || 0);
+            const suggestedSellingPrice = Math.round((costPrice * (1 + margin)) / 1000) * 1000;
 
             return (
               <div
@@ -337,56 +309,59 @@ export const SupplierComparisonModal: React.FC<SupplierComparisonModalProps> = (
                     </div>
                     <div className="border-l border-blue-800 pl-3 text-right">
                       <p className="text-[10px] text-slate-400">Lãi gộp ước tính</p>
-                      <p className="text-xs font-mono font-bold text-emerald-400">+{formatVND(suggestedSellingPrice - bestSupplier.costPrice)} ({Math.round(margin * 100)}%)</p>
+                      <p className="text-xs font-mono font-bold text-emerald-400">+{formatVND(suggestedSellingPrice - costPrice)} ({Math.round(margin * 100)}%)</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-4">
-                  {scoredSuppliers.map((sup) => {
-                    const isTop = sup.id === bestSupplier.id;
-                    return (
-                      <div
-                        key={sup.id}
-                        className={'p-3.5 rounded-xl border flex flex-col justify-between transition-all relative ' + (isTop ? 'bg-amber-950/20 border-amber-500/60 ring-1 ring-amber-500/40' : 'bg-slate-900/80 border-slate-800')}
-                      >
-                        {isTop && (
-                          <div className="absolute -top-2.5 right-3 px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 text-[9px] font-black uppercase tracking-wider shadow">
-                            ★ Khuyến Nghị Số 1
-                          </div>
-                        )}
-                        <div>
-                          <div className="flex items-start justify-between gap-1">
-                            <h5 className="text-xs font-bold text-white leading-tight">{sup.supplierName}</h5>
-                            <span className="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] font-mono font-bold text-amber-400 shrink-0">
-                              {sup.score}/10đ
-                            </span>
-                          </div>
-                          <div className="mt-2 space-y-1.5 text-[11px]">
-                            <div className="flex justify-between">
-                              <span className="text-slate-400">Giá vốn NCC:</span>
-                              <strong className="text-white font-mono">{formatVND(sup.costPrice)}</strong>
+                  {scoredSuppliers.length === 0 ? (
+                    <div className="col-span-4 p-4 text-center text-xs text-slate-400 bg-slate-900/50 rounded-xl border border-slate-800">
+                      Chưa có dữ liệu nhà cung cấp nào trong cơ sở dữ liệu SQL Server.
+                    </div>
+                  ) : (
+                    scoredSuppliers.map((sup) => {
+                      const isTop = bestSupplier && sup.id === bestSupplier.id;
+                      return (
+                        <div
+                          key={sup.id}
+                          className={'p-3.5 rounded-xl border flex flex-col justify-between transition-all relative ' + (isTop ? 'bg-amber-950/20 border-amber-500/60 ring-1 ring-amber-500/40' : 'bg-slate-900/80 border-slate-800')}
+                        >
+                          {isTop && (
+                            <div className="absolute -top-2.5 right-3 px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 text-[9px] font-black uppercase tracking-wider shadow">
+                              ★ Khuyến Nghị Số 1
                             </div>
-                            <div className="flex justify-between">
-                              <span className="text-slate-400">Chất lượng / Uy tín:</span>
-                              <span className="text-emerald-400 font-bold">{sup.qualityRating} / {sup.reputationRating} ⭐</span>
+                          )}
+                          <div>
+                            <div className="flex items-start justify-between gap-1">
+                              <h5 className="text-xs font-bold text-white leading-tight">{sup.supplierName}</h5>
+                              <span className="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] font-mono font-bold text-amber-400 shrink-0">
+                                {sup.score}/10đ
+                              </span>
                             </div>
-                            <div className="flex justify-between">
-                              <span className="text-slate-400">Bảo hành / SLA:</span>
-                              <span className="text-slate-200 font-semibold">{sup.warrantyMonths} Tháng</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-slate-400">Giao hàng / Công nợ:</span>
-                              <span className="text-slate-300">{sup.deliveryDays} ngày ({sup.creditDays}d nợ)</span>
+                            <div className="mt-2 space-y-1.5 text-[11px]">
+                              <div className="flex justify-between">
+                                <span className="text-slate-400">Giá vốn NCC:</span>
+                                <strong className="text-white font-mono">{formatVND(sup.costPrice)}</strong>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-400">Chất lượng / Uy tín:</span>
+                                <span className="text-emerald-400 font-bold">{sup.qualityRating} / {sup.reputationRating} ⭐</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-400">Bảo hành / SLA:</span>
+                                <span className="text-slate-200 font-semibold">{sup.warrantyMonths} Tháng</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-400">Giao hàng / Công nợ:</span>
+                                <span className="text-slate-300">{sup.deliveryDays} ngày ({sup.creditDays}d nợ)</span>
+                              </div>
                             </div>
                           </div>
                         </div>
-                        <p className="text-[10px] text-slate-400 mt-2.5 pt-2 border-t border-slate-800 italic">
-                          {sup.warrantyPolicy}
-                        </p>
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                  )}
                 </div>
               </div>
             );
