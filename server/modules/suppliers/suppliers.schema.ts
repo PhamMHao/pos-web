@@ -13,8 +13,8 @@ export const createSupplierSchema = z.object({
   code: z.string().min(1, "Mã nhà cung cấp không được để trống"),
   name: z.string().min(1, "Tên nhà cung cấp không được để trống"),
   taxCode: z.string().optional().nullable(),
-  tier: z.enum(["Tier 1 Chính Hãng", "Tổng Đại Lý", "Nhà Phân Phối"]).default("Tổng Đại Lý"),
-  category: z.string().default("Camera & An Ninh"),
+  tier: z.string().optional().default("Tổng Đại Lý"),
+  category: z.string().optional().default("Camera & An Ninh"),
   contactPerson: z.string().optional().nullable(),
   phone: z.string().min(1, "Số điện thoại không được để trống"),
   email: z.string().optional().nullable(),
@@ -31,9 +31,9 @@ export const createSupplierSchema = z.object({
   ratingWarranty: z.coerce.number().min(0).max(10).default(9.2),
   notes: z.string().optional().nullable(),
   priceList: z.array(supplierPriceItemSchema).default([]),
-});
+}).passthrough();
 
-export const updateSupplierSchema = createSupplierSchema.partial();
+export const updateSupplierSchema = createSupplierSchema.partial().passthrough();
 
 export const supplierQuerySchema = z.object({
   search: z.string().optional(),

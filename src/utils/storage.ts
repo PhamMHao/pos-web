@@ -20,25 +20,61 @@ import {
   InboundEInvoice,
   StockGoodsReceipt,
 } from '../types';
-import {
-  INITIAL_PRODUCTS,
-  INITIAL_CUSTOMERS,
-  INITIAL_ORDERS,
-  INITIAL_PROMOTIONS,
-  INITIAL_CASH_SHIFT,
-  INITIAL_STORE_SETTINGS,
-  INITIAL_ACCOUNTING_RECORDS,
-  INITIAL_EMPLOYEES,
-  INITIAL_QUOTES,
-  INITIAL_COSTING,
-  INITIAL_ASSETS,
-  INITIAL_FRAUD_ALERTS,
-  INITIAL_WARRANTY_TICKETS,
-  INITIAL_SERIAL_RECORDS,
-  INITIAL_EINVOICES,
-  INITIAL_LABOR_CONTRACTS,
-} from '../data/initialData';
-import { INITIAL_INBOUND_INVOICES } from '../data/mockInboundData';
+import { GIA_PHUC_LOGO_SVG_DATA_URI } from '../components/common/GiaPhucLogo';
+
+export const DEFAULT_STORE_SETTINGS: StoreSettings = {
+  storeName: 'CÔNG TY TNHH MTV TM-DV SỬA CHỮA GIA PHÚC',
+  brandName: 'GIA PHÚC Computer',
+  companyLegalName: 'CÔNG TY TNHH MTV TM-DV SỬA CHỮA GIA PHÚC',
+  logoUrl: GIA_PHUC_LOGO_SVG_DATA_URI,
+  tagline: 'Chuyên Cung Cấp Thiết Bị Tin Học, Camera, Mạng & Sửa Chữa Chuyên Nghiệp',
+  phone: '0985 862 609 - 0914 665 994',
+  zaloPhone: '0985 862 609 - 0914 665 994',
+  faxPhone: '(0274) 3579 789',
+  email: 'hrmgpsoft@gmail.com',
+  website: 'www.vitinhgiaphuc.com',
+  address: 'Đường PA 087, Khu phố An Thuận, Phường Phú An, TP. HCM',
+  taxCode: '0318999888',
+  currency: 'VND',
+  vatDefault: 8,
+  bankName: 'Techcombank - Ngân hàng Kỹ Thương VN',
+  bankAccount: '1903688899901',
+  bankAccountName: 'CONG TY TNHH MTV TM-DV SUA CHUA GIA PHUC',
+  bankCode: 'TCB',
+  receiptHeaderNote: 'HÓA ĐƠN BÁN HÀNG & PHIẾU GIAO HÀNG',
+  receiptFooterNote: 'Cảm ơn Quý khách đã tin tưởng Gia Phúc Computer! Hàng hóa được bảo hành chính hãng theo tem dán.',
+  autoPrintReceipt: true,
+  enableSoundEffects: true,
+  lowStockThresholdDefault: 10,
+  theme: 'light',
+  defaultWarehouse: 'Kho Tổng Gia Phúc TP.HCM',
+  defaultCreatorName: 'Nguyễn Văn Minh (Thủ Kho)',
+  warehouseList: [
+    'Kho Tổng Gia Phúc TP.HCM',
+    'Kho Kỹ Thuật & Showroom',
+    'Kho Chi Nhánh TP.HCM',
+    'Kho Chi Nhánh Bình Dương',
+    'Kho Bảo Hành & Linh Kiện',
+  ],
+  storageLocations: [
+    'Kệ A1 - Tầng 1 (CPU & Vi Xử Lý)',
+    'Kệ A2 - Tầng 2 (VGA & Card Màn Hình)',
+    'Kệ B1 - Tầng 1 (RAM & Ổ Cứng SSD)',
+    'Khu Pallet C1 (Màn Hình & Vỏ Case)',
+  ],
+  customCategories: [
+    'Linh Kiện PC & Máy Tính Để Bàn',
+    'Laptop & Máy Tính Xách Tay',
+    'Thiết Bị Mạng & Cáp Viễn Thông',
+    'Camera Quan Sát & Hệ Thống An Ninh',
+    'Phụ Kiện Gaming & Bàn Phím Chuột',
+    'Màn Hình Máy Tính & Máy In Văn Phòng',
+  ],
+  defaultPrintPaperSize: 'A4',
+  defaultPrintOrientation: 'portrait',
+  defaultEmptyRowsCount: 6,
+  eInvoiceSymbol: '1C26TGP',
+};
 
 const KEYS = {
   PRODUCTS: 'gperp_products_v2',
@@ -103,7 +139,7 @@ export function useStoreState() {
     getStoredItem(KEYS.SHIFTS_HISTORY, [])
   );
   const [settings, setSettingsState] = useState<StoreSettings>(() =>
-    getStoredItem(KEYS.SETTINGS, INITIAL_STORE_SETTINGS)
+    getStoredItem(KEYS.SETTINGS, DEFAULT_STORE_SETTINGS)
   );
   const [accountingRecords, setAccountingRecordsState] = useState<AccountingRecord[]>(() =>
     getStoredItem(KEYS.ACCOUNTING, [])
@@ -136,7 +172,7 @@ export function useStoreState() {
     getStoredItem(KEYS.LABOR_CONTRACTS, [])
   );
   const [inboundInvoices, setInboundInvoicesState] = useState<InboundEInvoice[]>(() =>
-    getStoredItem(KEYS.INBOUND_INVOICES, INITIAL_INBOUND_INVOICES)
+    getStoredItem(KEYS.INBOUND_INVOICES, [])
   );
   const [stockReceipts, setStockReceiptsState] = useState<StockGoodsReceipt[]>(() =>
     getStoredItem(KEYS.STOCK_RECEIPTS, [])
@@ -327,7 +363,7 @@ export function useStoreState() {
     setPromotionsState([]);
     setCurrentShiftState(null);
     setShiftsState([]);
-    setSettingsState(INITIAL_STORE_SETTINGS);
+    setSettingsState(DEFAULT_STORE_SETTINGS);
     setAccountingRecordsState([]);
     setEmployeesState([]);
     setQuotesState([]);
@@ -348,7 +384,7 @@ export function useStoreState() {
     setStoredItem(KEYS.PROMOTIONS, []);
     setStoredItem(KEYS.SHIFT, null);
     setStoredItem(KEYS.SHIFTS_HISTORY, []);
-    setStoredItem(KEYS.SETTINGS, INITIAL_STORE_SETTINGS);
+    setStoredItem(KEYS.SETTINGS, DEFAULT_STORE_SETTINGS);
     setStoredItem(KEYS.ACCOUNTING, []);
     setStoredItem(KEYS.EMPLOYEES, []);
     setStoredItem(KEYS.QUOTES, []);

@@ -82,6 +82,13 @@ export const SuppliersView: React.FC<SuppliersViewProps> = ({
   }, [masterSuppliers, suppliers]);
 
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>(safeSuppliers[0]?.id || '');
+
+  React.useEffect(() => {
+    if ((!selectedSupplierId || !safeSuppliers.some((s) => s.id === selectedSupplierId)) && safeSuppliers.length > 0) {
+      setSelectedSupplierId(safeSuppliers[0].id);
+    }
+  }, [safeSuppliers, selectedSupplierId]);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'profile' | 'pricelist' | 'orders'>('profile');
   const [showNewSupplierModal, setShowNewSupplierModal] = useState(false);

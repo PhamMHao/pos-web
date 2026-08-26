@@ -179,14 +179,27 @@ export class SuppliersService {
     await this.getSupplierById(id);
     const { priceList, ...data } = input;
 
-    const updateData: any = { ...data, updatedAt: new Date() };
-    if (data.code) updateData.code = data.code.trim().toUpperCase();
+    const updateData: any = { updatedAt: new Date() };
+    if (data.code !== undefined) updateData.code = data.code.trim().toUpperCase();
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.taxCode !== undefined) updateData.taxCode = data.taxCode;
+    if (data.tier !== undefined) updateData.tier = data.tier;
+    if (data.category !== undefined) updateData.category = data.category;
+    if (data.contactPerson !== undefined) updateData.contactPerson = data.contactPerson;
+    if (data.phone !== undefined) updateData.phone = data.phone;
+    if (data.email !== undefined) updateData.email = data.email;
+    if (data.address !== undefined) updateData.address = data.address;
+    if (data.bankName !== undefined) updateData.bankName = data.bankName;
+    if (data.bankAccount !== undefined) updateData.bankAccount = data.bankAccount;
+    if (data.bankCode !== undefined) updateData.bankCode = data.bankCode;
     if (data.creditLimit !== undefined) updateData.creditLimit = new Prisma.Decimal(data.creditLimit);
+    if (data.creditDays !== undefined) updateData.creditDays = data.creditDays;
     if (data.currentDebt !== undefined) updateData.currentDebt = new Prisma.Decimal(data.currentDebt);
     if (data.ratingQuality !== undefined) updateData.ratingQuality = new Prisma.Decimal(data.ratingQuality);
     if (data.ratingPrice !== undefined) updateData.ratingPrice = new Prisma.Decimal(data.ratingPrice);
     if (data.ratingOnTime !== undefined) updateData.ratingOnTime = new Prisma.Decimal(data.ratingOnTime);
     if (data.ratingWarranty !== undefined) updateData.ratingWarranty = new Prisma.Decimal(data.ratingWarranty);
+    if (data.notes !== undefined) updateData.notes = data.notes;
 
     await prisma.supplier.updateMany({
       where: { id },

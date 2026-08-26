@@ -56,7 +56,6 @@ import { StockReceiptPrintModal } from './StockReceiptPrintModal';
 import { ProductBarcodeLabelModal } from './ProductBarcodeLabelModal';
 import { BarcodeLabelPreviewModal, PrintLabelItem } from '../common/BarcodeLabelPreviewModal';
 import { ProductLifecycleModal } from './ProductLifecycleModal';
-import { INITIAL_STORE_SETTINGS } from '../../data/initialData';
 import { productsApi } from '../../features/products/api/productsApi';
 import { QuickAddMasterDataModal, MasterDataType } from '../common/QuickAddMasterDataModal';
 import { useMasterData } from '../../core/contexts/MasterDataContext';
@@ -152,7 +151,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   inboundInvoices = [],
   setInboundInvoices = () => {},
   setAccountingRecords = () => {},
-  settings = INITIAL_STORE_SETTINGS,
+  settings,
   stockReceipts = [],
   setStockReceipts = () => {},
   transfers = [],
