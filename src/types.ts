@@ -974,7 +974,7 @@ export interface Supplier {
   code: string;
   name: string;
   taxCode: string;
-  tier: 'Tier 1 Chính Hãng' | 'Tổng Đại Lý' | 'Nhà Phân Phối';
+  tier: string;
   category: string;
   contactPerson: string;
   phone: string;

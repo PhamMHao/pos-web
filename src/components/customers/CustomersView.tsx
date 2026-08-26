@@ -21,6 +21,7 @@ import {
 import { Customer, CustomerTier, Order } from '../../types';
 import { formatVND } from '../../utils/vietqr';
 import { customersApi } from '../../features/customers/api/customersApi';
+import { useMasterData } from '../../core/contexts/MasterDataContext';
 
 interface CustomersViewProps {
   customers: Customer[];
@@ -50,6 +51,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
   onDeleteCustomer,
   onRefreshDb,
 }) => {
+  const { customerTiers } = useMasterData();
   const [searchTerm, setSearchTerm] = useState('');
   const [tierFilter, setTierFilter] = useState<string>('all');
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -351,10 +353,11 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
           className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500 shrink-0"
         >
           <option value="all">Tất cả hạng thành viên</option>
-          <option value="Đồng">Hạng Đồng</option>
-          <option value="Bạc">Hạng Bạc</option>
-          <option value="Vàng">Hạng Vàng</option>
-          <option value="Kim Cương">Hạng Kim Cương</option>
+          {customerTiers.map((t) => (
+            <option key={t.id} value={t.name}>
+              {t.name}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -554,7 +557,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                     Hạng hội viên:
                   </label>
                   <select
-                    value={formData.tier || 'Đồng'}
+                    value={formData.tier || (customerTiers[0]?.name as CustomerTier) || ''}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
@@ -563,10 +566,15 @@ export const CustomersView: React.FC<CustomersViewProps> = ({
                     }
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
                   >
-                    <option value="Đồng">Đồng</option>
-                    <option value="Bạc">Bạc</option>
-                    <option value="Vàng">Vàng</option>
-                    <option value="Kim Cương">Kim Cương</option>
+                    {customerTiers.length > 0 ? (
+                      customerTiers.map((t) => (
+                        <option key={t.id} value={t.name as CustomerTier}>
+                          {t.name}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="">-- Chưa có hạng thành viên --</option>
+                    )}
                   </select>
                 </div>
 

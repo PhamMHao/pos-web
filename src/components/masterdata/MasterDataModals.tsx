@@ -346,11 +346,15 @@ export const JobPositionModal: React.FC<JobPositionModalProps> = ({
                 onChange={(e) => setDepartmentId(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs"
               >
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
+                {departments.length > 0 ? (
+                  departments.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">-- Chưa có phòng ban --</option>
+                )}
               </select>
             </div>
           </div>
@@ -1565,8 +1569,8 @@ export const CustomerModal: React.FC<CustomerModalProps> = ({
   // 1. Nhận diện & phân loại
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [customerType, setCustomerType] = useState('Khách Hàng Cá Nhân');
-  const [tier, setTier] = useState<CustomerTier>('Hạng Vàng');
+  const [customerType, setCustomerType] = useState(customerGroups[0]?.name || '');
+  const [tier, setTier] = useState<CustomerTier>((customerTiers[0]?.name as CustomerTier) || ('' as any));
   const [points, setPoints] = useState<number>(0);
 
   // 2. Cấu hình email gửi hóa đơn & báo giá
@@ -1589,8 +1593,8 @@ export const CustomerModal: React.FC<CustomerModalProps> = ({
     if (initialData) {
       setName(initialData.name || '');
       setPhone(initialData.phone || '');
-      setCustomerType(initialData.customerType || initialData.groupName || 'Khách Hàng Cá Nhân');
-      setTier(initialData.tier || 'Hạng Vàng');
+      setCustomerType(initialData.customerType || initialData.groupName || customerGroups[0]?.name || '');
+      setTier(initialData.tier || (customerTiers[0]?.name as CustomerTier) || ('' as any));
       setPoints(initialData.points || 0);
 
       setEmail(initialData.email || '');
@@ -1609,8 +1613,8 @@ export const CustomerModal: React.FC<CustomerModalProps> = ({
     } else {
       setName('');
       setPhone('');
-      setCustomerType('Khách Hàng Cá Nhân');
-      setTier('Hạng Vàng');
+      setCustomerType(customerGroups[0]?.name || '');
+      setTier((customerTiers[0]?.name as CustomerTier) || ('' as any));
       setPoints(0);
 
       setEmail('');
@@ -1627,7 +1631,7 @@ export const CustomerModal: React.FC<CustomerModalProps> = ({
       setDebt(0);
       setNote('');
     }
-  }, [initialData, isOpen]);
+  }, [initialData, isOpen, customerGroups, customerTiers]);
 
   if (!isOpen) return null;
 
@@ -1730,11 +1734,7 @@ export const CustomerModal: React.FC<CustomerModalProps> = ({
                       </option>
                     ))
                   ) : (
-                    <>
-                      <option value="Khách Hàng Cá Nhân">Khách Hàng Cá Nhân</option>
-                      <option value="Doanh Nghiệp B2B">Doanh Nghiệp B2B</option>
-                      <option value="Đại Lý Cấp 1">Đại Lý Cấp 1</option>
-                    </>
+                    <option value="">-- Chưa có nhóm khách hàng --</option>
                   )}
                 </select>
               </div>
@@ -1754,12 +1754,7 @@ export const CustomerModal: React.FC<CustomerModalProps> = ({
                         </option>
                       ))
                     ) : (
-                      <>
-                        <option value="Hạng Kim Cương">Hạng Kim Cương</option>
-                        <option value="Hạng Vàng">Hạng Vàng</option>
-                        <option value="Hạng Bạc">Hạng Bạc</option>
-                        <option value="Hạng Đồng">Hạng Đồng</option>
-                      </>
+                      <option value="">-- Chưa có hạng thành viên --</option>
                     )}
                   </select>
                   <input
@@ -1966,13 +1961,13 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [taxCode, setTaxCode] = useState('');
-  const [tier, setTier] = useState<'Tier 1 Chính Hãng' | 'Tổng Đại Lý' | 'Nhà Phân Phối'>('Tier 1 Chính Hãng');
+  const [tier, setTier] = useState<string>(supplierCategories[0]?.name || '');
   const [category, setCategory] = useState('Linh kiện máy tính & Phụ kiện');
   const [contactPerson, setContactPerson] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
-  const [bankName, setBankName] = useState('Vietcombank');
+  const [bankName, setBankName] = useState('');
   const [bankAccount, setBankAccount] = useState('');
   const [creditLimit, setCreditLimit] = useState<number>(50000000);
   const [creditDays, setCreditDays] = useState<number>(30);
@@ -1984,13 +1979,13 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
       setCode(initialData.code || '');
       setName(initialData.name || '');
       setTaxCode(initialData.taxCode || '');
-      setTier(initialData.tier || 'Tier 1 Chính Hãng');
+      setTier(initialData.tier || supplierCategories[0]?.name || '');
       setCategory(initialData.category || 'Linh kiện máy tính & Phụ kiện');
       setContactPerson(initialData.contactPerson || '');
       setPhone(initialData.phone || '');
       setEmail(initialData.email || '');
       setAddress(initialData.address || '');
-      setBankName(initialData.bankName || 'Vietcombank');
+      setBankName(initialData.bankName || '');
       setBankAccount(initialData.bankAccount || '');
       setCreditLimit(initialData.creditLimit || 50000000);
       setCreditDays(initialData.creditDays || 30);
@@ -2000,20 +1995,20 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
       setCode('');
       setName('');
       setTaxCode('');
-      setTier('Tier 1 Chính Hãng');
+      setTier(supplierCategories[0]?.name || '');
       setCategory('Linh kiện máy tính & Phụ kiện');
       setContactPerson('');
       setPhone('');
       setEmail('');
       setAddress('');
-      setBankName('Vietcombank');
+      setBankName('');
       setBankAccount('');
       setCreditLimit(50000000);
       setCreditDays(30);
       setCurrentDebt(0);
       setNotes('');
     }
-  }, [initialData, isOpen]);
+  }, [initialData, isOpen, supplierCategories]);
 
   if (!isOpen) return null;
 
@@ -2110,11 +2105,7 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
                     </option>
                   ))
                 ) : (
-                  <>
-                    <option value="Tier 1 Chính Hãng">Tier 1 Chính Hãng</option>
-                    <option value="Tổng Đại Lý">Tổng Đại Lý Cấp 1</option>
-                    <option value="Nhà Phân Phối">Nhà Phân Phối / Nhập Khẩu</option>
-                  </>
+                  <option value="">-- Chưa có phân cấp đối tác --</option>
                 )}
               </select>
             </div>
