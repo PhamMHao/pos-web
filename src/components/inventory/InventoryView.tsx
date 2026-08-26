@@ -105,43 +105,6 @@ interface InventoryViewProps {
   setSerialRecords?: (records: SerialDeviceRecord[] | ((prev: SerialDeviceRecord[]) => SerialDeviceRecord[])) => void;
 }
 
-const CATEGORIES: ProductCategory[] = [
-  'Gạo & Nông Sản',
-  'Sữa & Sản phẩm từ Sữa',
-  'Mì & Thực phẩm ăn liền',
-  'Gia vị & Dầu ăn',
-  'Nước giải khát & Bia',
-  'Điện tử & Cáp điện',
-  'Dược phẩm & Y tế',
-  'Gia dụng & Đời sống',
-  'Thời trang & Phụ kiện',
-];
-
-const COMMON_UOM_CHIPS = ['Cái', 'Hộp', 'Bộ', 'Thùng', 'Cuộn', 'Mét', 'Kg', 'Gói', 'Lốc', 'Cây', 'Chai', 'Vỉ', 'Bao', 'Lon'];
-
-const COMMON_LOCATION_CHIPS = [
-  'Kệ A1 - Tầng 1',
-  'Kệ A2 - Tầng 2',
-  'Kệ B1 - Tầng 1',
-  'Dãy B - Tầng 3',
-  'Tủ C1 (Linh kiện)',
-  'Kệ Trưng Bày 01',
-  'Kho Sau',
-];
-
-const PRODUCT_IMAGE_PRESETS = [
-  { label: '🖥️ Màn hình', url: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=600&auto=format&fit=crop&q=80' },
-  { label: '💻 Laptop', url: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=600&auto=format&fit=crop&q=80' },
-  { label: '⚡ SSD/RAM', url: 'https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?w=600&auto=format&fit=crop&q=80' },
-  { label: '🎮 VGA Card', url: 'https://images.unsplash.com/photo-1587202372775-e229f172b9d7?w=600&auto=format&fit=crop&q=80' },
-  { label: '⌨️ Phím/Chuột', url: 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=600&auto=format&fit=crop&q=80' },
-  { label: '📷 Camera', url: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=600&auto=format&fit=crop&q=80' },
-  { label: '🌾 Nông sản', url: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=600&auto=format&fit=crop&q=80' },
-  { label: '🥤 Giải khát', url: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=600&auto=format&fit=crop&q=80' },
-  { label: '📱 Điện thoại', url: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&auto=format&fit=crop&q=80' },
-  { label: '🎧 Tai nghe', url: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80' },
-];
-
 export const InventoryView: React.FC<InventoryViewProps> = ({
   products = [],
   onSaveProduct,
@@ -225,18 +188,15 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   const dynamicCategories = useMemo(() => {
     const fromMaster = (masterCategories || []).filter((c) => c.status === 'active').map((c) => c.name);
     const fromProds = safeProducts.map((p) => p.category).filter(Boolean);
-    const combined = Array.from(new Set([...fromMaster, ...fromProds, ...categoriesList]));
-    return combined.length > 0 ? combined : CATEGORIES;
+    return Array.from(new Set([...fromMaster, ...fromProds, ...categoriesList]));
   }, [masterCategories, safeProducts, categoriesList]);
 
   const dynamicUOMChips = useMemo(() => {
-    const fromMaster = (masterUOMs || []).filter((u) => u.status === 'active').map((u) => u.name);
-    return fromMaster.length > 0 ? fromMaster : COMMON_UOM_CHIPS;
+    return (masterUOMs || []).filter((u) => u.status === 'active').map((u) => u.name);
   }, [masterUOMs]);
 
   const dynamicLocationChips = useMemo(() => {
-    const fromMaster = (masterLocations || []).filter((l) => l.status === 'active').map((l) => `${l.name} (${l.code})`);
-    return fromMaster.length > 0 ? fromMaster : COMMON_LOCATION_CHIPS;
+    return (masterLocations || []).filter((l) => l.status === 'active').map((l) => `${l.name} (${l.code})`);
   }, [masterLocations]);
 
   const pendingInboundCount = (inboundInvoices || []).filter((i) => i.status === 'pending_review').length;
@@ -2016,24 +1976,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                         </button>
                       )}
                     </div>
-                  </div>
-
-                  {/* Quick Image Preset Chips */}
-                  <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                    {PRODUCT_IMAGE_PRESETS.map((preset) => (
-                      <button
-                        key={preset.label}
-                        type="button"
-                        onClick={() => setFormData((prev) => ({ ...prev, image: preset.url }))}
-                        className={`px-2 py-1 text-[10.5px] rounded-lg border font-medium flex items-center space-x-1 transition-all cursor-pointer ${
-                          formData.image === preset.url
-                            ? 'bg-blue-600 text-white border-blue-400 shadow-sm font-bold scale-105'
-                            : 'bg-slate-800/90 text-slate-300 border-slate-700 hover:bg-slate-700 hover:text-white'
-                        }`}
-                      >
-                        <span>{preset.label}</span>
-                      </button>
-                    ))}
                   </div>
 
                   {/* Input Field with Live Image Thumbnail Preview Box & Drag-Drop/Paste Zone */}
