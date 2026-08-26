@@ -50,6 +50,7 @@ import { PrintInvoiceModal } from '../common/PrintInvoiceModal';
 import { sounds } from '../../utils/soundEffects';
 import { settingsApi } from '../../features/settings/api/settingsApi';
 import { LabelPrintSettingsTab } from './LabelPrintSettingsTab';
+import { useMasterData } from '../../core/contexts/MasterDataContext';
 
 interface SettingsViewProps {
   settings: StoreSettings;
@@ -184,6 +185,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onRefreshData,
 }) => {
   const [formData, setFormData] = useState<StoreSettings>({ ...settings });
+  const { refreshMasterDataFromDb } = useMasterData();
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [activeTab, setActiveTab] = useState<
     'company' | 'print' | 'label_print' | 'hardware' | 'einvoice' | 'contract' | 'bank' | 'theme' | 'sqlserver'
@@ -537,9 +539,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setWipeResult(null);
     try {
       const res = await settingsApi.wipeAllData('XOA_DU_LIEU');
-      setWipeResult({ success: true, message: res.message || 'Đã xóa toàn bộ dữ liệu thành công! CSDL đã về trạng thái trống.' });
+      setWipeResult({ success: true, message: res.message || 'Đã xóa toàn bộ dữ liệu nghiệp vụ và dữ liệu cơ bản thành công! CSDL đã về trạng thái trống.' });
       onResetData();
       if (onRefreshData) onRefreshData();
+      if (refreshMasterDataFromDb) refreshMasterDataFromDb();
       setShowWipeModal(false);
       setWipeConfirmInput('');
     } catch (err: any) {

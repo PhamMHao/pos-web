@@ -270,6 +270,7 @@ export class SettingsService {
       throw new Error("Mã xác nhận xóa dữ liệu không chính xác. Vui lòng nhập XOA_DU_LIEU.");
     }
 
+    // 1. Transactional & Operations Data
     await prisma.$executeRaw`DELETE FROM [ChiTietPhieuTraHang]`;
     await prisma.$executeRaw`DELETE FROM [PhieuTraHang]`;
     await prisma.$executeRaw`DELETE FROM [ChiTietDieuChuyenKho]`;
@@ -306,12 +307,23 @@ export class SettingsService {
     await prisma.$executeRaw`DELETE FROM [CaBanHang]`;
     await prisma.$executeRaw`DELETE FROM [KhachHang]`;
 
+    // 2. Master Data (Dữ Liệu Cơ Bản & MDM)
+    await prisma.$executeRaw`DELETE FROM [DuAnDoanhNghiep]`;
+    await prisma.$executeRaw`DELETE FROM [PhanLoaiNhaCungCap]`;
+    await prisma.$executeRaw`DELETE FROM [HangThanhVien]`;
+    await prisma.$executeRaw`DELETE FROM [NhomKhachHang]`;
+    await prisma.$executeRaw`DELETE FROM [DanhMucNganhHang]`;
+    await prisma.$executeRaw`DELETE FROM [DanhMucDonViTinh]`;
+    await prisma.$executeRaw`DELETE FROM [ViTriLuuKho]`;
+    await prisma.$executeRaw`DELETE FROM [ChucVu]`;
+    await prisma.$executeRaw`DELETE FROM [PhongBan]`;
+
     // Giữ nguyên StoreSettings và Admin Account
     await this.ensureAdminAndSettings();
 
     return {
       success: true,
-      message: "Toàn bộ dữ liệu nghiệp vụ đã được xóa sạch hoàn toàn khỏi CSDL SQL Server!",
+      message: "Toàn bộ dữ liệu nghiệp vụ và dữ liệu cơ bản (Master Data) đã được xóa sạch hoàn toàn khỏi CSDL SQL Server!",
     };
   }
 
@@ -356,8 +368,16 @@ export class SettingsService {
     await prisma.$executeRaw`DELETE FROM [SoThuChiKeToan]`;
     await prisma.$executeRaw`DELETE FROM [ChuongTrinhKhuyenMai]`;
     await prisma.$executeRaw`DELETE FROM [CanhBaoGianLan]`;
-    await prisma.$executeRaw`DELETE FROM [CaBanHang]`;
     await prisma.$executeRaw`DELETE FROM [KhachHang]`;
+    await prisma.$executeRaw`DELETE FROM [DuAnDoanhNghiep]`;
+    await prisma.$executeRaw`DELETE FROM [PhanLoaiNhaCungCap]`;
+    await prisma.$executeRaw`DELETE FROM [HangThanhVien]`;
+    await prisma.$executeRaw`DELETE FROM [NhomKhachHang]`;
+    await prisma.$executeRaw`DELETE FROM [DanhMucNganhHang]`;
+    await prisma.$executeRaw`DELETE FROM [DanhMucDonViTinh]`;
+    await prisma.$executeRaw`DELETE FROM [ViTriLuuKho]`;
+    await prisma.$executeRaw`DELETE FROM [ChucVu]`;
+    await prisma.$executeRaw`DELETE FROM [PhongBan]`;
     await prisma.$executeRaw`DELETE FROM [NguoiDung]`;
 
     let restoredStats: Record<string, number> = {};
