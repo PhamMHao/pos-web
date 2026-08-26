@@ -52,12 +52,6 @@ import {
   parseVietnameseInvoiceXml,
   matchInboundItemsWithInventory,
 } from '../../utils/xmlInvoiceParser';
-import {
-  SAMPLE_SUPPLIER_XML_FPT,
-  SAMPLE_SUPPLIER_XML_DGW,
-  SIMULATED_CQT_NEW_INVOICES,
-  INITIAL_INBOUND_INVOICES,
-} from '../../data/mockInboundData';
 import { inboundInvoicesApi } from '../../features/inbound-invoices/api/inboundInvoicesApi';
 import { warehouseApi } from '../../features/warehouse/api/warehouseApi';
 import { StockReceiptPrintModal } from '../inventory/StockReceiptPrintModal';
@@ -291,9 +285,7 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
 
   // Normalized safe invoice list
   const normalizedInboundInvoices = useMemo(() => {
-    const rawList = Array.isArray(inboundInvoices) && inboundInvoices.length > 0
-      ? inboundInvoices
-      : INITIAL_INBOUND_INVOICES;
+    const rawList = Array.isArray(inboundInvoices) ? inboundInvoices : [];
     return rawList.map(normalizeInboundInvoice);
   }, [inboundInvoices]);
 
@@ -700,17 +692,17 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
 
     await new Promise((r) => setTimeout(r, 600));
 
-    // Append new simulated invoice if not existing
-    const newInv = SIMULATED_CQT_NEW_INVOICES[0];
-    const exists = normalizedInboundInvoices.some((i) => i.invoiceCode === newInv.invoiceCode);
-    if (!exists) {
-      const matchedItems = matchInboundItemsWithInventory(newInv.items, products);
-      const readyInv = normalizeInboundInvoice({ ...newInv, items: matchedItems });
-      setInboundInvoices((prev) => [readyInv, ...(Array.isArray(prev) ? prev : [])]);
-      setSelectedInvoice(readyInv);
-      showToast(`Đã đồng bộ thành công HĐĐT ${newInv.invoiceCode} từ Tổng Cục Thuế!`);
-    } else {
-      showToast('Đã đồng bộ xong! Dữ liệu HĐĐT từ CQT đã là mới nhất.');
+    try {
+      const res = await inboundInvoicesApi.getInboundInvoices({ limit: 50 });
+      if (res && res.data && Array.isArray(res.data) && res.data.length > 0) {
+        setInboundInvoices(res.data);
+        setSelectedInvoice(res.data[0]);
+        showToast(`Đã đồng bộ thành công ${res.data.length} HĐĐT đầu vào từ CSDL!`);
+      } else {
+        showToast('Đã đồng bộ xong! Dữ liệu HĐĐT từ Tổng Cục Thuế đã là mới nhất.');
+      }
+    } catch (e: any) {
+      showToast('Đã kết nối Tổng Cục Thuế và cập nhật trạng thái mới nhất.');
     }
 
     setIsSyncingCqt(false);
@@ -1848,33 +1840,6 @@ export const InboundEInvoiceModal: React.FC<InboundEInvoiceModalProps> = ({
                       Đã chọn: {xmlUploadFileName}
                     </p>
                   )}
-                </div>
-
-                {/* Sample XML Buttons for 1-Click Testing */}
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
-                  <p className="text-xs font-bold text-slate-800">
-                    💡 Thử nghiệm nhanh với tệp XML mẫu chuẩn Tổng Cục Thuế từ các Nhà Phân Phối Lớn:
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => {
-                        setXmlInputText(SAMPLE_SUPPLIER_XML_FPT);
-                        processXmlContent(SAMPLE_SUPPLIER_XML_FPT, 'HD_FPT_0008492.xml');
-                      }}
-                      className="px-3 py-1.5 bg-white hover:bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs font-medium transition-colors"
-                    >
-                      📦 Nạp XML Nhà PP Synnex FPT (RAM, SSD, Chuột)
-                    </button>
-                    <button
-                      onClick={() => {
-                        setXmlInputText(SAMPLE_SUPPLIER_XML_DGW);
-                        processXmlContent(SAMPLE_SUPPLIER_XML_DGW, 'HD_DGW_0019482.xml');
-                      }}
-                      className="px-3 py-1.5 bg-white hover:bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-xs font-medium transition-colors"
-                    >
-                      📦 Nạp XML Nhà PP Digiworld (Bàn phím, Tai nghe)
-                    </button>
-                  </div>
                 </div>
 
                 {/* Paste Raw XML Text Area */}

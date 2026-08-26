@@ -171,50 +171,17 @@ export const DocumentOcrScannerModal: React.FC<DocumentOcrScannerModalProps> = (
       const json = await res.json();
       if (json.success && json.data) {
         const raw = json.data;
-        const rawItems: ParsedDocumentItem[] = Array.isArray(raw.items) && raw.items.length > 0
-          ? raw.items
-          : [
-              {
-                sku: 'CAM-DS1T41',
-                productName: 'Camera IP Thân Trụ 4MP DS-2CD1T41G2-LIU Ban Đêm Có Màu',
-                unit: 'Bộ',
-                quantity: 5,
-                unitPrice: 880000,
-                vatRate: 10,
-                total: 4400000,
-                warrantyMonths: 24,
-              },
-              {
-                sku: 'NVR-DS7104',
-                productName: 'Đầu Ghi Hình NVR 4 Kênh Hikvision Chuẩn H.265+ 4K',
-                unit: 'Cái',
-                quantity: 1,
-                unitPrice: 1250000,
-                vatRate: 10,
-                total: 1250000,
-                warrantyMonths: 24,
-              },
-              {
-                sku: 'HDD-2TB-WD',
-                productName: 'Ổ Cứng Chuyên Dụng Camera WD Purple 2TB SATA 3',
-                unit: 'Cái',
-                quantity: 2,
-                unitPrice: 1120000,
-                vatRate: 10,
-                total: 2240000,
-                warrantyMonths: 36,
-              },
-            ];
+        const rawItems: ParsedDocumentItem[] = Array.isArray(raw.items) ? raw.items : [];
 
         const enrichedItems = matchItemsWithWarehouse(rawItems);
         const subtotal = enrichedItems.reduce((acc, it) => acc + (Number(it.total) || 0), 0);
         const vatAmount = Math.round((subtotal * (raw.vatRate || 10)) / 100);
 
         setParsedData({
-          supplierName: raw.supplierName || 'Nhà Phân Phối Synnex FPT',
-          supplierTaxCode: raw.supplierTaxCode || '0101248141',
-          supplierPhone: raw.supplierPhone || '0903.112.233',
-          supplierAddress: raw.supplierAddress || 'Tòa nhà FPT, Phố Duy Tân, Cầu Giấy, Hà Nội',
+          supplierName: raw.supplierName || (suppliers[0]?.name || 'Nhà Cung Cấp'),
+          supplierTaxCode: raw.supplierTaxCode || suppliers[0]?.taxCode || '',
+          supplierPhone: raw.supplierPhone || suppliers[0]?.phone || '',
+          supplierAddress: raw.supplierAddress || suppliers[0]?.address || '',
           documentCode: raw.documentCode || ('HD-' + Date.now().toString().slice(-5)),
           documentDate: raw.documentDate || new Date().toISOString().slice(0, 10),
           subtotal,
@@ -228,61 +195,11 @@ export const DocumentOcrScannerModal: React.FC<DocumentOcrScannerModalProps> = (
         });
         sounds.playSuccessChime();
       } else {
-        throw new Error(json.error || 'Không nhận diện được bảng dữ liệu.');
+        throw new Error(json.error || 'Không nhận diện được bảng dữ liệu trong tài liệu.');
       }
     } catch (err: any) {
-      console.warn('AI OCR Error, using smart demo fallback:', err);
-      const fallbackItems: ParsedDocumentItem[] = [
-        {
-          sku: 'CAM-DS1T41',
-          productName: 'Camera IP Thân Trụ 4MP DS-2CD1T41G2-LIU Ban Đêm Có Màu',
-          unit: 'Bộ',
-          quantity: 6,
-          unitPrice: 880000,
-          vatRate: 10,
-          total: 5280000,
-          warrantyMonths: 24,
-        },
-        {
-          sku: 'NVR-DS7104',
-          productName: 'Đầu Ghi Hình NVR 4 Kênh Hikvision Chuẩn H.265+ 4K',
-          unit: 'Cái',
-          quantity: 2,
-          unitPrice: 1250000,
-          vatRate: 10,
-          total: 2500000,
-          warrantyMonths: 24,
-        },
-        {
-          sku: 'HDD-2TB-WD',
-          productName: 'Ổ Cứng Chuyên Dụng Camera WD Purple 2TB SATA 3',
-          unit: 'Cái',
-          quantity: 2,
-          unitPrice: 1120000,
-          vatRate: 10,
-          total: 2240000,
-          warrantyMonths: 36,
-        },
-      ];
-      const enriched = matchItemsWithWarehouse(fallbackItems);
-      const subtotal = enriched.reduce((acc, it) => acc + it.total, 0);
-      setParsedData({
-        supplierName: 'Nhà Phân Phối Synnex FPT',
-        supplierTaxCode: '0101248141',
-        supplierPhone: '0903.112.233',
-        supplierAddress: 'Phố Duy Tân, Cầu Giấy, Hà Nội',
-        documentCode: 'HD-FPT-' + Date.now().toString().slice(-4),
-        documentDate: new Date().toISOString().slice(0, 10),
-        subtotal,
-        vatRate: 10,
-        vatAmount: Math.round(subtotal * 0.1),
-        shippingFee: 0,
-        discountAmount: 0,
-        totalAmount: Math.round(subtotal * 1.1),
-        notes: 'Bóc tách thành công từ hình ảnh phiếu mua hàng.',
-        items: enriched,
-      });
-      sounds.playSuccessChime();
+      console.warn('AI OCR Error:', err);
+      alert(err.message || 'Không thể bóc tách nội dung chứng từ từ ảnh. Vui lòng chụp rõ nét hơn hoặc nhập thủ công.');
     } finally {
       setIsProcessing(false);
       setStatusMessage('');

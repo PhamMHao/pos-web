@@ -82,38 +82,7 @@ export const DigitalSignatureHubModal: React.FC<DigitalSignatureHubModalProps> =
   const [certificates, setCertificates] = useState<DigitalCertificateX509[]>(DEFAULT_CERTIFICATES);
 
   // Audit Logs State
-  const [auditLogs, setAuditLogs] = useState<SignatureAuditLog[]>([
-    {
-      id: 'LOG-001',
-      timestamp: '2026-02-25 08:30:15',
-      action: 'sign_single',
-      documentId: 'doc-inv-init',
-      documentCode: 'HD-2026-0088',
-      documentType: 'einvoice',
-      documentTitle: 'Hóa Đơn Điện Tử GTGT - Cty Bất Động Sản An Gia',
-      provider: 'viettel_smartca',
-      signerName: 'Nguyễn Văn Phúc',
-      ipAddress: '113.161.42.18',
-      status: 'success',
-      details: 'Ký số phát hành thành công XML-DSig gửi Cơ Quan Thuế',
-      sha256Hash: 'sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7829a1b2',
-    },
-    {
-      id: 'LOG-002',
-      timestamp: '2026-02-24 16:45:10',
-      action: 'sign_batch',
-      documentId: 'batch-0224',
-      documentCode: 'BATCH-4-DOCS',
-      documentType: 'contract',
-      documentTitle: 'Ký số hàng loạt 4 Hợp Đồng Lao Động Mới',
-      provider: 'vnpt_smartca',
-      signerName: 'Nguyễn Văn Phúc',
-      ipAddress: '113.161.42.18',
-      status: 'success',
-      details: 'Ký số PAdES B-LT kèm Dấu thời gian VNPT TSA RFC 3161',
-      sha256Hash: 'sha256:7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069',
-    },
-  ]);
+  const [auditLogs, setAuditLogs] = useState<SignatureAuditLog[]>([]);
 
   // Modals & Single Sign State
   const [singleSignDoc, setSingleSignDoc] = useState<SignableDocument | null>(null);

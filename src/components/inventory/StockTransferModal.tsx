@@ -24,6 +24,7 @@ import {
   StoreSettings,
 } from '../../types';
 import { formatVND } from '../../utils/vietqr';
+import { useMasterData } from '../../core/contexts/MasterDataContext';
 
 interface StockTransferModalProps {
   isOpen: boolean;
@@ -49,13 +50,21 @@ export const StockTransferModal: React.FC<StockTransferModalProps> = ({
   onUpdateTransferStatus,
   onDeleteTransfer,
 }) => {
+  const { warehouseLocations: masterLocations } = useMasterData();
   const [activeTab, setActiveTab] = useState<'list' | 'create'>('list');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
+  const warehouseOptions = useMemo(() => {
+    const fromMaster = (masterLocations || []).map((l) => l.warehouseName).filter(Boolean);
+    const fromSettings = settings?.warehouseList || [];
+    const combined = Array.from(new Set([...fromSettings, ...fromMaster]));
+    return combined.length > 0 ? combined : ['Kho Tổng Gia Phúc TP.HCM'];
+  }, [masterLocations, settings]);
+
   // Form Create State
-  const [fromWarehouse, setFromWarehouse] = useState('Kho Tổng Gia Phúc TP.HCM');
-  const [toWarehouse, setToWarehouse] = useState('Chi Nhánh Quận 7');
+  const [fromWarehouse, setFromWarehouse] = useState(warehouseOptions[0] || 'Kho Tổng Gia Phúc TP.HCM');
+  const [toWarehouse, setToWarehouse] = useState(warehouseOptions[1] || warehouseOptions[0] || 'Kho Tổng Gia Phúc TP.HCM');
   const [senderName, setSenderName] = useState('Nguyễn Văn Minh (Thủ Kho)');
   const [transportMethod, setTransportMethod] = useState('Xe tải nội bộ');
   const [trackingNumber, setTrackingNumber] = useState('');
@@ -76,14 +85,6 @@ export const StockTransferModal: React.FC<StockTransferModalProps> = ({
 
   const [productSearch, setProductSearch] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const warehouseOptions = [
-    'Kho Tổng Gia Phúc TP.HCM',
-    'Chi Nhánh Tân Bình (Cửa Hàng 1)',
-    'Chi Nhánh Quận 7 (Cửa Hàng 2)',
-    'Kho Bảo Hành & Kỹ Thuật',
-    'Kho Hàng Mẫu / Triển Lãm',
-  ];
 
   // Filtered Transfers
   const filteredTransfers = useMemo(() => {

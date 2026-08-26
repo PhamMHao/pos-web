@@ -153,75 +153,9 @@ export const DEFAULT_CERTIFICATES: DigitalCertificateX509[] = [
   },
 ];
 
-// 3. Danh sách chứng từ mẫu có thể ký số tập trung
+// 3. Danh sách chứng từ có thể ký số tập trung
 export function getInitialSignableDocuments(): SignableDocument[] {
-  return [
-    {
-      id: 'doc-inv-001',
-      code: 'HD-2026-0089',
-      title: 'Hóa Đơn Điện Tử GTGT - Cty CP Xây Dựng & Công Nghệ Landmark',
-      type: 'einvoice',
-      typeLabel: 'Hóa Đơn Điện Tử',
-      createdAt: '2026-02-25 09:15',
-      totalAmount: 48500000,
-      creatorName: 'Võ Thị Thơm (Kế toán)',
-      recipientName: 'Cty CP Xây Dựng Landmark (MST: 0314992812)',
-      status: 'pending',
-      legalStandard: 'XML-DSig TT78/2021/TT-BTC',
-    },
-    {
-      id: 'doc-quote-002',
-      code: 'BG-2026-0042',
-      title: 'Báo Giá Dự Án Hệ Thống Mạng & Máy Trạm - Bệnh Viện Quốc Tế Hạnh Phúc',
-      type: 'quote',
-      typeLabel: 'Báo Giá Thương Mại',
-      createdAt: '2026-02-25 10:30',
-      totalAmount: 125000000,
-      creatorName: 'Trần Thị Thảo (Kinh doanh)',
-      recipientName: 'BV Quốc Tế Hạnh Phúc (MST: 3701294821)',
-      status: 'pending',
-      legalStandard: 'PAdES B-LT (ETSI EN 319 142)',
-    },
-    {
-      id: 'doc-contract-003',
-      code: 'HDLD-2026-NV01',
-      title: 'Hợp Đồng Lao Động Xác Định Thời Hạn - Bùi Thị Mỹ Dung (Quản Lý)',
-      type: 'contract',
-      typeLabel: 'Hợp Đồng Lao Động',
-      createdAt: '2026-02-24 14:00',
-      totalAmount: 18000000,
-      creatorName: 'Phòng Nhân Sự HR',
-      recipientName: 'Bùi Thị Mỹ Dung (Mã NV: NV-2026-01)',
-      status: 'pending',
-      legalStandard: 'PAdES B-LT Luật GDĐT 2023',
-    },
-    {
-      id: 'doc-po-004',
-      code: 'PO-2026-0018',
-      title: 'Đơn Đặt Hàng Nhập Kho Linh Kiện Máy Tính - FPT Synnex Distribution',
-      type: 'purchase_order',
-      typeLabel: 'Đơn Đặt Hàng (PO)',
-      createdAt: '2026-02-25 11:20',
-      totalAmount: 85600000,
-      creatorName: 'Lê Văn Khoa (Thủ kho)',
-      recipientName: 'Công Ty CP Synnex FPT (MST: 0101460621)',
-      status: 'pending',
-      legalStandard: 'PAdES B-LT B2B Standard',
-    },
-    {
-      id: 'doc-kpi-005',
-      code: 'QD-KT-2026/02-GPERP',
-      title: 'Quyết Định Khen Thưởng & Chi Trả Quỹ Thưởng KPI Tháng 02/2026',
-      type: 'kpi_decision',
-      typeLabel: 'Quyết Định Pháp Quy KPI',
-      createdAt: '2026-02-25 08:00',
-      totalAmount: 12400000,
-      creatorName: 'Ban Giám Đốc',
-      recipientName: 'Toàn Thể Cán Bộ Nhân Viên GP-ERP',
-      status: 'pending',
-      legalStandard: 'PAdES B-LT BLLĐ 2019',
-    },
-  ];
+  return [];
 }
 
 // 4. Tạo mã băm SHA-256 giả lập chuẩn mật mã

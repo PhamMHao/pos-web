@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   X,
   Sparkles,
@@ -68,49 +68,54 @@ export const EquivalentQuoteRecommenderModal: React.FC<EquivalentQuoteRecommende
 
   const recommendedDiscount = getTierDiscount(activeCustomer?.tier || 'Đồng');
 
-  const RECOMMENDED_BUNDLES = [
-    {
-      id: 'bundle-camera-4k',
-      title: 'Gói Dự Án Camera Giám Sát Hikvision 4MP Ban Đêm Có Màu (4 Kênh)',
-      industry: 'Camera Giám Sát An Ninh',
-      suitableFor: 'Văn phòng, nhà xưởng, chuỗi cửa hàng',
-      discountSuggest: recommendedDiscount,
-      items: [
-        { productName: 'Camera IP Thân Trụ 4MP DS-2CD1T41G2-LIU Ban Đêm Có Màu', sku: 'CAM-DS1T41', unit: 'Bộ', quantity: 4, unitPrice: 1250000, total: 5000000 },
-        { productName: 'Đầu Ghi Hình NVR 4 Kênh Hikvision Chuẩn H.265+ 4K', sku: 'NVR-DS7104', unit: 'Cái', quantity: 1, unitPrice: 1650000, total: 1650000 },
-        { productName: 'Ổ Cứng Chuyên Dụng Camera WD Purple 2TB SATA 3', sku: 'HDD-2TB-WD', unit: 'Cái', quantity: 1, unitPrice: 1450000, total: 1450000 },
-        { productName: 'Switch PoE 4 Cổng 10/100Mbps + 2 Cổng Uplink 65W', sku: 'SW-POE-4P', unit: 'Cái', quantity: 1, unitPrice: 650000, total: 650000 },
-        { productName: 'Dây Cáp Mạng Cat6 UTP Đồng Nguyên Chất 305m', sku: 'VT-CAP-CAT6', unit: 'Cuộn', quantity: 1, unitPrice: 1850000, total: 1850000 },
-      ],
-    },
-    {
-      id: 'bundle-pos-retail',
-      title: 'Gói Thiết Bị Bán Hàng POS Thu Ngân Siêu Thị & Bán Lẻ Trọn Bộ',
-      industry: 'Giải Pháp Thu Ngân POS',
-      suitableFor: 'Siêu thị mini, cửa hàng tiện lợi, nhà thuốc',
-      discountSuggest: recommendedDiscount + 1,
-      items: [
-        { productName: 'Máy Bán Hàng Cảm Ứng POS 15 inch Intel Core i5 / 8GB RAM', sku: 'POS-T15-I5', unit: 'Bộ', quantity: 1, unitPrice: 8500000, total: 8500000 },
-        { productName: 'Máy In Hóa Đơn Nhiệt Bill K80 Cắt Giấy Tự Động (Auto-Cut)', sku: 'PTR-K80-AUTO', unit: 'Cái', quantity: 1, unitPrice: 1650000, total: 1650000 },
-        { productName: 'Máy Quét Mã Vạch Đa Tia 2D Quét Tự Động Để Bàn', sku: 'SCN-2D-DESK', unit: 'Cái', quantity: 1, unitPrice: 1850000, total: 1850000 },
-        { productName: 'Ngăn Kéo Đựng Tiền Thu Ngân 4 Ngăn Tiền Giấy Tự Động Bật', sku: 'DRW-MK410', unit: 'Cái', quantity: 1, unitPrice: 750000, total: 750000 },
-      ],
-    },
-    {
-      id: 'bundle-network-office',
-      title: 'Hệ Thống Mạng Doanh Nghiệp & WiFi Chịu Tải 50-80 User DrayTek',
-      industry: 'Mạng & Hạ Tầng CNTT',
-      suitableFor: 'Công ty công nghệ, coworking space, văn phòng đại diện',
-      discountSuggest: recommendedDiscount,
-      items: [
-        { productName: 'Router Cân Bằng Tải DrayTek Vigor 2927 Dual WAN Gigabit', sku: 'RT-V2927', unit: 'Cái', quantity: 1, unitPrice: 4250000, total: 4250000 },
-        { productName: 'Bộ Phát WiFi 6 Chuyên Dụng Hỗ Trợ Roaming 100 User', sku: 'WF6-AP100', unit: 'Bộ', quantity: 2, unitPrice: 2150000, total: 4300000 },
-        { productName: 'Switch Gigabit 24 Cổng Quản Lý Layer 2+ VLAN', sku: 'SW-GB24-L2', unit: 'Cái', quantity: 1, unitPrice: 3850000, total: 3850000 },
-      ],
-    },
-  ];
+  const dynamicBundles = useMemo(() => {
+    // 1. From real existing quotes in DB
+    const quoteBundles = (quotes || [])
+      .filter((q) => q.items && q.items.length > 0)
+      .slice(0, 5)
+      .map((q) => ({
+        id: `quote-${q.id}`,
+        title: `Gói Báo Giá Dự Án - ${q.code}`,
+        industry: q.customerName || 'Dự Án Doanh Nghiệp',
+        suitableFor: `Khách hàng ${q.customerName || 'Doanh Nghiệp'} (Dựa trên báo giá đã tạo ${q.code})`,
+        discountSuggest: recommendedDiscount,
+        items: q.items.map((it) => ({
+          productName: it.productName,
+          sku: it.sku,
+          unit: it.unit || 'Cái',
+          quantity: it.quantity || 1,
+          unitPrice: it.unitPrice || 0,
+          total: (it.unitPrice || 0) * (it.quantity || 1),
+        })),
+      }));
 
-  const handleApplyTemplate = (bundle: typeof RECOMMENDED_BUNDLES[0]) => {
+    if (quoteBundles.length > 0) {
+      return quoteBundles;
+    }
+
+    // 2. From real products grouped by category in database
+    const categories = Array.from(new Set(products.map((p) => p.category).filter(Boolean)));
+    return categories.slice(0, 3).map((cat) => {
+      const catProducts = products.filter((p) => p.category === cat).slice(0, 4);
+      return {
+        id: `bundle-cat-${cat}`,
+        title: `Gói Giải Pháp ${cat} - Trọn Gói Tiêu Chuẩn`,
+        industry: cat,
+        suitableFor: `Dành cho khách hàng có nhu cầu trang bị danh mục ${cat}`,
+        discountSuggest: recommendedDiscount,
+        items: catProducts.map((p) => ({
+          productName: p.name,
+          sku: p.sku,
+          unit: p.unit || 'Cái',
+          quantity: 1,
+          unitPrice: p.sellingPrice || 0,
+          total: p.sellingPrice || 0,
+        })),
+      };
+    });
+  }, [quotes, products, recommendedDiscount]);
+
+  const handleApplyTemplate = (bundle: typeof dynamicBundles[0]) => {
     if (onSelectTemplateForNewQuote) {
       onSelectTemplateForNewQuote({
         customerName: activeCustomer?.name || 'Khách Hàng Dự Án',
@@ -138,11 +143,11 @@ export const EquivalentQuoteRecommenderModal: React.FC<EquivalentQuoteRecommende
               <h3 className="text-base font-extrabold text-white flex items-center space-x-2">
                 <span>Kiến Nghị Báo Giá Tương Đương Cho Đơn Hàng Tiếp Theo</span>
                 <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px] font-bold">
-                  AI Recommender
+                  SQL Server Dynamic
                 </span>
               </h3>
               <p className="text-xs text-slate-400">
-                Tự động gợi ý gói báo giá tối ưu dựa trên phân tích hạng thành viên và các dự án tương tự
+                Gợi ý các gói báo giá dựa trên lịch sử báo giá thực tế và danh mục sản phẩm từ CSDL
               </p>
             </div>
           </div>
@@ -155,100 +160,101 @@ export const EquivalentQuoteRecommenderModal: React.FC<EquivalentQuoteRecommende
           </button>
         </div>
 
-        {/* Customer Select Bar */}
+        {/* Customer Selector Bar */}
         <div className="p-4 px-6 bg-slate-900/90 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4 shrink-0">
           <div className="flex items-center space-x-3">
-            <UserCheck className="w-4 h-4 text-purple-400" />
-            <span className="text-xs font-bold text-slate-300">Chọn Khách Hàng Mục Tiêu:</span>
-            <select
-              value={selectedCustomerId}
-              onChange={(e) => setSelectedCustomerId(e.target.value)}
-              className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none font-semibold"
-            >
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} ({c.tier || 'Thường'}) - {c.phone}
-                </option>
-              ))}
-            </select>
-          </div>
-          {activeCustomer && (
-            <div className="flex items-center space-x-3 text-xs bg-slate-950 px-3.5 py-1.5 rounded-xl border border-slate-800">
-              <span>Hạng Thành Viên: <strong className="text-amber-400">{activeCustomer.tier || 'Đồng'}</strong></span>
-              <span>•</span>
-              <span>Chiết Khấu Đề Xuất: <strong className="text-emerald-400 font-mono">{recommendedDiscount}%</strong></span>
+            <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400">
+              <UserCheck className="w-4 h-4" />
             </div>
-          )}
+            <div>
+              <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Khách Hàng Tiếp Nhận:</p>
+              <select
+                value={selectedCustomerId}
+                onChange={(e) => setSelectedCustomerId(e.target.value)}
+                className="bg-slate-950 border border-slate-700 rounded-lg px-3 py-1 text-xs text-white font-bold focus:outline-none focus:border-purple-500 cursor-pointer"
+              >
+                {customers.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.phone || 'Chưa có SĐT'}) - Hạng {c.tier || 'Đồng'}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2 bg-purple-950/40 border border-purple-500/30 px-3 py-1.5 rounded-xl">
+            <span className="text-xs text-purple-300 font-semibold">Ưu đãi hạng {activeCustomer?.tier || 'Đồng'}:</span>
+            <span className="px-2 py-0.5 rounded-md bg-purple-600 text-white font-bold text-xs">
+              Giảm {recommendedDiscount}%
+            </span>
+          </div>
         </div>
 
-        {/* Recommended Bundles Cards */}
+        {/* Bundles Grid */}
         <div className="flex-1 p-6 overflow-y-auto space-y-4 bg-slate-900/60">
-          {RECOMMENDED_BUNDLES.map((bundle) => {
-            const subtotal = bundle.items.reduce((acc, it) => acc + it.total, 0);
-            const discountAmt = Math.round(subtotal * (bundle.discountSuggest / 100));
-            const finalTotal = subtotal - discountAmt;
-            return (
-              <div
-                key={bundle.id}
-                className="bg-slate-950 p-5 rounded-2xl border border-slate-800 hover:border-purple-500/50 transition-all shadow-lg space-y-4"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-800/80 pb-3">
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <h4 className="text-sm font-extrabold text-white">{bundle.title}</h4>
-                      <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px] font-bold">
+          {dynamicBundles.length === 0 ? (
+            <div className="p-8 text-center text-xs text-slate-400 bg-slate-950/50 rounded-2xl border border-slate-800">
+              Chưa có dữ liệu báo giá hoặc sản phẩm trong cơ sở dữ liệu để tạo kiến nghị.
+            </div>
+          ) : (
+            dynamicBundles.map((bundle) => {
+              const bundleTotal = bundle.items.reduce((acc, it) => acc + it.total, 0);
+              const discountedTotal = Math.round(bundleTotal * (1 - bundle.discountSuggest / 100));
+
+              return (
+                <div
+                  key={bundle.id}
+                  className="p-5 bg-slate-950/80 border border-slate-800 rounded-2xl hover:border-purple-500/50 transition-all shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-5"
+                >
+                  <div className="space-y-2 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h4 className="text-sm font-black text-white">{bundle.title}</h4>
+                      <span className="px-2 py-0.5 rounded-full bg-slate-800 text-[10px] font-bold text-purple-300 border border-slate-700">
                         {bundle.industry}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-400 mt-1">Phù hợp: {bundle.suitableFor}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleApplyTemplate(bundle)}
-                    className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-purple-600/30 flex items-center space-x-1.5 cursor-pointer transition-all active:scale-95"
-                  >
-                    <span>Áp Dụng Cho Báo Giá Mới</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs text-left">
-                    <thead className="text-slate-400 border-b border-slate-800 text-[11px]">
-                      <tr>
-                        <th className="py-1">Mã SP</th>
-                        <th>Tên Thiết Bị / Vật Tư</th>
-                        <th className="text-center">ĐVT</th>
-                        <th className="text-right">SL</th>
-                        <th className="text-right">Đơn Giá</th>
-                        <th className="text-right">Thành Tiền</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/50">
-                      {bundle.items.map((it, i) => (
-                        <tr key={i} className="hover:bg-slate-900/40">
-                          <td className="py-2 font-mono text-slate-400">{it.sku}</td>
-                          <td className="font-semibold text-slate-200">{it.productName}</td>
-                          <td className="text-center text-slate-400">{it.unit}</td>
-                          <td className="text-right font-mono font-bold text-white">{it.quantity}</td>
-                          <td className="text-right font-mono text-slate-300">{formatVND(it.unitPrice)}</td>
-                          <td className="text-right font-mono font-bold text-slate-100">{formatVND(it.total)}</td>
-                        </tr>
+                    <p className="text-xs text-slate-400">
+                      🎯 Phù hợp: <strong className="text-slate-300">{bundle.suitableFor}</strong>
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {bundle.items.map((it, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2 py-1 rounded-lg bg-slate-900 text-[11px] text-slate-300 border border-slate-800 flex items-center space-x-1"
+                        >
+                          <span>{it.productName}</span>
+                          <strong className="text-purple-400 font-mono">x{it.quantity}</strong>
+                        </span>
                       ))}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="pt-2 border-t border-slate-800/80 flex flex-wrap items-center justify-between text-xs">
-                  <div className="text-slate-400">
-                    Chiết khấu ưu đãi: <strong className="text-emerald-400">-{formatVND(discountAmt)} ({bundle.discountSuggest}%)</strong>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-slate-400">Tổng thanh toán dự kiến:</span>
-                    <strong className="text-sm font-mono font-black text-amber-400">{formatVND(finalTotal)}</strong>
+
+                  <div className="flex items-center space-x-4 shrink-0 border-t md:border-t-0 md:border-l border-slate-800 pt-3 md:pt-0 md:pl-5 w-full md:w-auto justify-between md:justify-end">
+                    <div className="text-right">
+                      <div className="text-[10px] text-slate-500 line-through font-mono">
+                        {formatVND(bundleTotal)}
+                      </div>
+                      <div className="text-base font-black text-amber-400 font-mono">
+                        {formatVND(discountedTotal)}
+                      </div>
+                      <div className="text-[10px] text-emerald-400 font-semibold">
+                        Tiết kiệm: {formatVND(bundleTotal - discountedTotal)} (-{bundle.discountSuggest}%)
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleApplyTemplate(bundle)}
+                      className="px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-purple-600/30 flex items-center space-x-1.5 transition-all cursor-pointer active:scale-95 shrink-0"
+                    >
+                      <span>Chọn Gói Này</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       </div>
     </div>

@@ -51,12 +51,25 @@ export const QuoteAnalyticsReportModal: React.FC<QuoteAnalyticsReportModalProps>
   const averageDealSize = acceptedQuotes.length > 0 ? Math.round(totalWonValue / acceptedQuotes.length) : 0;
   const expectedWeightedValue = Math.round(totalWonValue + totalPendingValue * 0.45);
 
-  const industries = [
-    { name: 'Camera Giám Sát & An Ninh', count: 4, value: 48500000 },
-    { name: 'Hạ Tầng Mạng & WiFi Doanh Nghiệp', count: 3, value: 36200000 },
-    { name: 'Hệ Thống POS & Thiết Bị Thu Ngân', count: 5, value: 52000000 },
-    { name: 'Máy Chủ Server & PC Văn Phòng', count: 2, value: 29800000 },
-  ];
+  const industries = React.useMemo(() => {
+    const map = new Map<string, { count: number; value: number }>();
+    (quotes || []).forEach((q) => {
+      const label = q.customerName || 'Dự án Doanh Nghiệp';
+      const val = q.finalTotal || q.totalAmount || 0;
+      const cur = map.get(label) || { count: 0, value: 0 };
+      map.set(label, { count: cur.count + 1, value: cur.value + val });
+    });
+
+    const result = Array.from(map.entries()).map(([name, stat]) => ({
+      name,
+      count: stat.count,
+      value: stat.value,
+    }));
+
+    return result.length > 0
+      ? result.slice(0, 6)
+      : [{ name: 'Báo Giá Dự Án Doanh Nghiệp', count: quotes.length, value: totalPipelineValue }];
+  }, [quotes, totalPipelineValue]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-2 md:p-4 overflow-hidden animate-in fade-in">
