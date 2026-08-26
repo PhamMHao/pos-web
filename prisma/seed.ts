@@ -16,8 +16,8 @@ import {
   INITIAL_LABOR_CONTRACTS,
   INITIAL_SUPPLIERS,
   INITIAL_PURCHASE_ORDERS,
-} from "../src/data/initialData";
-import { INITIAL_INBOUND_INVOICES } from "../src/data/mockInboundData";
+  INITIAL_INBOUND_INVOICES,
+} from "./seedData";
 
 const prisma = new PrismaClient();
 
