@@ -562,10 +562,11 @@ export const MasterDataManagerView: React.FC = () => {
                     className="w-full sm:w-48 px-3 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-blue-500"
                   >
                     <option value="all">Tất cả hạng thành viên</option>
-                    <option value="Kim Cương">Kim Cương / VIP</option>
-                    <option value="Vàng">Hạng Vàng</option>
-                    <option value="Bạc">Hạng Bạc</option>
-                    <option value="Đồng">Hạng Đồng</option>
+                    {customerTiers.map((t) => (
+                      <option key={t.id} value={t.name}>
+                        {t.name} ({t.discountPercent}% off)
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -1110,9 +1111,11 @@ export const MasterDataManagerView: React.FC = () => {
                     className="w-full sm:w-48 px-3 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs focus:outline-none focus:border-blue-500"
                   >
                     <option value="all">Tất cả phân cấp đối tác</option>
-                    <option value="Tier 1 Chính Hãng">Tier 1 Chính Hãng</option>
-                    <option value="Tổng Đại Lý">Tổng Đại Lý Cấp 1</option>
-                    <option value="Nhà Phân Phối">Nhà Phân Phối / Nhập Khẩu</option>
+                    {supplierCategories.map((c) => (
+                      <option key={c.id} value={c.name}>
+                        {c.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -2093,6 +2096,7 @@ export const MasterDataManagerView: React.FC = () => {
           setEditingSupplier(null);
         }}
         initialData={editingSupplier}
+        supplierCategories={supplierCategories}
         onSave={(data) => {
           if (editingSupplier) {
             updateSupplier(editingSupplier.id, data);

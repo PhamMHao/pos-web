@@ -40,6 +40,7 @@ import {
   EnterpriseProject,
   EnterpriseProjectStatus,
 } from '../../types';
+import { SYSTEM_ROLES } from '../../config/rbac.config';
 
 // ==========================================
 // 1. Department Modal
@@ -410,13 +411,11 @@ export const JobPositionModal: React.FC<JobPositionModalProps> = ({
                 onChange={(e) => setLinkedRole(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs"
               >
-                <option value="admin">Quản Trị Viên (Admin)</option>
-                <option value="manager">Quản Lý Cửa Hàng (Manager)</option>
-                <option value="cashier">Thu Ngân POS (Cashier)</option>
-                <option value="warehouse">Thủ Kho (Warehouse)</option>
-                <option value="accountant">Kế Toán Trưởng (Accountant)</option>
-                <option value="sales">Nhân Viên Kinh Doanh (Sales)</option>
-                <option value="technician">Kỹ Thuật Viên (Technician)</option>
+                {SYSTEM_ROLES.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.nameVi}
+                  </option>
+                ))}
               </select>
             </div>
             <div>
@@ -1718,22 +1717,25 @@ export const CustomerModal: React.FC<CustomerModalProps> = ({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Loại Khách Hàng</label>
+                <label className="block text-xs font-bold text-slate-300 mb-1">Loại Khách Hàng / Nhóm</label>
                 <select
                   value={customerType}
                   onChange={(e) => setCustomerType(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-emerald-500"
                 >
-                  <option value="Khách Hàng Cá Nhân">Khách Hàng Cá Nhân</option>
-                  <option value="Doanh Nghiệp B2B">Doanh Nghiệp B2B</option>
-                  <option value="Đại Lý Cấp 1">Đại Lý Cấp 1</option>
-                  <option value="Đại Lý Cấp 2">Đại Lý Cấp 2</option>
-                  <option value="Khách Hàng Mua Sỉ">Khách Hàng Mua Sỉ</option>
-                  {customerGroups.map((g) => (
-                    <option key={g.id} value={g.name}>
-                      {g.name}
-                    </option>
-                  ))}
+                  {customerGroups.length > 0 ? (
+                    customerGroups.map((g) => (
+                      <option key={g.id} value={g.name}>
+                        {g.name}
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="Khách Hàng Cá Nhân">Khách Hàng Cá Nhân</option>
+                      <option value="Doanh Nghiệp B2B">Doanh Nghiệp B2B</option>
+                      <option value="Đại Lý Cấp 1">Đại Lý Cấp 1</option>
+                    </>
+                  )}
                 </select>
               </div>
 
@@ -1745,15 +1747,20 @@ export const CustomerModal: React.FC<CustomerModalProps> = ({
                     onChange={(e) => setTier(e.target.value as CustomerTier)}
                     className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-emerald-500"
                   >
-                    <option value="Hạng Đồng">Hạng Đồng</option>
-                    <option value="Hạng Bạc">Hạng Bạc</option>
-                    <option value="Hạng Vàng">Hạng Vàng</option>
-                    <option value="Hạng Kim Cương">Hạng Kim Cương</option>
-                    <option value="VIP Doanh Nghiệp">VIP Doanh Nghiệp</option>
-                    <option value="Đồng">Đồng</option>
-                    <option value="Bạc">Bạc</option>
-                    <option value="Vàng">Vàng</option>
-                    <option value="Kim Cương">Kim Cương</option>
+                    {customerTiers.length > 0 ? (
+                      customerTiers.map((t) => (
+                        <option key={t.id} value={t.name as CustomerTier}>
+                          {t.name} ({t.discountPercent}% off)
+                        </option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="Hạng Kim Cương">Hạng Kim Cương</option>
+                        <option value="Hạng Vàng">Hạng Vàng</option>
+                        <option value="Hạng Bạc">Hạng Bạc</option>
+                        <option value="Hạng Đồng">Hạng Đồng</option>
+                      </>
+                    )}
                   </select>
                   <input
                     type="number"
@@ -1945,6 +1952,7 @@ interface SupplierModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialData?: Supplier | null;
+  supplierCategories?: MasterSupplierCategory[];
   onSave: (data: Omit<Supplier, 'id' | 'createdAt'>) => void;
 }
 
@@ -1952,6 +1960,7 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
   isOpen,
   onClose,
   initialData,
+  supplierCategories = [],
   onSave,
 }) => {
   const [code, setCode] = useState('');
@@ -2094,9 +2103,19 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
                 onChange={(e) => setTier(e.target.value as any)}
                 className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs"
               >
-                <option value="Tier 1 Chính Hãng">Tier 1 Chính Hãng</option>
-                <option value="Tổng Đại Lý">Tổng Đại Lý Cấp 1</option>
-                <option value="Nhà Phân Phối">Nhà Phân Phối / Nhập Khẩu</option>
+                {supplierCategories.length > 0 ? (
+                  supplierCategories.map((c) => (
+                    <option key={c.id} value={c.name}>
+                      {c.name}
+                    </option>
+                  ))
+                ) : (
+                  <>
+                    <option value="Tier 1 Chính Hãng">Tier 1 Chính Hãng</option>
+                    <option value="Tổng Đại Lý">Tổng Đại Lý Cấp 1</option>
+                    <option value="Nhà Phân Phối">Nhà Phân Phối / Nhập Khẩu</option>
+                  </>
+                )}
               </select>
             </div>
             <div>
