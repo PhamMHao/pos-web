@@ -25,9 +25,9 @@ export function parseServerString(serverStr: string) {
     server = "localhost";
   }
 
-  // Handle instance name: e.g. "localhost[ChiTietPhieuNhapKho]QLEXPRESS" or ".[ChiTietPhieuNhapKho]QLEXPRESS"
-  if (server.includes("[QuyDoiDonViTinh]")) {
-    const parts = server.split("[QuyDoiDonViTinh]");
+  // Handle instance name: e.g. "localhost\\SQLEXPRESS" or ".\\SQLEXPRESS"
+  if (server.includes("\\")) {
+    const parts = server.split("\\");
     server = parts[0] === "." || parts[0] === "(local)" ? "localhost" : parts[0];
     instanceName = parts[1];
   } else if (server.includes(",")) {
@@ -47,7 +47,7 @@ export function parseServerString(serverStr: string) {
 
 export function buildPrismaUrl(params: DbConnectionParams) {
   const { server, instanceName, port } = parseServerString(params.server);
-  const dbName = params.database || "GPERP_Enterprise";
+  const dbName = params.database || "POS_WEB";
   const authType = params.authType || (params.username ? "sql" : "windows");
 
   let hostPart = server;
@@ -76,7 +76,7 @@ export function buildPrismaUrl(params: DbConnectionParams) {
 async function testWindowsAuth(params: DbConnectionParams) {
   const { server, instanceName, port } = parseServerString(params.server);
   const serverTarget = instanceName
-    ? `${server}[QuyDoiDonViTinh]${instanceName}`
+    ? `${server}\\${instanceName}`
     : port
     ? `${server},${port}`
     : server === "localhost"
@@ -87,7 +87,7 @@ async function testWindowsAuth(params: DbConnectionParams) {
 
   try {
     const { stdout } = await execAsync(cmd);
-    const lines = stdout.split(/[QuyDoiDonViTinh]?[QuyDoiDonViTinh]/).map((l) => l.trim()).filter(Boolean);
+    const lines = stdout.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
     let version = "Microsoft SQL Server (Windows Authentication)";
     const databases: string[] = [];
 
@@ -109,7 +109,7 @@ async function testWindowsAuth(params: DbConnectionParams) {
         ) {
           continue;
         }
-        const dbName = line.split(/[QuyDoiDonViTinh]+/)[0];
+        const dbName = line.split(/\s+/)[0];
         if (dbName && !databases.includes(dbName)) {
           databases.push(dbName);
         }
@@ -122,7 +122,7 @@ async function testWindowsAuth(params: DbConnectionParams) {
       version,
       databases,
       currentSelected:
-        params.database || (databases.length > 0 ? databases[0] : "GPERP_Enterprise"),
+        params.database || (databases.length > 0 ? databases[0] : "POS_WEB"),
     };
   } catch (error: any) {
     return {
@@ -180,7 +180,7 @@ export async function testDbConnection(params: DbConnectionParams) {
       version,
       databases,
       currentSelected:
-        params.database || (databases.length > 0 ? databases[0] : "GPERP_Enterprise"),
+        params.database || (databases.length > 0 ? databases[0] : "POS_WEB"),
     };
   } catch (error: any) {
     console.error("SQL Server Connection Error:", error);
@@ -204,12 +204,12 @@ export async function saveAndInitializeDatabase(params: DbConnectionParams) {
   }
 
   const { server, instanceName, port } = parseServerString(params.server);
-  const targetDb = params.database || "GPERP_Enterprise";
+  const targetDb = params.database || "POS_WEB";
 
   if (authType === "windows" || !params.username) {
     // Create DB via sqlcmd with Windows Auth
     const serverTarget = instanceName
-      ? `${server}[QuyDoiDonViTinh]${instanceName}`
+      ? `${server}\\${instanceName}`
       : port
       ? `${server},${port}`
       : server === "localhost"
@@ -273,7 +273,7 @@ export async function saveAndInitializeDatabase(params: DbConnectionParams) {
   if (dbUrlRegex.test(envContent)) {
     envContent = envContent.replace(dbUrlRegex, `DATABASE_URL="${prismaUrl}"`);
   } else {
-    envContent += `[QuyDoiDonViTinh]DATABASE_URL="${prismaUrl}"[QuyDoiDonViTinh]`;
+    envContent += `\nDATABASE_URL="${prismaUrl}"\n`;
   }
 
   fs.writeFileSync(envPath, envContent, "utf-8");
@@ -281,20 +281,20 @@ export async function saveAndInitializeDatabase(params: DbConnectionParams) {
 
   console.log("Đã lưu DATABASE_URL vào .env:", prismaUrl);
 
-    // Push schema to database
-    console.log("Đang đồng bộ Schema 22 bảng lên SQL Server (prisma db push)...");
-    try {
-      await execAsync("npx prisma db push --accept-data-loss", { cwd: process.cwd() });
-      console.log("Đã tạo cấu trúc 22 bảng Schema sạch sẽ thành công!");
-      await reloadPrismaClient();
-    } catch (pushErr: any) {
-      console.error("Lỗi khi prisma db push:", pushErr.message);
-      throw new Error(`Đã kết nối được SQL Server nhưng lỗi khi khởi tạo bảng: ${pushErr.message}`);
-    }
+  // Push schema to database
+  console.log("Đang đồng bộ Schema các bảng tiếng Việt lên SQL Server (prisma db push)...");
+  try {
+    await execAsync("npx prisma db push --accept-data-loss", { cwd: process.cwd() });
+    console.log("Đã tạo cấu trúc các bảng tiếng Việt sạch sẽ thành công!");
+    await reloadPrismaClient();
+  } catch (pushErr: any) {
+    console.error("Lỗi khi prisma db push:", pushErr.message);
+    throw new Error(`Đã kết nối được SQL Server nhưng lỗi khi khởi tạo bảng: ${pushErr.message}`);
+  }
 
   return {
     success: true,
-    message: `Đã lưu cấu hình và khởi tạo thành công CSDL [${targetDb}] với đầy đủ 22 bảng dữ liệu!`,
+    message: `Đã lưu cấu hình và khởi tạo thành công CSDL [${targetDb}] với đầy đủ các bảng dữ liệu tiếng Việt!`,
     databaseUrl: prismaUrl,
   };
 }
@@ -304,14 +304,14 @@ export async function getDbStatus() {
   const envPath = path.join(process.cwd(), ".env");
   if (!currentUrl && fs.existsSync(envPath)) {
     const content = fs.readFileSync(envPath, "utf-8");
-    const match = content.match(/DATABASE_URL=["']?([^"'[QuyDoiDonViTinh][QuyDoiDonViTinh]]+)["']?/);
+    const match = content.match(/DATABASE_URL=["']?([^"'\r\n]+)["']?/);
     if (match) {
       currentUrl = match[1];
       process.env.DATABASE_URL = currentUrl;
     }
   }
 
-  let currentDb = "GPERP_Enterprise";
+  let currentDb = "POS_WEB";
   let currentServer = ".";
   let currentAuthType: "windows" | "sql" = "windows";
   let currentUsername = "sa";

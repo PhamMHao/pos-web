@@ -83,20 +83,21 @@ IF EXISTS (SELECT * FROM sys.tables WHERE name = 'EInvoice')
 IF EXISTS (SELECT * FROM sys.tables WHERE name = 'EInvoiceItem')
     EXEC sp_rename 'EInvoiceItem', 'ChiTietHoaDonDienTu';
 
+-- 12. Hóa đơn đầu vào
 IF EXISTS (SELECT * FROM sys.tables WHERE name = 'InboundEInvoice')
     EXEC sp_rename 'InboundEInvoice', 'HoaDonDauVao';
 
 IF EXISTS (SELECT * FROM sys.tables WHERE name = 'InboundInvoiceItem')
     EXEC sp_rename 'InboundInvoiceItem', 'ChiTietHoaDonDauVao';
 
--- 12. Hợp đồng lao động & Nhân sự
+-- 13. Hợp đồng lao động & Nhân sự
 IF EXISTS (SELECT * FROM sys.tables WHERE name = 'LaborContract')
     EXEC sp_rename 'LaborContract', 'HopDongLaoDong';
 
 IF EXISTS (SELECT * FROM sys.tables WHERE name = 'Employee')
     EXEC sp_rename 'Employee', 'NhanVien';
 
--- 13. Sổ thu chi kế toán & Cài đặt
+-- 14. Sổ thu chi kế toán & Cài đặt
 IF EXISTS (SELECT * FROM sys.tables WHERE name = 'AccountingRecord')
     EXEC sp_rename 'AccountingRecord', 'SoThuChiKeToan';
 
@@ -109,33 +110,67 @@ IF EXISTS (SELECT * FROM sys.tables WHERE name = 'FraudAlert')
 IF EXISTS (SELECT * FROM sys.tables WHERE name = 'StoreSettings')
     EXEC sp_rename 'StoreSettings', 'CauHinhCuaHang';
 
--- 14. Nhà cung cấp & Bảng giá NCC
+-- 15. Nhà cung cấp & Bảng giá NCC
 IF EXISTS (SELECT * FROM sys.tables WHERE name = 'Supplier')
     EXEC sp_rename 'Supplier', 'NhaCungCap';
 
 IF EXISTS (SELECT * FROM sys.tables WHERE name = 'SupplierPriceItem')
     EXEC sp_rename 'SupplierPriceItem', 'BangGiaNhaCungCap';
 
--- 15. Đơn đặt hàng mua
+-- 16. Đơn đặt hàng mua
 IF EXISTS (SELECT * FROM sys.tables WHERE name = 'PurchaseOrder')
     EXEC sp_rename 'PurchaseOrder', 'DonDatHangMua';
 
 IF EXISTS (SELECT * FROM sys.tables WHERE name = 'PurchaseOrderItem')
     EXEC sp_rename 'PurchaseOrderItem', 'ChiTietDonDatHangMua';
 
--- 16. Phiếu đổi trả hàng
+-- 17. Phiếu đổi trả hàng
 IF EXISTS (SELECT * FROM sys.tables WHERE name = 'ReturnOrder')
     EXEC sp_rename 'ReturnOrder', 'PhieuTraHang';
 
 IF EXISTS (SELECT * FROM sys.tables WHERE name = 'ReturnOrderItem')
     EXEC sp_rename 'ReturnOrderItem', 'ChiTietPhieuTraHang';
 
--- 17. Phiếu điều chuyển kho
+-- 18. Phiếu điều chuyển kho
 IF EXISTS (SELECT * FROM sys.tables WHERE name = 'StockTransfer')
     EXEC sp_rename 'StockTransfer', 'PhieuDieuChuyenKho';
 
 IF EXISTS (SELECT * FROM sys.tables WHERE name = 'StockTransferItem')
     EXEC sp_rename 'StockTransferItem', 'ChiTietDieuChuyenKho';
+
+-- 19. Dữ liệu cơ bản & MDM (Master Data)
+IF EXISTS (SELECT * FROM sys.tables WHERE name = 'Department')
+    EXEC sp_rename 'Department', 'PhongBan';
+
+IF EXISTS (SELECT * FROM sys.tables WHERE name = 'JobPosition')
+    EXEC sp_rename 'JobPosition', 'ChucVu';
+
+IF EXISTS (SELECT * FROM sys.tables WHERE name = 'WarehouseLocation')
+    EXEC sp_rename 'WarehouseLocation', 'ViTriLuuKho';
+
+IF EXISTS (SELECT * FROM sys.tables WHERE name = 'MasterUnitOfMeasure')
+    EXEC sp_rename 'MasterUnitOfMeasure', 'DanhMucDonViTinh';
+
+IF EXISTS (SELECT * FROM sys.tables WHERE name = 'MasterProductCategory')
+    EXEC sp_rename 'MasterProductCategory', 'DanhMucNganhHang';
+
+IF EXISTS (SELECT * FROM sys.tables WHERE name = 'CustomerGroup')
+    EXEC sp_rename 'CustomerGroup', 'NhomKhachHang';
+
+IF EXISTS (SELECT * FROM sys.tables WHERE name = 'MasterCustomerTier')
+    EXEC sp_rename 'MasterCustomerTier', 'HangThanhVien';
+
+IF EXISTS (SELECT * FROM sys.tables WHERE name = 'MasterSupplierCategory')
+    EXEC sp_rename 'MasterSupplierCategory', 'PhanLoaiNhaCungCap';
+
+IF EXISTS (SELECT * FROM sys.tables WHERE name = 'EnterpriseProject')
+    EXEC sp_rename 'EnterpriseProject', 'DuAnDoanhNghiep';
+
+IF EXISTS (SELECT * FROM sys.tables WHERE name = 'EmailGatewayConfig')
+    EXEC sp_rename 'EmailGatewayConfig', 'CauHinhEmail';
+
+IF EXISTS (SELECT * FROM sys.tables WHERE name = 'EmailTemplate')
+    EXEC sp_rename 'EmailTemplate', 'MauEmail';
 
 PRINT 'Hoàn tất chuyển đổi tên bảng Database sang Tiếng Việt không dấu thành công 100%!';
 GO
