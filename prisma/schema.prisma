@@ -802,3 +802,196 @@ model StockTransferItem {
 
   @@map("ChiTietDieuChuyenKho")
 }
+
+// ==========================================
+// 18. DỮ LIỆU CƠ BẢN & MDM (MASTER DATA MANAGEMENT)
+// ==========================================
+
+// 18.1 PHÒNG BAN & BỘ PHẬN
+model Department {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  managerName String?
+  budget      Decimal  @default(0) @db.Decimal(18, 2)
+  memberCount Int      @default(0)
+  status      String   @default("active") // 'active' | 'inactive'
+  description String?  @db.NVarChar(Max)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("PhongBan")
+}
+
+// 18.2 CHỨC VỤ & CẤP BẬC
+model JobPosition {
+  id                      String   @id @default(uuid())
+  code                    String   @unique
+  title                   String
+  departmentId            String?
+  departmentName          String?
+  baseSalary              Decimal  @default(0) @db.Decimal(18, 2)
+  responsibilityAllowance Decimal  @default(0) @db.Decimal(18, 2)
+  status                  String   @default("active") // 'active' | 'inactive'
+  description             String?  @db.NVarChar(Max)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@map("ChucVu")
+}
+
+// 18.3 VỊ TRÍ LƯU KHO & Ô KỆ
+model WarehouseLocation {
+  id            String   @id @default(uuid())
+  code          String   @unique
+  name          String
+  warehouseName String   @default("Kho Tổng")
+  zone          String?
+  shelf         String?
+  tier          String?
+  bin           String?
+  capacity      Int      @default(100)
+  currentUsage  Int      @default(0)
+  status        String   @default("active") // 'active' | 'maintenance' | 'full'
+  notes         String?  @db.NVarChar(Max)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("ViTriLuuKho")
+}
+
+// 18.4 ĐƠN VỊ TÍNH CHUẨN
+model MasterUnitOfMeasure {
+  id               String   @id @default(uuid())
+  code             String   @unique
+  name             String
+  symbol           String?
+  isBaseUnit       Boolean  @default(true)
+  referenceUnit    String?
+  conversionFactor Decimal? @db.Decimal(18, 4)
+  status           String   @default("active") // 'active' | 'inactive'
+  description      String?  @db.NVarChar(Max)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("DanhMucDonViTinh")
+}
+
+// 18.5 DANH MỤC NGÀNH HÀNG MASTER
+model MasterProductCategory {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  slug        String?
+  icon        String?
+  parentId    String?
+  sortOrder   Int      @default(0)
+  status      String   @default("active") // 'active' | 'inactive'
+  description String?  @db.NVarChar(Max)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("DanhMucNganhHang")
+}
+
+// 18.6 NHÓM KHÁCH HÀNG
+model CustomerGroup {
+  id              String   @id @default(uuid())
+  code            String   @unique
+  name            String
+  discountPercent Decimal  @default(0) @db.Decimal(5, 2)
+  paymentTerms    String   @default("Thanh toán ngay")
+  creditLimit     Decimal  @default(0) @db.Decimal(18, 2)
+  description     String?  @db.NVarChar(Max)
+  customerCount   Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("NhomKhachHang")
+}
+
+// 18.7 HẠNG THÀNH VIÊN KHÁCH HÀNG
+model MasterCustomerTier {
+  id              String   @id @default(uuid())
+  code            String   @unique
+  name            String
+  minSpend        Decimal  @default(0) @db.Decimal(18, 2)
+  discountPercent Decimal  @default(0) @db.Decimal(5, 2)
+  pointMultiplier Decimal  @default(1.0) @db.Decimal(5, 2)
+  color           String?  @default("#10B981")
+  badge           String?
+  benefits        String?  @db.NVarChar(Max)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("HangThanhVien")
+}
+
+// 18.8 PHÂN LOẠI NHÀ CUNG ỨNG
+model MasterSupplierCategory {
+  id                  String   @id @default(uuid())
+  code                String   @unique
+  name                String
+  description         String?  @db.NVarChar(Max)
+  defaultPaymentTerms String   @default("Gối đầu 30 ngày")
+  supplierCount       Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("PhanLoaiNhaCungCap")
+}
+
+// 18.9 DỰ ÁN DOANH NGHIỆP & CÔNG TRÌNH
+model EnterpriseProject {
+  id                String   @id @default(uuid())
+  code              String   @unique
+  name              String
+  status            String   @default("in_progress") // 'in_progress' | 'completed' | 'planning' | 'on_hold'
+  customerName      String
+  customerId        String?
+  managerName       String
+  managerId         String?
+  budget            Decimal  @default(0) @db.Decimal(18, 2)
+  startDate         String
+  endDate           String?
+  sector            String   @default("Công Nghệ Thông Tin & Phần Mềm")
+  description       String?  @db.NVarChar(Max)
+  linkedDeviceCount Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("DuAnDoanhNghiep")
+}
+
+// 18.10 CẤU HÌNH CỔNG EMAIL & MẪU EMAIL
+model EmailGatewayConfig {
+  id                     String    @id @default(uuid())
+  smtpHost               String    @default("smtp.gmail.com")
+  smtpPort               Int       @default(587)
+  secure                 Boolean   @default(false)
+  authUser               String    @default("hethonggiaphuc@gmail.com")
+  authPasswordMasked     String    @default("••••••••••••••••")
+  defaultSenderName      String    @default("GIA PHÚC Computer - Hệ Thống GPSOFT")
+  defaultSenderEmail     String    @default("no-reply@vitinhgiaphuc.com")
+  adminNotificationEmail String    @default("hrmgpsoft@gmail.com")
+  accountingEmail        String    @default("ketoan@vitinhgiaphuc.com")
+  salesEmail             String    @default("sales@vitinhgiaphuc.com")
+  signatureHtml          String?   @db.NVarChar(Max)
+  isGatewayActive        Boolean   @default(true)
+  lastTestSuccessAt      DateTime?
+  updatedAt              DateTime  @updatedAt
+
+  @@map("CauHinhEmail")
+}
+
+model EmailTemplate {
+  id           String   @id @default(uuid())
+  templateType String   @unique // 'einvoice_vat' | 'quote_proposal' | 'purchase_order' | 'password_reset_request' | 'password_reset_approved'
+  name         String
+  subject      String
+  bodyHtml     String   @db.NVarChar(Max)
+  variables    String?  @db.NVarChar(Max)
+  updatedAt    DateTime @updatedAt
+
+  @@map("MauEmail")
+}

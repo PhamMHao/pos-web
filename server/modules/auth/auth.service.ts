@@ -84,7 +84,7 @@ export class AuthService {
     const dt = new Date();
 
     await prisma.$executeRaw`
-      INSERT INTO [User] (id, username, passwordHash, fullName, email, role, avatar, status, createdAt, updatedAt)
+      INSERT INTO [NguoiDung] (id, username, passwordHash, fullName, email, role, avatar, status, createdAt, updatedAt)
       VALUES (${id}, ${input.username}, ${hashedPassword}, ${input.fullName}, ${input.email || null}, ${input.role || "cashier"}, ${input.avatar || null}, 'active', ${dt}, ${dt})
     `;
 

@@ -59,6 +59,7 @@ import { ProductLifecycleModal } from './ProductLifecycleModal';
 import { INITIAL_STORE_SETTINGS } from '../../data/initialData';
 import { productsApi } from '../../features/products/api/productsApi';
 import { QuickAddMasterDataModal, MasterDataType } from '../common/QuickAddMasterDataModal';
+import { useMasterData } from '../../core/contexts/MasterDataContext';
 import { WebImagePickerModal } from '../common/WebImagePickerModal';
 import { StockTransferModal } from './StockTransferModal';
 import { BatchBarcodeLabelModal, BatchPrintItem } from './BatchBarcodeLabelModal';
@@ -167,13 +168,20 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   serialRecords = [],
   setSerialRecords,
 }) => {
+  const {
+    productCategories: masterCategories,
+    unitsOfMeasure: masterUOMs,
+    warehouseLocations: masterLocations,
+    suppliers: masterSuppliers,
+  } = useMasterData();
+
   const [activeTab, setActiveTab] = useState<'catalog' | 'outbound' | 'logs'>('catalog');
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [warehouseFilter, setWarehouseFilter] = useState<string>('all');
   const [stockFilter, setStockFilter] = useState<'all' | 'low' | 'out'>('all');
   const [quickAddType, setQuickAddType] = useState<MasterDataType | null>(null);
-  const [categoriesList, setCategoriesList] = useState<string[]>(CATEGORIES);
+  const [categoriesList, setCategoriesList] = useState<string[]>([]);
   const [warehouseList, setWarehouseList] = useState<string[]>(
     settings.warehouseList || [
       'Kho Chính Gia Phúc Computer',
@@ -214,6 +222,23 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 
   const safeProducts = Array.isArray(products) ? products : [];
   const safeLogs = Array.isArray(inventoryLogs) ? inventoryLogs : [];
+
+  const dynamicCategories = useMemo(() => {
+    const fromMaster = (masterCategories || []).filter((c) => c.status === 'active').map((c) => c.name);
+    const fromProds = safeProducts.map((p) => p.category).filter(Boolean);
+    const combined = Array.from(new Set([...fromMaster, ...fromProds, ...categoriesList]));
+    return combined.length > 0 ? combined : CATEGORIES;
+  }, [masterCategories, safeProducts, categoriesList]);
+
+  const dynamicUOMChips = useMemo(() => {
+    const fromMaster = (masterUOMs || []).filter((u) => u.status === 'active').map((u) => u.name);
+    return fromMaster.length > 0 ? fromMaster : COMMON_UOM_CHIPS;
+  }, [masterUOMs]);
+
+  const dynamicLocationChips = useMemo(() => {
+    const fromMaster = (masterLocations || []).filter((l) => l.status === 'active').map((l) => `${l.name} (${l.code})`);
+    return fromMaster.length > 0 ? fromMaster : COMMON_LOCATION_CHIPS;
+  }, [masterLocations]);
 
   const pendingInboundCount = (inboundInvoices || []).filter((i) => i.status === 'pending_review').length;
 
@@ -1159,7 +1184,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
               >
                 <option value="all">Tất cả danh mục</option>
-                {CATEGORIES.map((c) => (
+                {dynamicCategories.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
@@ -1762,7 +1787,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                     }
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500 text-xs"
                   >
-                    {categoriesList.map((c) => (
+                    {dynamicCategories.map((c) => (
                       <option key={c} value={c}>
                         {c}
                       </option>
@@ -1792,14 +1817,14 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                     placeholder="Cái, Hộp, Gói, Kg..."
                   />
                   <datalist id="common-uom-datalist">
-                    {COMMON_UOM_CHIPS.map((u) => (
+                    {dynamicUOMChips.map((u) => (
                       <option key={u} value={u} />
                     ))}
                   </datalist>
 
                   {/* Quick-select chips */}
                   <div className="flex flex-wrap items-center gap-1 mt-1.5">
-                    {COMMON_UOM_CHIPS.slice(0, 10).map((uom) => (
+                    {dynamicUOMChips.slice(0, 10).map((uom) => (
                       <button
                         key={uom}
                         type="button"
@@ -1921,14 +1946,14 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                     placeholder="VD: Kệ A1 - Tầng 1, Tủ C1..."
                   />
                   <datalist id="common-location-datalist">
-                    {COMMON_LOCATION_CHIPS.map((loc) => (
+                    {dynamicLocationChips.map((loc) => (
                       <option key={loc} value={loc} />
                     ))}
                   </datalist>
 
                   {/* Quick-select chips */}
                   <div className="flex flex-wrap items-center gap-1 mt-1.5">
-                    {COMMON_LOCATION_CHIPS.map((loc) => (
+                    {dynamicLocationChips.map((loc) => (
                       <button
                         key={loc}
                         type="button"

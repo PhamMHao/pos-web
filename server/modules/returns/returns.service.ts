@@ -103,7 +103,7 @@ export class ReturnsService {
 
     // 1. Insert ReturnOrder
     await prisma.$executeRaw`
-      INSERT INTO [ReturnOrder] (id, code, type, originalOrderCode, originalOrderId, customerId, customerName, customerPhone, supplierId, supplierName, warehouse, refundMethod, refundAmount, totalReturnQuantity, reason, destinationType, status, performedBy, notes, createdAt)
+      INSERT INTO [PhieuTraHang] (id, code, type, originalOrderCode, originalOrderId, customerId, customerName, customerPhone, supplierId, supplierName, warehouse, refundMethod, refundAmount, totalReturnQuantity, reason, destinationType, status, performedBy, notes, createdAt)
       VALUES (${id}, ${code}, ${orderData.type || "customer_return"}, ${orderData.originalOrderCode || null}, ${orderData.originalOrderId || null}, ${orderData.customerId || null}, ${orderData.customerName || null}, ${orderData.customerPhone || null}, ${orderData.supplierId || null}, ${orderData.supplierName || null}, ${orderData.warehouse || "Kho Chính"}, ${orderData.refundMethod || "cash"}, ${orderData.refundAmount}, ${orderData.totalReturnQuantity}, ${orderData.reason}, ${orderData.destinationType || "restock"}, ${orderData.status || "completed"}, ${orderData.performedBy || "Thu ngân"}, ${orderData.notes || null}, ${now})
     `;
 
@@ -112,7 +112,7 @@ export class ReturnsService {
       const it = items[idx];
       const itemId = `ret-item-${Date.now()}-${idx}`;
       await prisma.$executeRaw`
-        INSERT INTO [ReturnOrderItem] (id, returnOrderId, productId, productName, sku, unit, ratioToBase, quantity, unitPrice, refundUnitPrice, totalRefund, serialNumber, condition)
+        INSERT INTO [ChiTietPhieuTraHang] (id, returnOrderId, productId, productName, sku, unit, ratioToBase, quantity, unitPrice, refundUnitPrice, totalRefund, serialNumber, condition)
         VALUES (${itemId}, ${id}, ${it.productId}, ${it.productName}, ${it.sku}, ${it.unit || "Cái"}, ${it.ratioToBase || 1}, ${it.quantity}, ${it.unitPrice}, ${it.refundUnitPrice}, ${it.totalRefund}, ${it.serialNumber || null}, ${it.condition || "normal"})
       `;
 
@@ -127,7 +127,7 @@ export class ReturnsService {
           const newStock = oldStock + returnQtyBase;
 
           await prisma.$executeRaw`
-            UPDATE [Product]
+            UPDATE [SanPham]
             SET stock = ${newStock}, updatedAt = ${new Date()}
             WHERE id = ${prod.id}
           `;
@@ -135,7 +135,7 @@ export class ReturnsService {
           const logId = `log-ret-${Date.now()}-${idx}`;
           const reasonText = `Nhập hoàn kho từ phiếu trả hàng ${code} (Lý do: ${orderData.reason})`;
           await prisma.$executeRaw`
-            INSERT INTO [InventoryLog] (id, productId, productName, sku, type, quantityChange, oldStock, newStock, reason, performedBy, timestamp)
+            INSERT INTO [NhatKyKho] (id, productId, productName, sku, type, quantityChange, oldStock, newStock, reason, performedBy, timestamp)
             VALUES (${logId}, ${prod.id}, ${prod.name}, ${prod.sku}, 'return_restock', ${returnQtyBase}, ${oldStock}, ${newStock}, ${reasonText}, ${orderData.performedBy || "Thu ngân"}, ${new Date()})
           `;
         }
@@ -147,7 +147,7 @@ export class ReturnsService {
           const logId = `log-ret-faulty-${Date.now()}-${idx}`;
           const reasonText = `Hàng lỗi chuyển kho bảo hành/kiểm tra từ phiếu trả hàng ${code}`;
           await prisma.$executeRaw`
-            INSERT INTO [InventoryLog] (id, productId, productName, sku, type, quantityChange, oldStock, newStock, reason, performedBy, timestamp)
+            INSERT INTO [NhatKyKho] (id, productId, productName, sku, type, quantityChange, oldStock, newStock, reason, performedBy, timestamp)
             VALUES (${logId}, ${prod.id}, ${prod.name}, ${prod.sku}, 'return_faulty', 0, ${oldStock}, ${oldStock}, ${reasonText}, ${orderData.performedBy || "Thu ngân"}, ${new Date()})
           `;
         }
@@ -163,7 +163,7 @@ export class ReturnsService {
           const sRec = existingSerials[0];
           const updatedNote = `${sRec.notes ? sRec.notes + " | " : ""}[Đã trả hàng theo phiếu ${code} ngày ${now.toLocaleDateString("vi-VN")} - Tình trạng: ${it.condition || "normal"}]`;
           await prisma.$executeRaw`
-            UPDATE [SerialDeviceRecord]
+            UPDATE [SoSerialThietBi]
             SET warrantyStatus = 'voided', notes = ${updatedNote}
             WHERE serialNumber = ${cleanSerial}
           `;
@@ -179,7 +179,7 @@ export class ReturnsService {
         const pcCode = `PC-TH-${new Date().getFullYear()}-${Date.now().toString().slice(-5)}`;
         const noteText = `Chi tiền hoàn trả cho phiếu trả hàng ${code} (Khách: ${orderData.customerName || "Khách lẻ"})`;
         await prisma.$executeRaw`
-          INSERT INTO [AccountingRecord] (id, code, type, category, amount, date, party, paymentMethod, status, note, receiptNumber)
+          INSERT INTO [SoThuChiKeToan] (id, code, type, category, amount, date, party, paymentMethod, status, note, receiptNumber)
           VALUES (${accId}, ${pcCode}, 'expense', 'Hoàn tiền trả hàng', ${refundAmount}, ${now}, ${orderData.customerName || "Khách lẻ"}, ${orderData.refundMethod}, 'completed', ${noteText}, ${code})
         `;
       } else if (orderData.refundMethod === "debt_deduct" && orderData.customerId) {
@@ -189,7 +189,7 @@ export class ReturnsService {
           const curDebt = Number(cust.debt) || 0;
           const newDebt = Math.max(0, curDebt - refundAmount);
           await prisma.$executeRaw`
-            UPDATE [Customer]
+            UPDATE [KhachHang]
             SET debt = ${newDebt}, updatedAt = ${new Date()}
             WHERE id = ${cust.id}
           `;

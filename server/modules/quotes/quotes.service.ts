@@ -18,7 +18,7 @@ export class QuotesService {
     const dt = new Date();
 
     await prisma.$executeRaw`
-      INSERT INTO [PriceQuote] (id, code, customerName, customerPhone, customerCompany, totalAmount, discountPercent, finalTotal, validUntil, status, notes, createdAt)
+      INSERT INTO [BaoGia] (id, code, customerName, customerPhone, customerCompany, totalAmount, discountPercent, finalTotal, validUntil, status, notes, createdAt)
       VALUES (${id}, ${code}, ${quoteData.customerName}, ${quoteData.customerPhone}, ${quoteData.customerCompany || null}, ${quoteData.totalAmount}, ${quoteData.discountPercent}, ${quoteData.finalTotal}, ${vDate}, ${quoteData.status || "draft"}, ${quoteData.notes || null}, ${dt})
     `;
 
@@ -26,7 +26,7 @@ export class QuotesService {
       const item = items[idx];
       const itemId = `quote-item-${Date.now()}-${idx}`;
       await prisma.$executeRaw`
-        INSERT INTO [PriceQuoteItem] (id, quoteId, productName, sku, unit, quantity, unitPrice, total)
+        INSERT INTO [ChiTietBaoGia] (id, quoteId, productName, sku, unit, quantity, unitPrice, total)
         VALUES (${itemId}, ${id}, ${item.productName}, ${item.sku}, ${item.unit}, ${item.quantity}, ${item.unitPrice}, ${item.total})
       `;
     }
@@ -163,7 +163,7 @@ export class QuotesService {
         const item = items[idx];
         const itemId = `quote-item-${Date.now()}-${idx}`;
         await prisma.$executeRaw`
-          INSERT INTO [PriceQuoteItem] (id, quoteId, productName, sku, unit, quantity, unitPrice, total)
+          INSERT INTO [ChiTietBaoGia] (id, quoteId, productName, sku, unit, quantity, unitPrice, total)
           VALUES (${itemId}, ${id}, ${item.productName}, ${item.sku}, ${item.unit}, ${item.quantity}, ${item.unitPrice}, ${item.total})
         `;
       }

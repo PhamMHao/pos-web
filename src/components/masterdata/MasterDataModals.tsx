@@ -1059,10 +1059,10 @@ export const CustomerGroupModal: React.FC<CustomerGroupModalProps> = ({
       setCode(initialData.code || '');
       setName(initialData.name || '');
       setDiscountPercent(initialData.discountPercent || 0);
-      setDefaultDebtLimit(initialData.defaultDebtLimit || 0);
-      setPaymentTermsDays(initialData.paymentTermsDays || 0);
+      setDefaultDebtLimit(initialData.defaultDebtLimit || (initialData as any).creditLimit || 0);
+      setPaymentTermsDays(initialData.paymentTermsDays || 30);
       setPriorityLevel(initialData.priorityLevel || 'standard');
-      setNote(initialData.note || '');
+      setNote(initialData.note || (initialData as any).description || '');
     } else {
       setCode('');
       setName('');
@@ -1083,11 +1083,14 @@ export const CustomerGroupModal: React.FC<CustomerGroupModalProps> = ({
       name: name.trim(),
       discountPercent,
       defaultDebtLimit,
+      creditLimit: defaultDebtLimit,
       paymentTermsDays,
+      paymentTerms: `Gối đầu ${paymentTermsDays} ngày`,
       priorityLevel,
       note: note.trim() || undefined,
+      description: note.trim() || undefined,
       customerCount: initialData?.customerCount || 0,
-    });
+    } as any);
     onClose();
   };
 
@@ -1243,7 +1246,7 @@ export const CustomerTierModal: React.FC<CustomerTierModalProps> = ({
       setCode(initialData.code || '');
       setName(initialData.name || '');
       setMinPoints(initialData.minPoints || 0);
-      setMinSpent(initialData.minSpent || 0);
+      setMinSpent(initialData.minSpent || (initialData as any).minSpend || 0);
       setDiscountPercent(initialData.discountPercent || 0);
       setColor(initialData.color || 'amber');
       setBenefits(initialData.benefits || '');
@@ -1269,12 +1272,13 @@ export const CustomerTierModal: React.FC<CustomerTierModalProps> = ({
       name: name.trim(),
       minPoints,
       minSpent,
+      minSpend: minSpent,
       discountPercent,
       color,
       benefits: benefits.trim(),
       status,
       customerCount: initialData?.customerCount || 0,
-    });
+    } as any);
     onClose();
   };
 

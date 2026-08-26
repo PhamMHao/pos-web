@@ -173,7 +173,8 @@ export type CustomerTier =
   | 'Hạng Bạc'
   | 'Hạng Vàng'
   | 'Hạng Kim Cương'
-  | 'VIP Doanh Nghiệp';
+  | 'VIP Doanh Nghiệp'
+  | string;
 
 export interface Customer {
   id: string;

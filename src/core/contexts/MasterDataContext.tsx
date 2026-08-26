@@ -19,6 +19,9 @@ import {
   EnterpriseProjectStatus,
 } from '../../types';
 import { INITIAL_CUSTOMERS, INITIAL_SUPPLIERS } from '../../data/initialData';
+import { masterDataApi } from '../../features/master-data/api/masterDataApi';
+import { customersApi } from '../../features/customers/api/customersApi';
+import { suppliersApi } from '../../features/suppliers/api/suppliersApi';
 
 // ==========================================
 // Initial Vietnamese IT / ERP Master Seeds
@@ -1173,50 +1176,103 @@ export const MasterDataProvider: React.FC<{ children: ReactNode }> = ({ children
     localStorage.setItem('gp_mdm_pwd_reset_requests', JSON.stringify(passwordResetRequests));
   }, [passwordResetRequests]);
 
+  // Fetch and sync directly from SQL Server Database on mount
+  useEffect(() => {
+    const fetchFromDb = async () => {
+      try {
+        const data = await masterDataApi.getAll();
+        if (data) {
+          if (data.departments && data.departments.length > 0) setDepartments(data.departments);
+          if (data.jobPositions && data.jobPositions.length > 0) setJobPositions(data.jobPositions);
+          if (data.warehouseLocations && data.warehouseLocations.length > 0) setWarehouseLocations(data.warehouseLocations);
+          if (data.unitsOfMeasure && data.unitsOfMeasure.length > 0) setUnitsOfMeasure(data.unitsOfMeasure);
+          if (data.productCategories && data.productCategories.length > 0) setProductCategories(data.productCategories);
+          if (data.customerGroups && data.customerGroups.length > 0) setCustomerGroups(data.customerGroups);
+          if (data.customerTiers && data.customerTiers.length > 0) setCustomerTiers(data.customerTiers);
+          if (data.supplierCategories && data.supplierCategories.length > 0) setSupplierCategories(data.supplierCategories);
+          if (data.projects && data.projects.length > 0) setProjects(data.projects);
+          if (data.customers && data.customers.length > 0) setCustomers(data.customers);
+          if (data.suppliers && data.suppliers.length > 0) setSuppliers(data.suppliers);
+        }
+      } catch (err) {
+        console.warn('Could not load master data from DB, using cache/defaults:', err);
+      }
+    };
+    fetchFromDb();
+  }, []);
+
   // ==========================================
-  // CRUD Actions: Customers
+  // CRUD Actions: Customers (Synced to SQL Server [KhachHang])
   // ==========================================
   const addCustomer = (item: Omit<Customer, 'id' | 'createdAt'>): Customer => {
     const newCust: Customer = {
       ...item,
-      id: `cust-${Date.now()}`,
+      id: (item as any).id || `cust-${Date.now()}`,
       createdAt: new Date().toISOString(),
     };
-    setCustomers((prev) => [newCust, ...prev]);
+    setCustomers((prev) => {
+      const filtered = prev.filter((c) => c.phone !== newCust.phone && c.id !== newCust.id);
+      return [newCust, ...filtered];
+    });
+    customersApi.createCustomer(newCust).then((saved) => {
+      if (saved) {
+        setCustomers((prev) => prev.map((c) => (c.phone === newCust.phone || c.id === newCust.id ? saved : c)));
+      }
+    }).catch((err) => console.warn('Customer DB sync error:', err));
     return newCust;
   };
 
   const updateCustomer = (id: string, item: Partial<Customer>) => {
     setCustomers((prev) => prev.map((c) => (c.id === id ? { ...c, ...item } : c)));
+    customersApi.updateCustomer(id, item).then((saved) => {
+      if (saved) {
+        setCustomers((prev) => prev.map((c) => (c.id === id ? saved : c)));
+      }
+    }).catch((err) => console.warn('Customer DB update error:', err));
   };
 
   const deleteCustomer = (id: string) => {
     setCustomers((prev) => prev.filter((c) => c.id !== id));
+    customersApi.deleteCustomer(id).catch((err) => console.warn('Customer DB delete error:', err));
   };
 
   // ==========================================
-  // CRUD Actions: Suppliers
+  // CRUD Actions: Suppliers (Synced to SQL Server [NhaCungCap])
   // ==========================================
   const addSupplier = (item: Omit<Supplier, 'id' | 'createdAt'>): Supplier => {
     const newSup: Supplier = {
       ...item,
-      id: `sup-${Date.now()}`,
+      id: (item as any).id || `sup-${Date.now()}`,
       createdAt: new Date().toISOString(),
     };
-    setSuppliers((prev) => [newSup, ...prev]);
+    setSuppliers((prev) => {
+      const filtered = prev.filter((s) => s.id !== newSup.id && s.code !== newSup.code);
+      return [newSup, ...filtered];
+    });
+    suppliersApi.createSupplier(newSup).then((saved) => {
+      if (saved) {
+        setSuppliers((prev) => prev.map((s) => (s.id === newSup.id || s.code === newSup.code ? saved : s)));
+      }
+    }).catch((err) => console.warn('Supplier DB sync error:', err));
     return newSup;
   };
 
   const updateSupplier = (id: string, item: Partial<Supplier>) => {
     setSuppliers((prev) => prev.map((s) => (s.id === id ? { ...s, ...item } : s)));
+    suppliersApi.updateSupplier(id, item).then((saved) => {
+      if (saved) {
+        setSuppliers((prev) => prev.map((s) => (s.id === id ? saved : s)));
+      }
+    }).catch((err) => console.warn('Supplier DB update error:', err));
   };
 
   const deleteSupplier = (id: string) => {
     setSuppliers((prev) => prev.filter((s) => s.id !== id));
+    suppliersApi.deleteSupplier(id).catch((err) => console.warn('Supplier DB delete error:', err));
   };
 
   // ==========================================
-  // CRUD Actions: Departments
+  // CRUD Actions: Departments (Synced to SQL Server [PhongBan])
   // ==========================================
   const addDepartment = (item: Omit<Department, 'id' | 'createdAt'>): Department => {
     const newDept: Department = {
@@ -1225,19 +1281,24 @@ export const MasterDataProvider: React.FC<{ children: ReactNode }> = ({ children
       createdAt: new Date().toISOString(),
     };
     setDepartments((prev) => [newDept, ...prev]);
+    masterDataApi.createDepartment(newDept).then((saved) => {
+      if (saved) setDepartments((prev) => prev.map((d) => (d.id === newDept.id ? saved : d)));
+    }).catch((err) => console.warn('Department DB sync error:', err));
     return newDept;
   };
 
   const updateDepartment = (id: string, item: Partial<Department>) => {
     setDepartments((prev) => prev.map((d) => (d.id === id ? { ...d, ...item } : d)));
+    masterDataApi.updateDepartment(id, item).catch((err) => console.warn('Department DB update error:', err));
   };
 
   const deleteDepartment = (id: string) => {
     setDepartments((prev) => prev.filter((d) => d.id !== id));
+    masterDataApi.deleteDepartment(id).catch((err) => console.warn('Department DB delete error:', err));
   };
 
   // ==========================================
-  // CRUD Actions: Job Positions
+  // CRUD Actions: Job Positions (Synced to SQL Server [ChucVu])
   // ==========================================
   const addJobPosition = (item: Omit<JobPosition, 'id' | 'createdAt'>): JobPosition => {
     const newPos: JobPosition = {
@@ -1246,19 +1307,24 @@ export const MasterDataProvider: React.FC<{ children: ReactNode }> = ({ children
       createdAt: new Date().toISOString(),
     };
     setJobPositions((prev) => [newPos, ...prev]);
+    masterDataApi.createJobPosition(newPos).then((saved) => {
+      if (saved) setJobPositions((prev) => prev.map((p) => (p.id === newPos.id ? saved : p)));
+    }).catch((err) => console.warn('JobPosition DB sync error:', err));
     return newPos;
   };
 
   const updateJobPosition = (id: string, item: Partial<JobPosition>) => {
     setJobPositions((prev) => prev.map((p) => (p.id === id ? { ...p, ...item } : p)));
+    masterDataApi.updateJobPosition(id, item).catch((err) => console.warn('JobPosition DB update error:', err));
   };
 
   const deleteJobPosition = (id: string) => {
     setJobPositions((prev) => prev.filter((p) => p.id !== id));
+    masterDataApi.deleteJobPosition(id).catch((err) => console.warn('JobPosition DB delete error:', err));
   };
 
   // ==========================================
-  // CRUD Actions: Warehouse Locations
+  // CRUD Actions: Warehouse Locations (Synced to SQL Server [ViTriLuuKho])
   // ==========================================
   const addWarehouseLocation = (item: Omit<WarehouseLocation, 'id' | 'createdAt'>): WarehouseLocation => {
     const newLoc: WarehouseLocation = {
@@ -1267,19 +1333,24 @@ export const MasterDataProvider: React.FC<{ children: ReactNode }> = ({ children
       createdAt: new Date().toISOString(),
     };
     setWarehouseLocations((prev) => [newLoc, ...prev]);
+    masterDataApi.createWarehouseLocation(newLoc).then((saved) => {
+      if (saved) setWarehouseLocations((prev) => prev.map((l) => (l.id === newLoc.id ? saved : l)));
+    }).catch((err) => console.warn('WarehouseLocation DB sync error:', err));
     return newLoc;
   };
 
   const updateWarehouseLocation = (id: string, item: Partial<WarehouseLocation>) => {
     setWarehouseLocations((prev) => prev.map((l) => (l.id === id ? { ...l, ...item } : l)));
+    masterDataApi.updateWarehouseLocation(id, item).catch((err) => console.warn('WarehouseLocation DB update error:', err));
   };
 
   const deleteWarehouseLocation = (id: string) => {
     setWarehouseLocations((prev) => prev.filter((l) => l.id !== id));
+    masterDataApi.deleteWarehouseLocation(id).catch((err) => console.warn('WarehouseLocation DB delete error:', err));
   };
 
   // ==========================================
-  // CRUD Actions: Units Of Measure (UOM)
+  // CRUD Actions: Units Of Measure (Synced to SQL Server [DanhMucDonViTinh])
   // ==========================================
   const addUnitOfMeasure = (item: Omit<UnitOfMeasure, 'id' | 'createdAt'>): UnitOfMeasure => {
     const newUom: UnitOfMeasure = {
@@ -1288,19 +1359,24 @@ export const MasterDataProvider: React.FC<{ children: ReactNode }> = ({ children
       createdAt: new Date().toISOString(),
     };
     setUnitsOfMeasure((prev) => [newUom, ...prev]);
+    masterDataApi.createUnitOfMeasure(newUom).then((saved) => {
+      if (saved) setUnitsOfMeasure((prev) => prev.map((u) => (u.id === newUom.id ? saved : u)));
+    }).catch((err) => console.warn('UOM DB sync error:', err));
     return newUom;
   };
 
   const updateUnitOfMeasure = (id: string, item: Partial<UnitOfMeasure>) => {
     setUnitsOfMeasure((prev) => prev.map((u) => (u.id === id ? { ...u, ...item } : u)));
+    masterDataApi.updateUnitOfMeasure(id, item).catch((err) => console.warn('UOM DB update error:', err));
   };
 
   const deleteUnitOfMeasure = (id: string) => {
     setUnitsOfMeasure((prev) => prev.filter((u) => u.id !== id));
+    masterDataApi.deleteUnitOfMeasure(id).catch((err) => console.warn('UOM DB delete error:', err));
   };
 
   // ==========================================
-  // CRUD Actions: Product Categories
+  // CRUD Actions: Product Categories (Synced to SQL Server [DanhMucNganhHang])
   // ==========================================
   const addProductCategory = (item: Omit<MasterProductCategory, 'id' | 'createdAt'>): MasterProductCategory => {
     const newCat: MasterProductCategory = {
@@ -1309,19 +1385,24 @@ export const MasterDataProvider: React.FC<{ children: ReactNode }> = ({ children
       createdAt: new Date().toISOString(),
     };
     setProductCategories((prev) => [newCat, ...prev]);
+    masterDataApi.createProductCategory(newCat).then((saved) => {
+      if (saved) setProductCategories((prev) => prev.map((c) => (c.id === newCat.id ? saved : c)));
+    }).catch((err) => console.warn('ProductCategory DB sync error:', err));
     return newCat;
   };
 
   const updateProductCategory = (id: string, item: Partial<MasterProductCategory>) => {
     setProductCategories((prev) => prev.map((c) => (c.id === id ? { ...c, ...item } : c)));
+    masterDataApi.updateProductCategory(id, item).catch((err) => console.warn('ProductCategory DB update error:', err));
   };
 
   const deleteProductCategory = (id: string) => {
     setProductCategories((prev) => prev.filter((c) => c.id !== id));
+    masterDataApi.deleteProductCategory(id).catch((err) => console.warn('ProductCategory DB delete error:', err));
   };
 
   // ==========================================
-  // CRUD Actions: Customer Groups
+  // CRUD Actions: Customer Groups (Synced to SQL Server [NhomKhachHang])
   // ==========================================
   const addCustomerGroup = (item: Omit<CustomerGroup, 'id' | 'createdAt'>): CustomerGroup => {
     const newGrp: CustomerGroup = {
@@ -1330,19 +1411,24 @@ export const MasterDataProvider: React.FC<{ children: ReactNode }> = ({ children
       createdAt: new Date().toISOString(),
     };
     setCustomerGroups((prev) => [newGrp, ...prev]);
+    masterDataApi.createCustomerGroup(newGrp).then((saved) => {
+      if (saved) setCustomerGroups((prev) => prev.map((g) => (g.id === newGrp.id ? saved : g)));
+    }).catch((err) => console.warn('CustomerGroup DB sync error:', err));
     return newGrp;
   };
 
   const updateCustomerGroup = (id: string, item: Partial<CustomerGroup>) => {
     setCustomerGroups((prev) => prev.map((g) => (g.id === id ? { ...g, ...item } : g)));
+    masterDataApi.updateCustomerGroup(id, item).catch((err) => console.warn('CustomerGroup DB update error:', err));
   };
 
   const deleteCustomerGroup = (id: string) => {
     setCustomerGroups((prev) => prev.filter((g) => g.id !== id));
+    masterDataApi.deleteCustomerGroup(id).catch((err) => console.warn('CustomerGroup DB delete error:', err));
   };
 
   // ==========================================
-  // CRUD Actions: Customer Tiers (Hạng Thành Viên)
+  // CRUD Actions: Customer Tiers (Synced to SQL Server [HangThanhVien])
   // ==========================================
   const addCustomerTier = (item: Omit<MasterCustomerTier, 'id' | 'createdAt'>): MasterCustomerTier => {
     const newTier: MasterCustomerTier = {
@@ -1351,19 +1437,24 @@ export const MasterDataProvider: React.FC<{ children: ReactNode }> = ({ children
       createdAt: new Date().toISOString(),
     };
     setCustomerTiers((prev) => [...prev, newTier]);
+    masterDataApi.createCustomerTier(newTier).then((saved) => {
+      if (saved) setCustomerTiers((prev) => prev.map((t) => (t.id === newTier.id ? saved : t)));
+    }).catch((err) => console.warn('CustomerTier DB sync error:', err));
     return newTier;
   };
 
   const updateCustomerTier = (id: string, item: Partial<MasterCustomerTier>) => {
     setCustomerTiers((prev) => prev.map((t) => (t.id === id ? { ...t, ...item } : t)));
+    masterDataApi.updateCustomerTier(id, item).catch((err) => console.warn('CustomerTier DB update error:', err));
   };
 
   const deleteCustomerTier = (id: string) => {
     setCustomerTiers((prev) => prev.filter((t) => t.id !== id));
+    masterDataApi.deleteCustomerTier(id).catch((err) => console.warn('CustomerTier DB delete error:', err));
   };
 
   // ==========================================
-  // CRUD Actions: Supplier Categories
+  // CRUD Actions: Supplier Categories (Synced to SQL Server [PhanLoaiNhaCungCap])
   // ==========================================
   const addSupplierCategory = (item: Omit<MasterSupplierCategory, 'id' | 'createdAt'>): MasterSupplierCategory => {
     const newCat: MasterSupplierCategory = {
@@ -1372,19 +1463,24 @@ export const MasterDataProvider: React.FC<{ children: ReactNode }> = ({ children
       createdAt: new Date().toISOString(),
     };
     setSupplierCategories((prev) => [newCat, ...prev]);
+    masterDataApi.createSupplierCategory(newCat).then((saved) => {
+      if (saved) setSupplierCategories((prev) => prev.map((s) => (s.id === newCat.id ? saved : s)));
+    }).catch((err) => console.warn('SupplierCategory DB sync error:', err));
     return newCat;
   };
 
   const updateSupplierCategory = (id: string, item: Partial<MasterSupplierCategory>) => {
     setSupplierCategories((prev) => prev.map((s) => (s.id === id ? { ...s, ...item } : s)));
+    masterDataApi.updateSupplierCategory(id, item).catch((err) => console.warn('SupplierCategory DB update error:', err));
   };
 
   const deleteSupplierCategory = (id: string) => {
     setSupplierCategories((prev) => prev.filter((s) => s.id !== id));
+    masterDataApi.deleteSupplierCategory(id).catch((err) => console.warn('SupplierCategory DB delete error:', err));
   };
 
   // ==========================================
-  // CRUD Actions: Enterprise Projects (Dự Án Doanh Nghiệp)
+  // CRUD Actions: Enterprise Projects (Synced to SQL Server [DuAnDoanhNghiep])
   // ==========================================
   const addProject = (item: Omit<EnterpriseProject, 'id' | 'createdAt'>): EnterpriseProject => {
     const newProj: EnterpriseProject = {
@@ -1393,15 +1489,20 @@ export const MasterDataProvider: React.FC<{ children: ReactNode }> = ({ children
       createdAt: new Date().toISOString(),
     };
     setProjects((prev) => [newProj, ...prev]);
+    masterDataApi.createProject(newProj).then((saved) => {
+      if (saved) setProjects((prev) => prev.map((p) => (p.id === newProj.id ? saved : p)));
+    }).catch((err) => console.warn('Project DB sync error:', err));
     return newProj;
   };
 
   const updateProject = (id: string, item: Partial<EnterpriseProject>) => {
     setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, ...item } : p)));
+    masterDataApi.updateProject(id, item).catch((err) => console.warn('Project DB update error:', err));
   };
 
   const deleteProject = (id: string) => {
     setProjects((prev) => prev.filter((p) => p.id !== id));
+    masterDataApi.deleteProject(id).catch((err) => console.warn('Project DB delete error:', err));
   };
 
   // ==========================================

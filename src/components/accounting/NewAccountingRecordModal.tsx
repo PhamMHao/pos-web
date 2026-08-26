@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { AccountingRecord, PaymentMethod, Customer, Employee } from '../../types';
 import { formatVND } from '../../utils/vietqr';
+import { useMasterData } from '../../core/contexts/MasterDataContext';
 
 interface NewAccountingRecordModalProps {
   customers?: Customer[];
@@ -47,6 +48,7 @@ export const NewAccountingRecordModal: React.FC<NewAccountingRecordModalProps> =
   onClose,
   onSave,
 }) => {
+  const { customers: masterCustomers, suppliers: masterSuppliers } = useMasterData();
   const [type, setType] = useState<'income' | 'expense'>('income');
   const [category, setCategory] = useState<string>(INCOME_CATEGORIES[0]);
   const [amount, setAmount] = useState<number>(1000000);
@@ -214,11 +216,17 @@ export const NewAccountingRecordModal: React.FC<NewAccountingRecordModalProps> =
             <input
               type="text"
               required
+              list="accounting-party-datalist"
               placeholder="VD: Anh Minh (Khách sỉ) / Cty Điện Lực..."
               value={party}
               onChange={(e) => setParty(e.target.value)}
               className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
             />
+            <datalist id="accounting-party-datalist">
+              {type === 'income'
+                ? (masterCustomers || []).map((c) => <option key={c.id} value={`${c.name} (${c.phone})`} />)
+                : (masterSuppliers || []).map((s) => <option key={s.id} value={`${s.name} (NCC)`} />)}
+            </datalist>
           </div>
 
           {/* Method & Date */}

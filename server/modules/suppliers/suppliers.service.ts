@@ -159,7 +159,7 @@ export class SuppliersService {
     const { priceList = [], ...data } = input;
 
     await prisma.$executeRaw`
-      INSERT INTO [Supplier] (id, code, name, taxCode, tier, category, contactPerson, phone, email, address, bankName, bankAccount, bankCode, creditLimit, creditDays, currentDebt, ratingQuality, ratingPrice, ratingOnTime, ratingWarranty, notes, createdAt, updatedAt)
+      INSERT INTO [NhaCungCap] (id, code, name, taxCode, tier, category, contactPerson, phone, email, address, bankName, bankAccount, bankCode, creditLimit, creditDays, currentDebt, ratingQuality, ratingPrice, ratingOnTime, ratingWarranty, notes, createdAt, updatedAt)
       VALUES (${id}, ${cleanCode}, ${data.name}, ${data.taxCode || null}, ${data.tier || "Tổng Đại Lý"}, ${data.category || "Camera & An Ninh"}, ${data.contactPerson || null}, ${data.phone}, ${data.email || null}, ${data.address || null}, ${data.bankName || null}, ${data.bankAccount || null}, ${data.bankCode || null}, ${data.creditLimit || 0}, ${data.creditDays || 30}, ${data.currentDebt || 0}, ${data.ratingQuality || 9.5}, ${data.ratingPrice || 9.0}, ${data.ratingOnTime || 9.5}, ${data.ratingWarranty || 9.2}, ${data.notes || null}, ${dt}, ${dt})
     `;
 
@@ -167,7 +167,7 @@ export class SuppliersService {
       const it = priceList[idx];
       const pId = `sup-price-${Date.now()}-${idx}`;
       await prisma.$executeRaw`
-        INSERT INTO [SupplierPriceItem] (id, supplierId, sku, productName, costPrice, warrantyMonths, moq)
+        INSERT INTO [BangGiaNhaCungCap] (id, supplierId, sku, productName, costPrice, warrantyMonths, moq)
         VALUES (${pId}, ${id}, ${it.sku}, ${it.productName}, ${it.costPrice}, ${it.warrantyMonths || 24}, ${it.moq || 1})
       `;
     }
@@ -202,7 +202,7 @@ export class SuppliersService {
         const it = priceList[idx];
         const pId = `sup-price-${Date.now()}-${idx}`;
         await prisma.$executeRaw`
-          INSERT INTO [SupplierPriceItem] (id, supplierId, sku, productName, costPrice, warrantyMonths, moq)
+          INSERT INTO [BangGiaNhaCungCap] (id, supplierId, sku, productName, costPrice, warrantyMonths, moq)
           VALUES (${pId}, ${id}, ${it.sku}, ${it.productName}, ${it.costPrice}, ${it.warrantyMonths || 24}, ${it.moq || 1})
         `;
       }
@@ -366,7 +366,7 @@ export class SuppliersService {
     const { items, ...poData } = input;
 
     await prisma.$executeRaw`
-      INSERT INTO [PurchaseOrder] (id, code, supplierId, supplierName, supplierPhone, supplierAddress, supplierTaxCode, warehouseId, warehouseName, orderDate, expectedDeliveryDate, status, subtotal, vatRate, vatAmount, shippingFee, discountAmount, totalAmount, paidAmount, paymentStatus, paymentMethod, notes, createdAt, updatedAt)
+      INSERT INTO [DonDatHangMua] (id, code, supplierId, supplierName, supplierPhone, supplierAddress, supplierTaxCode, warehouseId, warehouseName, orderDate, expectedDeliveryDate, status, subtotal, vatRate, vatAmount, shippingFee, discountAmount, totalAmount, paidAmount, paymentStatus, paymentMethod, notes, createdAt, updatedAt)
       VALUES (${id}, ${code}, ${poData.supplierId}, ${poData.supplierName}, ${poData.supplierPhone || null}, ${poData.supplierAddress || null}, ${poData.supplierTaxCode || null}, ${poData.warehouseId || "wh-main"}, ${poData.warehouseName || "Kho Chính"}, ${dt}, ${expDt}, ${poData.status || "confirmed"}, ${poData.subtotal}, ${poData.vatRate || 10}, ${poData.vatAmount || 0}, ${poData.shippingFee || 0}, ${poData.discountAmount || 0}, ${poData.totalAmount}, ${poData.paidAmount || 0}, ${poData.paymentStatus || "unpaid"}, ${poData.paymentMethod || "transfer"}, ${poData.notes || null}, ${new Date()}, ${new Date()})
     `;
 
@@ -374,7 +374,7 @@ export class SuppliersService {
       const it = items[idx];
       const itemId = `po-item-${Date.now()}-${idx}`;
       await prisma.$executeRaw`
-        INSERT INTO [PurchaseOrderItem] (id, purchaseOrderId, productId, sku, productName, unit, quantity, unitPrice, total)
+        INSERT INTO [ChiTietDonDatHangMua] (id, purchaseOrderId, productId, sku, productName, unit, quantity, unitPrice, total)
         VALUES (${itemId}, ${id}, ${it.productId || null}, ${it.sku}, ${it.productName}, ${it.unit || "Cái"}, ${it.quantity}, ${it.unitPrice}, ${it.total})
       `;
     }
@@ -399,7 +399,7 @@ export class SuppliersService {
     }
 
     if (input.notes) {
-      updateData.notes = po.notes ? `${po.notes}\n[Cập nhật]: ${input.notes}` : input.notes;
+      updateData.notes = po.notes ? `${po.notes}[QuyDoiDonViTinh][Cập nhật]: ${input.notes}` : input.notes;
     }
 
     await prisma.purchaseOrder.updateMany({

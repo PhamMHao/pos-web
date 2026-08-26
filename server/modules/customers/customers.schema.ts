@@ -1,17 +1,28 @@
 import { z } from "zod";
 
 export const createCustomerSchema = z.object({
+  id: z.string().optional(),
   name: z.string().min(1, "Tên khách hàng không được để trống"),
-  phone: z.string().min(8, "Số điện thoại tối thiểu 8 số"),
-  email: z.union([z.string().email("Email không hợp lệ"), z.literal(""), z.null(), z.undefined()]).optional(),
+  phone: z.string().min(1, "Số điện thoại không được để trống"),
+  email: z.string().optional().nullable(),
   address: z.string().optional().nullable(),
-  tier: z.enum(["Đồng", "Bạc", "Vàng", "Kim Cương"]).default("Đồng"),
-  points: z.coerce.number().min(0).default(0),
-  totalSpent: z.coerce.number().min(0).default(0),
-  totalOrders: z.coerce.number().int().min(0).default(0),
-  debt: z.coerce.number().default(0),
+  tier: z.string().optional().default("Đồng"),
+  points: z.coerce.number().min(0).optional().default(0),
+  totalSpent: z.coerce.number().min(0).optional().default(0),
+  totalOrders: z.coerce.number().int().min(0).optional().default(0),
+  debt: z.coerce.number().optional().default(0),
   note: z.string().optional().nullable(),
-});
+  customerType: z.string().optional().nullable(),
+  groupName: z.string().optional().nullable(),
+  companyName: z.string().optional().nullable(),
+  taxCode: z.string().optional().nullable(),
+  bankAccount: z.string().optional().nullable(),
+  bankName: z.string().optional().nullable(),
+  creditLimit: z.coerce.number().optional().nullable(),
+  creditDays: z.coerce.number().optional().nullable(),
+  invoiceEmail: z.string().optional().nullable(),
+  quoteEmail: z.string().optional().nullable(),
+}).passthrough();
 
 export const updateCustomerSchema = createCustomerSchema.partial();
 

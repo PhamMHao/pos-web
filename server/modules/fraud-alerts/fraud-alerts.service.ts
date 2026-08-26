@@ -73,7 +73,7 @@ export class FraudAlertsService {
     const dt = input.timestamp ? new Date(input.timestamp) : new Date();
 
     await prisma.$executeRaw`
-      INSERT INTO [FraudAlert] (id, severity, title, description, timestamp, source, status, suggestedAction)
+      INSERT INTO [CanhBaoGianLan] (id, severity, title, description, timestamp, source, status, suggestedAction)
       VALUES (${id}, ${input.severity}, ${input.title}, ${input.description}, ${dt}, ${input.source}, ${input.status || "unresolved"}, ${input.suggestedAction})
     `;
 

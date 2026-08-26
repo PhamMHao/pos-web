@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { PriceQuote, Product, Customer, StoreSettings } from '../../types';
 import { formatVND } from '../../utils/vietqr';
+import { useMasterData } from '../../core/contexts/MasterDataContext';
 
 export interface InitialQuotePrefill {
   customerName?: string;
@@ -51,6 +52,8 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   onClose,
   onSave,
 }) => {
+  const { customers: masterCustomers, projects: masterProjects } = useMasterData();
+  const effectiveCustomers = customers && customers.length > 0 ? customers : (masterCustomers || []);
   const [customerName, setCustomerName] = useState(initialQuoteData?.customerName || '');
   const [customerPhone, setCustomerPhone] = useState(initialQuoteData?.customerPhone || '');
   const [customerCompany, setCustomerCompany] = useState(initialQuoteData?.customerCompany || '');
@@ -80,7 +83,7 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
   const [selectedCustomerSearch, setSelectedCustomerSearch] = useState(initialQuoteData?.customerName || '');
   const [showCustDropdown, setShowCustDropdown] = useState(false);
 
-  const filteredCustomers = customers.filter(
+  const filteredCustomers = effectiveCustomers.filter(
     (c) =>
       c.name.toLowerCase().includes(selectedCustomerSearch.toLowerCase()) ||
       c.phone.includes(selectedCustomerSearch)
@@ -297,11 +300,17 @@ export const NewQuoteModal: React.FC<NewQuoteModalProps> = ({
                 <label className="block text-xs text-slate-400 mb-1">Công Ty / Địa Chỉ Dự Án</label>
                 <input
                   type="text"
+                  list="quote-projects-datalist"
                   placeholder="VD: Tòa nhà Bitexco, Q.1"
                   value={customerCompany}
                   onChange={(e) => setCustomerCompany(e.target.value)}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
                 />
+                <datalist id="quote-projects-datalist">
+                  {(masterProjects || []).map((p) => (
+                    <option key={p.id} value={`${p.name} (${p.customerName})`} />
+                  ))}
+                </datalist>
               </div>
             </div>
           </div>

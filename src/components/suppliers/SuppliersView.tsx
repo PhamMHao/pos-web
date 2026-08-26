@@ -38,6 +38,7 @@ import { NewPurchaseOrderModal } from './NewPurchaseOrderModal';
 import { PurchaseOrderPrintModal } from './PurchaseOrderPrintModal';
 import { SupplierComparisonModal } from '../quotes/SupplierComparisonModal';
 import { PrintInvoiceModal, PrintItem } from '../common/PrintInvoiceModal';
+import { useMasterData } from '../../core/contexts/MasterDataContext';
 
 interface SuppliersViewProps {
   suppliers?: Supplier[];
@@ -64,7 +65,22 @@ export const SuppliersView: React.FC<SuppliersViewProps> = ({
   onAdjustStock,
   onOpenDocOcrScanner,
 }) => {
-  const safeSuppliers = suppliers || [];
+  const {
+    suppliers: masterSuppliers,
+    deleteSupplier: deleteMasterSupplier,
+    addSupplier: addMasterSupplier,
+    updateSupplier: updateMasterSupplier,
+  } = useMasterData();
+
+  const safeSuppliers = React.useMemo(() => {
+    const map = new Map<string, Supplier>();
+    (masterSuppliers || []).forEach((s) => map.set(s.id, s));
+    (suppliers || []).forEach((s) => {
+      if (!map.has(s.id)) map.set(s.id, s);
+    });
+    return Array.from(map.values());
+  }, [masterSuppliers, suppliers]);
+
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>(safeSuppliers[0]?.id || '');
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'profile' | 'pricelist' | 'orders'>('profile');
@@ -117,6 +133,11 @@ export const SuppliersView: React.FC<SuppliersViewProps> = ({
   const handleDeleteSupplierConfirm = (id: string, name: string) => {
     if (window.confirm(`Bạn có chắc chắn muốn xóa nhà cung cấp "${name}" khỏi cơ sở dữ liệu SQL Server?`)) {
       if (onDeleteSupplier) onDeleteSupplier(id);
+      try {
+        if (deleteMasterSupplier) deleteMasterSupplier(id);
+      } catch (err) {
+        console.warn('Master data supplier delete warning:', err);
+      }
       if (selectedSupplierId === id) {
         const remaining = safeSuppliers.filter((s) => s.id !== id);
         setSelectedSupplierId(remaining[0]?.id || '');
@@ -741,6 +762,15 @@ export const SuppliersView: React.FC<SuppliersViewProps> = ({
           }}
           onSave={(newSup) => {
             if (onSaveSupplier) onSaveSupplier(newSup);
+            try {
+              if (editingSupplier && updateMasterSupplier) {
+                updateMasterSupplier(newSup.id, newSup);
+              } else if (addMasterSupplier) {
+                addMasterSupplier(newSup);
+              }
+            } catch (err) {
+              console.warn('Master data supplier save warning:', err);
+            }
             setSelectedSupplierId(newSup.id);
             setEditingSupplier(null);
             setShowNewSupplierModal(false);

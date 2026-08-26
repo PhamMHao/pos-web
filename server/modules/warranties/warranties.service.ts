@@ -22,7 +22,7 @@ export class WarrantiesService {
     const dt = new Date();
 
     await prisma.$executeRaw`
-      INSERT INTO [WarrantyTicket] (id, code, type, priority, status, orderCode, productId, productName, model, serialNumber, qrCodeUrl, customerName, customerPhone, customerAddress, customerEmail, accessoriesIncluded, cosmeticCondition, issueDescription, technicianDiagnosis, resolution, technicianName, receivedDate, expectedReturnDate, actualReturnDate, laborCost, partsCost, discountAmount, totalFee, paymentStatus, paidAmount, returnedToPerson, returnNote, warrantyExtensionMonths)
+      INSERT INTO [PhieuBaoHanh] (id, code, type, priority, status, orderCode, productId, productName, model, serialNumber, qrCodeUrl, customerName, customerPhone, customerAddress, customerEmail, accessoriesIncluded, cosmeticCondition, issueDescription, technicianDiagnosis, resolution, technicianName, receivedDate, expectedReturnDate, actualReturnDate, laborCost, partsCost, discountAmount, totalFee, paymentStatus, paidAmount, returnedToPerson, returnNote, warrantyExtensionMonths)
       VALUES (${id}, ${code}, ${ticketData.type}, ${ticketData.priority}, ${ticketData.status || "received"}, ${ticketData.orderCode || null}, ${ticketData.productId || null}, ${ticketData.productName}, ${ticketData.model || null}, ${ticketData.serialNumber}, ${ticketData.qrCodeUrl || null}, ${ticketData.customerName}, ${ticketData.customerPhone}, ${ticketData.customerAddress || null}, ${ticketData.customerEmail || null}, ${ticketData.accessoriesIncluded || null}, ${ticketData.cosmeticCondition || null}, ${ticketData.issueDescription}, ${ticketData.technicianDiagnosis || null}, ${ticketData.resolution || null}, ${ticketData.technicianName}, ${recDt}, ${expDt}, ${actDt}, ${ticketData.laborCost}, ${ticketData.partsCost}, ${ticketData.discountAmount}, ${ticketData.totalFee}, ${ticketData.paymentStatus}, ${ticketData.paidAmount}, ${ticketData.returnedToPerson || null}, ${ticketData.returnNote || null}, ${ticketData.warrantyExtensionMonths || 0})
     `;
 
@@ -30,7 +30,7 @@ export class WarrantiesService {
       const p = parts[idx];
       const partId = `w-part-${Date.now()}-${idx}`;
       await prisma.$executeRaw`
-        INSERT INTO [WarrantyPartItem] (id, warrantyId, partName, sku, quantity, unit, unitPrice, isUnderWarranty, warrantyMonths)
+        INSERT INTO [LinhKienBaoHanh] (id, warrantyId, partName, sku, quantity, unit, unitPrice, isUnderWarranty, warrantyMonths)
         VALUES (${partId}, ${id}, ${p.partName}, ${p.sku || null}, ${p.quantity}, ${p.unit}, ${p.unitPrice}, ${p.isUnderWarranty ? 1 : 0}, ${p.warrantyMonths})
       `;
     }
@@ -50,7 +50,7 @@ export class WarrantiesService {
       const tId = `w-tl-${Date.now()}-${idx}`;
       const tTime = t.timestamp ? new Date(t.timestamp) : new Date();
       await prisma.$executeRaw`
-        INSERT INTO [WarrantyTimelineEvent] (id, warrantyId, action, actor, timestamp, notes, status)
+        INSERT INTO [NhatKyBaoHanh] (id, warrantyId, action, actor, timestamp, notes, status)
         VALUES (${tId}, ${id}, ${t.action}, ${t.actor}, ${tTime}, ${t.notes || null}, ${t.status})
       `;
     }
@@ -82,7 +82,7 @@ export class WarrantiesService {
       const devId = `dev-${Date.now()}`;
 
       await prisma.$executeRaw`
-        INSERT INTO [SerialDeviceRecord] (id, serialNumber, productName, sku, soldOrderCode, soldDate, customerName, customerPhone, warrantyPeriodMonths, warrantyExpiryDate, warrantyStatus, totalRepairsCount, totalMaintenancesCount, notes)
+        INSERT INTO [SoSerialThietBi] (id, serialNumber, productName, sku, soldOrderCode, soldDate, customerName, customerPhone, warrantyPeriodMonths, warrantyExpiryDate, warrantyStatus, totalRepairsCount, totalMaintenancesCount, notes)
         VALUES (${devId}, ${cleanSerial}, ${ticketData.productName}, ${ticketData.model || "SKU-DEVICE"}, ${ticketData.orderCode || null}, ${dt}, ${ticketData.customerName}, ${ticketData.customerPhone}, 12, ${expiryDate}, 'valid', ${ticketData.type === "repair" ? 1 : 0}, ${ticketData.type === "maintenance" ? 1 : 0}, ${`Tự động tạo từ phiếu bảo hành ${code}`})
       `;
     }
@@ -220,7 +220,7 @@ export class WarrantiesService {
       updateData.status = ticketData.status;
       const tId = `w-tl-${Date.now()}`;
       await prisma.$executeRaw`
-        INSERT INTO [WarrantyTimelineEvent] (id, warrantyId, action, actor, timestamp, notes, status)
+        INSERT INTO [NhatKyBaoHanh] (id, warrantyId, action, actor, timestamp, notes, status)
         VALUES (${tId}, ${id}, ${`Chuyển trạng thái sang: ${ticketData.status}`}, ${ticketData.technicianName || existing.technicianName}, ${new Date()}, ${ticketData.resolution || null}, ${ticketData.status})
       `;
     }
@@ -357,7 +357,7 @@ export class WarrantiesService {
       const dt = new Date();
 
       await prisma.$executeRaw`
-        INSERT INTO [SerialDeviceRecord] (id, serialNumber, productName, sku, soldOrderCode, soldDate, customerName, customerPhone, warrantyPeriodMonths, warrantyExpiryDate, warrantyStatus, totalRepairsCount, totalMaintenancesCount, notes)
+        INSERT INTO [SoSerialThietBi] (id, serialNumber, productName, sku, soldOrderCode, soldDate, customerName, customerPhone, warrantyPeriodMonths, warrantyExpiryDate, warrantyStatus, totalRepairsCount, totalMaintenancesCount, notes)
         VALUES (${devId}, ${cleanSerial}, ${input.productName}, ${input.sku}, ${input.soldOrderCode || null}, ${sDate}, ${input.customerName || null}, ${input.customerPhone || null}, ${input.warrantyPeriodMonths || 12}, ${eDate}, ${input.warrantyStatus || "valid"}, ${input.totalRepairsCount || 0}, ${input.totalMaintenancesCount || 0}, ${input.notes || null})
       `;
     }

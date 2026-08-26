@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { ProductCosting } from '../../types';
 import { formatVND } from '../../utils/vietqr';
+import { useMasterData } from '../../core/contexts/MasterDataContext';
 
 interface NewCostingModalProps {
   onClose: () => void;
@@ -31,6 +32,7 @@ export const NewCostingModal: React.FC<NewCostingModalProps> = ({
   onClose,
   onSave,
 }) => {
+  const { unitsOfMeasure: masterUOMs } = useMasterData();
   const [productName, setProductName] = useState('');
   const [sku, setSku] = useState(`BOM-${Date.now().toString().slice(-4)}`);
   const [laborCost, setLaborCost] = useState<number>(200000);
@@ -251,10 +253,16 @@ export const NewCostingModal: React.FC<NewCostingModalProps> = ({
                       <td className="p-2.5">
                         <input
                           type="text"
+                          list="costing-uoms-datalist"
                           value={item.unit}
                           onChange={(e) => handleUpdateBomItem(idx, 'unit', e.target.value)}
                           className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-purple-500"
                         />
+                        <datalist id="costing-uoms-datalist">
+                          {(masterUOMs || []).map((u) => (
+                            <option key={u.id} value={u.name} />
+                          ))}
+                        </datalist>
                       </td>
                       <td className="p-2.5">
                         <input

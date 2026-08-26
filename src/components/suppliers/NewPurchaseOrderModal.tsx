@@ -15,6 +15,7 @@ import {
 import { Supplier, PurchaseOrder, Product, StoreSettings } from '../../types';
 import { formatVND } from '../../utils/vietqr';
 import { sounds } from '../../utils/soundEffects';
+import { useMasterData } from '../../core/contexts/MasterDataContext';
 
 interface NewPurchaseOrderModalProps {
   isOpen: boolean;
@@ -35,7 +36,17 @@ export const NewPurchaseOrderModal: React.FC<NewPurchaseOrderModalProps> = ({
   onSave,
   preselectedSupplierId,
 }) => {
-  const [supplierId, setSupplierId] = useState<string>(preselectedSupplierId || suppliers[0]?.id || '');
+  const { suppliers: masterSuppliers, warehouseLocations: masterLocations } = useMasterData();
+  const effectiveSuppliers = React.useMemo(() => {
+    const map = new Map<string, Supplier>();
+    (masterSuppliers || []).forEach((s) => map.set(s.id, s));
+    (suppliers || []).forEach((s) => {
+      if (!map.has(s.id)) map.set(s.id, s);
+    });
+    return Array.from(map.values());
+  }, [masterSuppliers, suppliers]);
+
+  const [supplierId, setSupplierId] = useState<string>(preselectedSupplierId || effectiveSuppliers[0]?.id || '');
   const [code, setCode] = useState<string>('PO-' + new Date().getFullYear() + '-' + Date.now().toString().slice(-4));
   const [warehouseName, setWarehouseName] = useState<string>('Kho Tổng Gia Phúc TP.HCM');
   const [orderDate, setOrderDate] = useState<string>(new Date().toISOString().slice(0, 10));
@@ -48,7 +59,7 @@ export const NewPurchaseOrderModal: React.FC<NewPurchaseOrderModalProps> = ({
   const [discountAmount, setDiscountAmount] = useState<number>(0);
   const [notes, setNotes] = useState<string>('Đơn đặt hàng linh kiện & thiết bị dự án. Giao hàng tại kho theo thỏa thuận.');
 
-  const activeSupplier = suppliers.find((s) => s.id === supplierId) || suppliers[0];
+  const activeSupplier = effectiveSuppliers.find((s) => s.id === supplierId) || effectiveSuppliers[0];
 
   const [items, setItems] = useState<Array<{
     productId?: string;
@@ -207,7 +218,7 @@ export const NewPurchaseOrderModal: React.FC<NewPurchaseOrderModalProps> = ({
                 onChange={(e) => setSupplierId(e.target.value)}
                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold focus:outline-none"
               >
-                {suppliers.map((s) => (
+                {effectiveSuppliers.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name} ({s.tier})
                   </option>
@@ -221,9 +232,17 @@ export const NewPurchaseOrderModal: React.FC<NewPurchaseOrderModalProps> = ({
                 onChange={(e) => setWarehouseName(e.target.value)}
                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
               >
-                <option value="Kho Tổng Gia Phúc TP.HCM">Kho Tổng Gia Phúc TP.HCM</option>
-                <option value="Kho Chi Nhánh Hà Nội">Kho Chi Nhánh Hà Nội</option>
-                <option value="Kho Miền Trung Đà Nẵng">Kho Miền Trung Đà Nẵng</option>
+                {(masterLocations && masterLocations.length > 0
+                  ? masterLocations.filter((l) => l.status === 'active').map((l) => (
+                      <option key={l.id} value={`${l.name} (${l.code})`}>
+                        {l.name} ({l.code})
+                      </option>
+                    ))
+                  : [
+                      <option key="1" value="Kho Tổng Gia Phúc TP.HCM">Kho Tổng Gia Phúc TP.HCM</option>,
+                      <option key="2" value="Kho Chi Nhánh Hà Nội">Kho Chi Nhánh Hà Nội</option>,
+                      <option key="3" value="Kho Miền Trung Đà Nẵng">Kho Miền Trung Đà Nẵng</option>,
+                    ])}
               </select>
             </div>
             <div className="grid grid-cols-2 gap-2">

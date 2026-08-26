@@ -91,12 +91,12 @@ export class AssetsService {
 
     if (mDate) {
       await prisma.$executeRaw`
-        INSERT INTO [EnterpriseAsset] (id, code, name, category, purchaseDate, originalValue, depreciationMonths, remainingValue, assignedTo, status, lastMaintenanceDate)
+        INSERT INTO [TaiSanDoanhNghiep] (id, code, name, category, purchaseDate, originalValue, depreciationMonths, remainingValue, assignedTo, status, lastMaintenanceDate)
         VALUES (${id}, ${input.code}, ${input.name}, ${input.category}, ${pDate}, ${origVal}, ${depMonths}, ${remVal}, ${input.assignedTo}, ${status}, ${mDate})
       `;
     } else {
       await prisma.$executeRaw`
-        INSERT INTO [EnterpriseAsset] (id, code, name, category, purchaseDate, originalValue, depreciationMonths, remainingValue, assignedTo, status)
+        INSERT INTO [TaiSanDoanhNghiep] (id, code, name, category, purchaseDate, originalValue, depreciationMonths, remainingValue, assignedTo, status)
         VALUES (${id}, ${input.code}, ${input.name}, ${input.category}, ${pDate}, ${origVal}, ${depMonths}, ${remVal}, ${input.assignedTo}, ${status})
       `;
     }

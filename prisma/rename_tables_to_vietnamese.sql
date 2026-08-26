@@ -4,7 +4,7 @@
 -- Sử dụng thủ tục hệ thống sp_rename để bảo toàn 100% dữ liệu, khóa chính, khóa ngoại
 -- ============================================================================
 
-USE [GPERP_Enterprise]; -- Thay đổi tên Database nếu cần
+USE [POS_WEB]; -- Thay đổi tên Database nếu cần
 GO
 
 PRINT 'Bắt đầu quá trình đổi tên bảng sang Tiếng Việt không dấu...';

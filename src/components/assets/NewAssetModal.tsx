@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { EnterpriseAsset } from '../../types';
 import { formatVND } from '../../utils/vietqr';
+import { useMasterData } from '../../core/contexts/MasterDataContext';
 
 interface NewAssetModalProps {
   assetToEdit?: EnterpriseAsset | null;
@@ -32,6 +33,7 @@ export const NewAssetModal: React.FC<NewAssetModalProps> = ({
   onClose,
   onSave,
 }) => {
+  const { departments: masterDepartments } = useMasterData();
   const [code, setCode] = useState(
     assetToEdit?.code || `TS-${Date.now().toString().slice(-4)}`
   );
@@ -228,11 +230,17 @@ export const NewAssetModal: React.FC<NewAssetModalProps> = ({
               <label className="block text-xs text-slate-400 mb-1 font-medium">Bàn Giao / Chịu Trách Nhiệm</label>
               <input
                 type="text"
+                list="assets-departments-datalist"
                 value={assignedTo}
                 onChange={(e) => setAssignedTo(e.target.value)}
                 placeholder="VD: Quầy Thu Ngân 01 / Anh Minh"
                 className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
               />
+              <datalist id="assets-departments-datalist">
+                {(masterDepartments || []).map((d) => (
+                  <option key={d.id} value={`${d.name} (${d.code})`} />
+                ))}
+              </datalist>
             </div>
 
             <div>

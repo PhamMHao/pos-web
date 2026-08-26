@@ -85,13 +85,6 @@ export class CustomersService {
   static async getCustomerById(id: string) {
     const items = await prisma.customer.findMany({
       where: { id },
-      include: {
-        orders: {
-          include: {
-            items: true,
-          },
-        },
-      },
     });
 
     const customer = items[0];
@@ -104,24 +97,6 @@ export class CustomersService {
       points: Number(customer.points),
       totalSpent: Number(customer.totalSpent),
       debt: Number(customer.debt),
-      orders: (customer.orders || []).slice(0, 10).map((o) => ({
-        ...o,
-        subtotal: Number(o.subtotal),
-        discountAmount: Number(o.discountAmount),
-        taxAmount: Number(o.taxAmount),
-        total: Number(o.total),
-        totalCost: Number(o.totalCost),
-        profit: Number(o.profit),
-        paidAmount: Number(o.paidAmount),
-        changeAmount: Number(o.changeAmount),
-        items: (o.items || []).map((i) => ({
-          ...i,
-          quantity: Number(i.quantity),
-          unitPrice: Number(i.unitPrice),
-          costPrice: Number(i.costPrice),
-          total: Number(i.total),
-        })),
-      })),
     };
   }
 
@@ -149,15 +124,30 @@ export class CustomersService {
       where: { phone: input.phone },
     });
 
+    const dt = new Date();
     if (existing.length > 0) {
-      throw new ConflictError(`Số điện thoại "${input.phone}" đã được đăng ký bởi khách hàng: ${existing[0].name}`);
+      const existingId = existing[0].id;
+      await prisma.customer.updateMany({
+        where: { id: existingId },
+        data: {
+          name: input.name,
+          email: input.email || null,
+          address: input.address || null,
+          tier: input.tier || "Đồng",
+          points: input.points !== undefined ? new Prisma.Decimal(input.points) : undefined,
+          totalSpent: input.totalSpent !== undefined ? new Prisma.Decimal(input.totalSpent) : undefined,
+          debt: input.debt !== undefined ? new Prisma.Decimal(input.debt) : undefined,
+          note: input.note || null,
+          updatedAt: dt,
+        },
+      });
+      return this.getCustomerById(existingId);
     }
 
     const id = (input as any).id || `cust-${Date.now()}`;
-    const dt = new Date();
 
     await prisma.$executeRaw`
-      INSERT INTO [Customer] (id, name, phone, email, address, tier, points, totalSpent, totalOrders, debt, note, createdAt, updatedAt)
+      INSERT INTO [KhachHang] (id, name, phone, email, address, tier, points, totalSpent, totalOrders, debt, note, createdAt, updatedAt)
       VALUES (${id}, ${input.name}, ${input.phone}, ${input.email || null}, ${input.address || null}, ${input.tier || "Đồng"}, ${input.points || 0}, ${input.totalSpent || 0}, ${input.totalOrders || 0}, ${input.debt || 0}, ${input.note || null}, ${dt}, ${dt})
     `;
 
@@ -179,16 +169,18 @@ export class CustomersService {
       }
     }
 
-    const updateData: any = { ...input };
-    if (input.points !== undefined) {
-      updateData.points = new Prisma.Decimal(input.points);
-    }
-    if (input.totalSpent !== undefined) {
-      updateData.totalSpent = new Prisma.Decimal(input.totalSpent);
-    }
-    if (input.debt !== undefined) {
-      updateData.debt = new Prisma.Decimal(input.debt);
-    }
+    const updateData: any = {};
+    if (input.name !== undefined) updateData.name = input.name;
+    if (input.phone !== undefined) updateData.phone = input.phone;
+    if (input.email !== undefined) updateData.email = input.email || null;
+    if (input.address !== undefined) updateData.address = input.address || null;
+    if (input.tier !== undefined) updateData.tier = input.tier;
+    if (input.points !== undefined) updateData.points = new Prisma.Decimal(input.points);
+    if (input.totalSpent !== undefined) updateData.totalSpent = new Prisma.Decimal(input.totalSpent);
+    if (input.totalOrders !== undefined) updateData.totalOrders = input.totalOrders;
+    if (input.debt !== undefined) updateData.debt = new Prisma.Decimal(input.debt);
+    if (input.note !== undefined) updateData.note = input.note || null;
+    updateData.updatedAt = new Date();
 
     await prisma.customer.updateMany({
       where: { id },

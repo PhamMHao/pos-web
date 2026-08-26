@@ -20,6 +20,7 @@ import {
 import { Product, InventoryLog, StoreSettings, Employee } from '../../types';
 import { formatVND } from '../../utils/vietqr';
 import { QuickAddMasterDataModal, MasterDataType } from './QuickAddMasterDataModal';
+import { useMasterData } from '../../core/contexts/MasterDataContext';
 
 interface QuickStockModalProps {
   isOpen: boolean;
@@ -44,6 +45,7 @@ export const QuickStockModal: React.FC<QuickStockModalProps> = ({
   onSavePartner,
   onSaveEmployee,
 }) => {
+  const { suppliers: masterSuppliers, warehouseLocations: masterLocations } = useMasterData();
   const [stockType, setStockType] = useState<'import' | 'export' | 'audit_adjustment'>(initialType);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -493,11 +495,17 @@ export const QuickStockModal: React.FC<QuickStockModalProps> = ({
               </div>
               <input
                 type="text"
+                list="suppliers-quickstock-datalist"
                 value={partnerName}
                 onChange={(e) => setPartnerName(e.target.value)}
                 placeholder="VD: Tổng kho FPT Synnex, DGW..."
                 className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-500"
               />
+              <datalist id="suppliers-quickstock-datalist">
+                {(masterSuppliers || []).map((s) => (
+                  <option key={s.id} value={s.name} />
+                ))}
+              </datalist>
             </div>
 
             <div>
@@ -535,13 +543,21 @@ export const QuickStockModal: React.FC<QuickStockModalProps> = ({
               </div>
               <input
                 type="text"
+                list="locations-quickstock-datalist"
                 value={selectedLocation}
                 onChange={(e) => setSelectedLocation(e.target.value)}
                 placeholder="VD: Kệ A1 - Tầng 1, Tủ Kỹ Thuật..."
                 className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-500"
               />
+              <datalist id="locations-quickstock-datalist">
+                {(masterLocations || []).map((l) => (
+                  <option key={l.id} value={`${l.name} (${l.code})`} />
+                ))}
+              </datalist>
               <div className="flex flex-wrap items-center gap-1 mt-1">
-                {['Kệ A1 - T1', 'Kệ A2 - T2', 'Kệ B1 - T1', 'Tủ C1', 'Kệ Trưng Bày'].map((loc) => (
+                {((masterLocations && masterLocations.length > 0
+                  ? masterLocations.slice(0, 6).map((l) => l.code || l.name)
+                  : ['Kệ A1 - T1', 'Kệ A2 - T2', 'Kệ B1 - T1', 'Tủ C1', 'Kệ Trưng Bày'])).map((loc) => (
                   <button
                     key={loc}
                     type="button"

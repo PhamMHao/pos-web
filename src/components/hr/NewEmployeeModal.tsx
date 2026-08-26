@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Employee } from '../../types';
 import { formatVND } from '../../utils/vietqr';
+import { useMasterData } from '../../core/contexts/MasterDataContext';
 
 interface NewEmployeeModalProps {
   employeeToEdit?: Employee | null;
@@ -42,6 +43,13 @@ export const NewEmployeeModal: React.FC<NewEmployeeModalProps> = ({
   onClose,
   onSave,
 }) => {
+  const { jobPositions: masterJobPositions, departments: masterDepartments } = useMasterData();
+
+  const availableRoles = React.useMemo(() => {
+    const fromMaster = (masterJobPositions || []).filter((p) => p.status === 'active').map((p) => p.title);
+    return Array.from(new Set([...fromMaster, ...ROLES]));
+  }, [masterJobPositions]);
+
   const [code, setCode] = useState(
     employeeToEdit?.code || `NV-${Date.now().toString().slice(-3)}`
   );
@@ -190,10 +198,17 @@ export const NewEmployeeModal: React.FC<NewEmployeeModalProps> = ({
               <label className="block text-xs text-slate-400 mb-1 font-medium">Vị Trí / Chức Vụ</label>
               <select
                 value={role}
-                onChange={(e) => setRole(e.target.value as Employee['role'])}
+                onChange={(e) => {
+                  const newRole = e.target.value as Employee['role'];
+                  setRole(newRole);
+                  const matched = (masterJobPositions || []).find((p) => p.title === newRole);
+                  if (matched && matched.baseSalary && !employeeToEdit) {
+                    setBaseSalary(matched.baseSalary);
+                  }
+                }}
                 className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
               >
-                {ROLES.map((r) => (
+                {availableRoles.map((r) => (
                   <option key={r} value={r}>
                     {r}
                   </option>

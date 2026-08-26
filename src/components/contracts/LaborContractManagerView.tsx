@@ -24,6 +24,7 @@ import { LaborContract, Employee, StoreSettings } from '../../types';
 import { LaborContractPrintModal } from './LaborContractPrintModal';
 import { numberToVietnameseWords } from '../../utils/numberToWords';
 import { hrApi } from '../../features/hr/api/hrApi';
+import { useMasterData } from '../../core/contexts/MasterDataContext';
 
 interface LaborContractManagerViewProps {
   laborContracts: LaborContract[];
@@ -38,6 +39,7 @@ export const LaborContractManagerView: React.FC<LaborContractManagerViewProps> =
   employees,
   settings,
 }) => {
+  const { departments: masterDepartments, jobPositions: masterJobPositions } = useMasterData();
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [selectedContract, setSelectedContract] = useState<LaborContract | null>(null);
@@ -628,22 +630,34 @@ export const LaborContractManagerView: React.FC<LaborContractManagerViewProps> =
                     <label className="block text-slate-600 font-medium mb-1">Chức Danh Công Việc</label>
                     <input
                       type="text"
+                      list="contract-jobpositions-datalist"
                       placeholder="VD: Thu Ngân & Chăm Sóc Khách Hàng"
                       value={empRole}
                       onChange={(e) => setEmpRole(e.target.value)}
                       className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs"
                     />
+                    <datalist id="contract-jobpositions-datalist">
+                      {(masterJobPositions || []).map((p) => (
+                        <option key={p.id} value={p.title} />
+                      ))}
+                    </datalist>
                   </div>
 
                   <div>
                     <label className="block text-slate-600 font-medium mb-1">Phòng Ban</label>
                     <input
                       type="text"
+                      list="contract-departments-datalist"
                       placeholder="VD: Bộ Phận Bán Lẻ & POS"
                       value={empDept}
                       onChange={(e) => setEmpDept(e.target.value)}
                       className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs"
                     />
+                    <datalist id="contract-departments-datalist">
+                      {(masterDepartments || []).map((d) => (
+                        <option key={d.id} value={d.name} />
+                      ))}
+                    </datalist>
                   </div>
                 </div>
               </div>

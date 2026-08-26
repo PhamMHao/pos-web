@@ -18,7 +18,7 @@ export class PosService {
 
     // 1. Create Order
     await prisma.$executeRaw`
-      INSERT INTO [Order] (id, code, channel, status, customerId, customerName, customerPhone, customerAddress, customerRank, subtotal, discountAmount, discountCode, taxRate, taxAmount, shippingFee, shippingPartner, trackingCode, total, totalCost, profit, paymentMethod, paymentStatus, paidAmount, changeAmount, note, shiftId, createdAt, completedAt)
+      INSERT INTO [HoaDon] (id, code, channel, status, customerId, customerName, customerPhone, customerAddress, customerRank, subtotal, discountAmount, discountCode, taxRate, taxAmount, shippingFee, shippingPartner, trackingCode, total, totalCost, profit, paymentMethod, paymentStatus, paidAmount, changeAmount, note, shiftId, createdAt, completedAt)
       VALUES (${id}, ${code}, ${orderData.channel}, ${orderData.status}, ${orderData.customerId || null}, ${orderData.customerName || null}, ${orderData.customerPhone || null}, ${orderData.customerAddress || null}, ${orderData.customerRank || null}, ${orderData.subtotal}, ${orderData.discountAmount || 0}, ${orderData.discountCode || null}, ${orderData.taxRate || 0}, ${orderData.taxAmount || 0}, ${orderData.shippingFee || 0}, ${orderData.shippingPartner || null}, ${orderData.trackingCode || null}, ${orderData.total}, ${orderData.totalCost || 0}, ${orderData.profit || 0}, ${orderData.paymentMethod}, ${orderData.paymentStatus}, ${orderData.paidAmount || orderData.total}, ${orderData.changeAmount || 0}, ${orderData.note || null}, ${orderData.shiftId || null}, ${dt}, ${dt})
     `;
 
@@ -27,7 +27,7 @@ export class PosService {
       const item = items[idx];
       const itemId = `order-item-${Date.now()}-${idx}`;
       await prisma.$executeRaw`
-        INSERT INTO [OrderItem] (id, orderId, productId, productName, sku, unit, ratioToBase, quantity, unitPrice, costPrice, discountPercent, total)
+        INSERT INTO [ChiTietHoaDon] (id, orderId, productId, productName, sku, unit, ratioToBase, quantity, unitPrice, costPrice, discountPercent, total)
         VALUES (${itemId}, ${id}, ${item.productId}, ${item.productName}, ${item.sku}, ${item.unit}, ${item.ratioToBase}, ${item.quantity}, ${item.unitPrice}, ${item.costPrice}, ${item.discountPercent || 0}, ${item.total})
       `;
 
@@ -46,7 +46,7 @@ export class PosService {
 
         const logId = `inv-log-${Date.now()}-${idx}`;
         await prisma.$executeRaw`
-          INSERT INTO [InventoryLog] (id, productId, productName, sku, type, quantityChange, oldStock, newStock, reason, performedBy, [timestamp])
+          INSERT INTO [NhatKyKho] (id, productId, productName, sku, type, quantityChange, oldStock, newStock, reason, performedBy, [timestamp])
           VALUES (${logId}, ${item.productId}, ${item.productName}, ${item.sku}, 'sale_deduct', ${-deductQty}, ${oldStock}, ${newStock}, ${`Bán lẻ qua đơn hàng ${code} (${item.quantity} ${item.unit})`}, 'Thu ngân POS', ${dt})
         `;
       }
@@ -79,7 +79,7 @@ export class PosService {
         } else {
           const devId = `dev-pos-${Date.now()}-${idx}`;
           await prisma.$executeRaw`
-            INSERT INTO [SerialDeviceRecord] (id, serialNumber, productName, sku, soldOrderCode, soldDate, customerName, customerPhone, warrantyPeriodMonths, warrantyExpiryDate, warrantyStatus, totalRepairsCount, totalMaintenancesCount, notes)
+            INSERT INTO [SoSerialThietBi] (id, serialNumber, productName, sku, soldOrderCode, soldDate, customerName, customerPhone, warrantyPeriodMonths, warrantyExpiryDate, warrantyStatus, totalRepairsCount, totalMaintenancesCount, notes)
             VALUES (${devId}, ${cleanSerial}, ${item.productName}, ${item.sku}, ${code}, ${dt}, ${orderData.customerName || "Khách lẻ"}, ${orderData.customerPhone || null}, ${warrantyMonths}, ${expiryDate}, 'valid', 0, 0, ${`Tự động kích hoạt từ đơn hàng POS ${code}`})
           `;
         }
@@ -338,7 +338,7 @@ export class PosService {
 
           const logId = `inv-log-${Date.now()}-${item.id}`;
           await prisma.$executeRaw`
-            INSERT INTO [InventoryLog] (id, productId, productName, sku, type, quantityChange, oldStock, newStock, reason, performedBy, [timestamp])
+            INSERT INTO [NhatKyKho] (id, productId, productName, sku, type, quantityChange, oldStock, newStock, reason, performedBy, [timestamp])
             VALUES (${logId}, ${item.productId}, ${item.productName}, ${item.sku}, 'return_restock', ${restoreQty}, ${oldStock}, ${newStock}, ${`Hoàn trả tồn kho do đơn hàng ${existing.code} bị ${input.status === "cancelled" ? "hủy" : "trả hàng"}`}, 'Hệ thống POS', ${new Date()})
           `;
         }
@@ -350,7 +350,7 @@ export class PosService {
       data: {
         status: input.status,
         paymentStatus: input.paymentStatus || existing.paymentStatus,
-        note: input.note ? `${existing.note || ""}\n[Cập nhật]: ${input.note}` : existing.note,
+        note: input.note ? `${existing.note || ""}[QuyDoiDonViTinh][Cập nhật]: ${input.note}` : existing.note,
       },
     });
 
@@ -374,7 +374,7 @@ export class PosService {
     const dt = new Date();
 
     await prisma.$executeRaw`
-      INSERT INTO [CashShift] (id, shiftName, staffId, staffName, startTime, initialCash, cashSales, transferSales, cardSales, otherSales, totalSales, cashWithdrawals, expectedEndingCash, status, note)
+      INSERT INTO [CaBanHang] (id, shiftName, staffId, staffName, startTime, initialCash, cashSales, transferSales, cardSales, otherSales, totalSales, cashWithdrawals, expectedEndingCash, status, note)
       VALUES (${id}, ${input.shiftName}, ${input.staffId || null}, ${input.staffName}, ${dt}, ${input.initialCash}, 0, 0, 0, 0, 0, 0, ${input.initialCash}, 'open', ${input.note || null})
     `;
 
@@ -413,7 +413,7 @@ export class PosService {
       where: { id },
       data: {
         actualEndingCash: new Prisma.Decimal(input.actualEndingCash),
-        note: input.note ? `${shift.note || ""}\n[Kết ca]: ${input.note}` : shift.note,
+        note: input.note ? `${shift.note || ""}[QuyDoiDonViTinh][Kết ca]: ${input.note}` : shift.note,
         endTime: new Date(),
         status: "closed",
       },

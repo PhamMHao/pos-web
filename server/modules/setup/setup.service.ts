@@ -25,9 +25,9 @@ export function parseServerString(serverStr: string) {
     server = "localhost";
   }
 
-  // Handle instance name: e.g. "localhost\SQLEXPRESS" or ".\SQLEXPRESS"
-  if (server.includes("\\")) {
-    const parts = server.split("\\");
+  // Handle instance name: e.g. "localhost[ChiTietPhieuNhapKho]QLEXPRESS" or ".[ChiTietPhieuNhapKho]QLEXPRESS"
+  if (server.includes("[QuyDoiDonViTinh]")) {
+    const parts = server.split("[QuyDoiDonViTinh]");
     server = parts[0] === "." || parts[0] === "(local)" ? "localhost" : parts[0];
     instanceName = parts[1];
   } else if (server.includes(",")) {
@@ -76,7 +76,7 @@ export function buildPrismaUrl(params: DbConnectionParams) {
 async function testWindowsAuth(params: DbConnectionParams) {
   const { server, instanceName, port } = parseServerString(params.server);
   const serverTarget = instanceName
-    ? `${server}\\${instanceName}`
+    ? `${server}[QuyDoiDonViTinh]${instanceName}`
     : port
     ? `${server},${port}`
     : server === "localhost"
@@ -87,7 +87,7 @@ async function testWindowsAuth(params: DbConnectionParams) {
 
   try {
     const { stdout } = await execAsync(cmd);
-    const lines = stdout.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const lines = stdout.split(/[QuyDoiDonViTinh]?[QuyDoiDonViTinh]/).map((l) => l.trim()).filter(Boolean);
     let version = "Microsoft SQL Server (Windows Authentication)";
     const databases: string[] = [];
 
@@ -109,7 +109,7 @@ async function testWindowsAuth(params: DbConnectionParams) {
         ) {
           continue;
         }
-        const dbName = line.split(/\s+/)[0];
+        const dbName = line.split(/[QuyDoiDonViTinh]+/)[0];
         if (dbName && !databases.includes(dbName)) {
           databases.push(dbName);
         }
@@ -209,7 +209,7 @@ export async function saveAndInitializeDatabase(params: DbConnectionParams) {
   if (authType === "windows" || !params.username) {
     // Create DB via sqlcmd with Windows Auth
     const serverTarget = instanceName
-      ? `${server}\\${instanceName}`
+      ? `${server}[QuyDoiDonViTinh]${instanceName}`
       : port
       ? `${server},${port}`
       : server === "localhost"
@@ -273,7 +273,7 @@ export async function saveAndInitializeDatabase(params: DbConnectionParams) {
   if (dbUrlRegex.test(envContent)) {
     envContent = envContent.replace(dbUrlRegex, `DATABASE_URL="${prismaUrl}"`);
   } else {
-    envContent += `\nDATABASE_URL="${prismaUrl}"\n`;
+    envContent += `[QuyDoiDonViTinh]DATABASE_URL="${prismaUrl}"[QuyDoiDonViTinh]`;
   }
 
   fs.writeFileSync(envPath, envContent, "utf-8");
@@ -304,7 +304,7 @@ export async function getDbStatus() {
   const envPath = path.join(process.cwd(), ".env");
   if (!currentUrl && fs.existsSync(envPath)) {
     const content = fs.readFileSync(envPath, "utf-8");
-    const match = content.match(/DATABASE_URL=["']?([^"'\r\n]+)["']?/);
+    const match = content.match(/DATABASE_URL=["']?([^"'[QuyDoiDonViTinh][QuyDoiDonViTinh]]+)["']?/);
     if (match) {
       currentUrl = match[1];
       process.env.DATABASE_URL = currentUrl;

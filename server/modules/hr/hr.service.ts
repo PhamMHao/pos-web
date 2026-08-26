@@ -94,7 +94,7 @@ export class HrService {
     const jDate = input.joinedDate ? new Date(input.joinedDate) : new Date();
 
     await prisma.$executeRaw`
-      INSERT INTO [Employee] (id, code, name, role, phone, email, baseSalary, salesKpiTarget, currentSales, commissionRate, status, avatar, joinedDate, shiftSchedule)
+      INSERT INTO [NhanVien] (id, code, name, role, phone, email, baseSalary, salesKpiTarget, currentSales, commissionRate, status, avatar, joinedDate, shiftSchedule)
       VALUES (${id}, ${input.code}, ${input.name}, ${input.role}, ${input.phone}, ${input.email}, ${input.baseSalary}, ${input.salesKpiTarget || 0}, ${input.currentSales || 0}, ${input.commissionRate || 0}, ${input.status || "active"}, ${input.avatar || null}, ${jDate}, ${input.shiftSchedule || null})
     `;
 
@@ -354,7 +354,7 @@ export class HrService {
     const signDt = input.signDate ? new Date(input.signDate) : new Date();
 
     await prisma.$executeRaw`
-      INSERT INTO [LaborContract] (id, contractNumber, employeeId, employeeCode, employeeName, employeeRole, contractType, startDate, endDate, signDate, status, employerData, employeeInfo, termsData, signaturesData, notes)
+      INSERT INTO [HopDongLaoDong] (id, contractNumber, employeeId, employeeCode, employeeName, employeeRole, contractType, startDate, endDate, signDate, status, employerData, employeeInfo, termsData, signaturesData, notes)
       VALUES (${id}, ${contractNumber}, ${input.employeeId}, ${input.employeeCode}, ${input.employeeName}, ${input.employeeRole}, ${input.contractType || "Xác định thời hạn (12 tháng)"}, ${sDate}, ${eDate}, ${signDt}, ${input.status || "active"}, ${employerDataStr}, ${employeeInfoStr}, ${termsDataStr}, ${signaturesDataStr}, ${input.notes || null})
     `;
 

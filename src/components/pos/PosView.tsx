@@ -48,6 +48,7 @@ import {
   SerialDeviceRecord,
   LoadedQuoteData,
 } from '../../types';
+import { useMasterData } from '../../core/contexts/MasterDataContext';
 import { formatVND } from '../../utils/vietqr';
 import { numberToVietnameseWords } from '../../utils/numberToWords';
 import { CheckoutModal, EInvoiceRequestData } from './CheckoutModal';
@@ -80,19 +81,6 @@ interface PosViewProps {
   onSaveSerialRecords?: (records: SerialDeviceRecord[] | ((prev: SerialDeviceRecord[]) => SerialDeviceRecord[])) => void;
 }
 
-const CATEGORIES: ('Tất cả' | ProductCategory)[] = [
-  'Tất cả',
-  'Gạo & Nông Sản',
-  'Sữa & Sản phẩm từ Sữa',
-  'Mì & Thực phẩm ăn liền',
-  'Gia vị & Dầu ăn',
-  'Nước giải khát & Bia',
-  'Điện tử & Cáp điện',
-  'Dược phẩm & Y tế',
-  'Gia dụng & Đời sống',
-  'Thời trang & Phụ kiện',
-];
-
 export const PosView: React.FC<PosViewProps> = ({
   products = [],
   customers = [],
@@ -111,8 +99,32 @@ export const PosView: React.FC<PosViewProps> = ({
   serialRecords = [],
   onSaveSerialRecords,
 }) => {
+  const {
+    productCategories: masterCategories,
+    customerTiers: masterCustomerTiers,
+    customerGroups: masterCustomerGroups,
+    customers: masterCustomers,
+    quickAddMasterItem,
+  } = useMasterData();
+
+  const effectiveCustomers = useMemo(() => {
+    const map = new Map<string, Customer>();
+    (masterCustomers || []).forEach((c) => map.set(c.id, c));
+    (customers || []).forEach((c) => {
+      if (!map.has(c.id)) map.set(c.id, c);
+    });
+    return Array.from(map.values());
+  }, [masterCustomers, customers]);
+
+  const availableCategories = useMemo(() => {
+    const master = (masterCategories || []).filter((c) => c.status === 'active').map((c) => c.name);
+    const prodCats = Array.from(new Set(products.map((p) => p.category).filter(Boolean)));
+    const combined = Array.from(new Set([...master, ...prodCats]));
+    return ['Tất cả', ...combined];
+  }, [masterCategories, products]);
+
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<'Tất cả' | ProductCategory>('Tất cả');
+  const [selectedCategory, setSelectedCategory] = useState<string>('Tất cả');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerDeliveryAddress, setCustomerDeliveryAddress] = useState('');
@@ -159,6 +171,7 @@ export const PosView: React.FC<PosViewProps> = ({
   const [newCustPhone, setNewCustPhone] = useState('');
   const [newCustAddress, setNewCustAddress] = useState('');
   const [newCustDebt, setNewCustDebt] = useState<number>(0);
+  const [newCustTier, setNewCustTier] = useState<string>('Đồng');
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -424,13 +437,25 @@ export const PosView: React.FC<PosViewProps> = ({
         amt = appliedPromo.discountValue;
       }
     }
-    // Loyalty rank discount
+    // Loyalty rank discount from Master Data
     if (selectedCustomer) {
-      if (selectedCustomer.tier === 'Kim Cương') amt += subtotal * 0.05; // 5% VIP
-      else if (selectedCustomer.tier === 'Vàng') amt += subtotal * 0.03; // 3% Gold
+      const matchedTier = (masterCustomerTiers || []).find(
+        (t) =>
+          t.name.toLowerCase() === selectedCustomer.tier?.toLowerCase() ||
+          t.code.toLowerCase() === selectedCustomer.tier?.toLowerCase()
+      );
+      if (matchedTier && typeof matchedTier.discountPercent === 'number' && matchedTier.discountPercent > 0) {
+        amt += (subtotal * matchedTier.discountPercent) / 100;
+      } else if (selectedCustomer.tier === 'Kim Cương') {
+        amt += subtotal * 0.05;
+      } else if (selectedCustomer.tier === 'Vàng') {
+        amt += subtotal * 0.03;
+      } else if (selectedCustomer.tier === 'Bạc') {
+        amt += subtotal * 0.02;
+      }
     }
     return Math.min(subtotal, Math.round(amt));
-  }, [subtotal, appliedPromo, selectedCustomer]);
+  }, [subtotal, appliedPromo, selectedCustomer, masterCustomerTiers]);
 
   const taxRate = applyTax ? settings.vatDefault : 0;
   const taxableAmount = Math.max(0, subtotal - discountAmount);
@@ -447,7 +472,7 @@ export const PosView: React.FC<PosViewProps> = ({
       name: newCustName,
       phone: newCustPhone,
       address: newCustAddress || 'TP. Hồ Chí Minh',
-      tier: 'Đồng',
+      tier: newCustTier || 'Đồng',
       points: 10,
       totalSpent: 0,
       totalOrders: 0,
@@ -456,12 +481,20 @@ export const PosView: React.FC<PosViewProps> = ({
     };
 
     onAddCustomer(newCust);
+    try {
+      if (quickAddMasterItem) {
+        quickAddMasterItem('customers', newCust);
+      }
+    } catch (err) {
+      console.warn('Could not sync customer to master data', err);
+    }
     setSelectedCustomer(newCust);
     setCustomerDeliveryAddress(newCust.address || '');
     setNewCustName('');
     setNewCustPhone('');
     setNewCustAddress('');
     setNewCustDebt(0);
+    setNewCustTier('Đồng');
     setShowQuickAddCust(false);
   };
 
@@ -754,7 +787,7 @@ export const PosView: React.FC<PosViewProps> = ({
 
         {/* Categories Bar */}
         <div className="px-3 md:px-4 py-2 bg-slate-900/60 border-b border-slate-800/60 flex items-center gap-1.5 overflow-x-auto pos-toolbar-scroll shrink-0">
-          {CATEGORIES.map((cat) => (
+          {availableCategories.map((cat) => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
@@ -946,15 +979,31 @@ export const PosView: React.FC<PosViewProps> = ({
                 onChange={(e) => setNewCustAddress(e.target.value)}
                 className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
               />
-              <div className="flex items-center space-x-1.5">
-                <label className="text-[10px] text-slate-400 shrink-0">Công nợ đầu kì (nếu có):</label>
-                <input
-                  type="number"
-                  value={newCustDebt || ''}
-                  onChange={(e) => setNewCustDebt(Number(e.target.value))}
-                  placeholder="0 đ"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white font-mono placeholder-slate-500 focus:outline-none focus:border-emerald-500"
-                />
+              <div className="grid grid-cols-2 gap-1.5">
+                <div className="flex items-center space-x-1">
+                  <label className="text-[10px] text-slate-400 shrink-0">Hạng thẻ:</label>
+                  <select
+                    value={newCustTier}
+                    onChange={(e) => setNewCustTier(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  >
+                    {(masterCustomerTiers && masterCustomerTiers.length > 0 ? masterCustomerTiers : [{ name: 'Đồng' }, { name: 'Bạc' }, { name: 'Vàng' }, { name: 'Kim Cương' }]).map((t) => (
+                      <option key={t.name} value={t.name}>
+                        {t.name} {t.discountPercent ? `(-${t.discountPercent}%)` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <label className="text-[10px] text-slate-400 shrink-0">Nợ đầu kì:</label>
+                  <input
+                    type="number"
+                    value={newCustDebt || ''}
+                    onChange={(e) => setNewCustDebt(Number(e.target.value))}
+                    placeholder="0 đ"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white font-mono placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
               </div>
               <div className="flex justify-end space-x-2 pt-1">
                 <button
@@ -978,7 +1027,7 @@ export const PosView: React.FC<PosViewProps> = ({
               <select
                 value={selectedCustomer?.id || ''}
                 onChange={(e) => {
-                  const cust = customers.find((c) => c.id === e.target.value);
+                  const cust = effectiveCustomers.find((c) => c.id === e.target.value);
                   setSelectedCustomer(cust || null);
                   if (cust && cust.address) {
                     setCustomerDeliveryAddress(cust.address);
@@ -989,7 +1038,7 @@ export const PosView: React.FC<PosViewProps> = ({
                 className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:border-emerald-500 cursor-pointer appearance-none pr-8"
               >
                 <option value="">-- Khách lẻ vãng lai (Không lưu tên) --</option>
-                {customers.map((c) => (
+                {effectiveCustomers.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name} - {c.phone} ({c.tier}) {c.debt > 0 ? `[Nợ: ${formatVND(c.debt)}]` : ''}
                   </option>

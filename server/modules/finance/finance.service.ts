@@ -15,7 +15,7 @@ export class FinanceService {
     const dt = input.date ? new Date(input.date) : new Date();
 
     await prisma.$executeRaw`
-      INSERT INTO [AccountingRecord] (id, code, type, category, amount, date, party, paymentMethod, status, note, receiptNumber)
+      INSERT INTO [SoThuChiKeToan] (id, code, type, category, amount, date, party, paymentMethod, status, note, receiptNumber)
       VALUES (${id}, ${code}, ${input.type}, ${input.category}, ${input.amount}, ${dt}, ${input.party}, ${input.paymentMethod || "cash"}, ${input.status || "completed"}, ${input.note || null}, ${input.receiptNumber || null})
     `;
 

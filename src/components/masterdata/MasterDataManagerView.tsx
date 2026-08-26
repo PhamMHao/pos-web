@@ -613,9 +613,9 @@ export const MasterDataManagerView: React.FC = () => {
                                     >
                                       {cust.tier}
                                     </span>
-                                    {cust.points > 0 && (
+                                    {(Number(cust.points) || 0) > 0 && (
                                       <span className="text-[10px] text-amber-400 font-mono font-bold">
-                                        ★ {cust.points.toLocaleString('vi-VN')}
+                                        ★ {(Number(cust.points) || 0).toLocaleString('vi-VN')}
                                       </span>
                                     )}
                                   </div>
@@ -628,12 +628,12 @@ export const MasterDataManagerView: React.FC = () => {
                                 </div>
                               </td>
                               <td className="py-3 px-4 text-right font-bold text-emerald-400">
-                                {cust.totalSpent.toLocaleString('vi-VN')} đ
+                                {(Number(cust.totalSpent) || 0).toLocaleString('vi-VN')} đ
                               </td>
                               <td className="py-3 px-4 text-right">
-                                {cust.debt > 0 ? (
+                                {(Number(cust.debt) || 0) > 0 ? (
                                   <span className="font-bold text-rose-400">
-                                    {cust.debt.toLocaleString('vi-VN')} đ
+                                    {(Number(cust.debt) || 0).toLocaleString('vi-VN')} đ
                                   </span>
                                 ) : (
                                   <span className="text-slate-500">0 đ</span>
@@ -730,11 +730,15 @@ export const MasterDataManagerView: React.FC = () => {
                     <div className="space-y-1.5 text-xs text-slate-300 pt-2 border-t border-slate-800/80">
                       <div className="flex justify-between">
                         <span className="text-slate-400">Điểm tích lũy tối thiểu:</span>
-                        <span className="font-mono font-bold text-amber-400">★ {t.minPoints.toLocaleString('vi-VN')} pts</span>
+                        <span className="font-mono font-bold text-amber-400">
+                          ★ {(t.minPoints ?? Math.floor(((t as any).minSpend || t.minSpent || 0) / 100000)).toLocaleString('vi-VN')} pts
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-slate-400">Chi tiêu tích lũy:</span>
-                        <span className="font-bold text-emerald-400">{t.minSpent.toLocaleString('vi-VN')} đ</span>
+                        <span className="font-bold text-emerald-400">
+                          {(Number((t as any).minSpend ?? t.minSpent ?? 0)).toLocaleString('vi-VN')} đ
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-slate-400">Khách hàng thuộc hạng:</span>
@@ -797,15 +801,19 @@ export const MasterDataManagerView: React.FC = () => {
                     <div className="space-y-1.5 text-xs text-slate-300 pt-2 border-t border-slate-800/80">
                       <div className="flex justify-between">
                         <span className="text-slate-400">Chiết khấu mặc định:</span>
-                        <span className="font-bold text-emerald-400">+{grp.discountPercent}%</span>
+                        <span className="font-bold text-emerald-400">+{grp.discountPercent || 0}%</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-slate-400">Hạn mức nợ tối đa:</span>
-                        <span className="font-bold text-amber-400">{grp.defaultDebtLimit.toLocaleString('vi-VN')} đ</span>
+                        <span className="font-bold text-amber-400">
+                          {(Number((grp as any).defaultDebtLimit ?? (grp as any).creditLimit ?? 0)).toLocaleString('vi-VN')} đ
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-slate-400">Thời hạn thanh toán:</span>
-                        <span className="font-bold text-cyan-400">{grp.paymentTermsDays} ngày</span>
+                        <span className="font-bold text-cyan-400">
+                          {(grp as any).paymentTermsDays ? `${(grp as any).paymentTermsDays} ngày` : ((grp as any).paymentTerms || 'Thanh toán ngay')}
+                        </span>
                       </div>
                     </div>
 
@@ -1374,14 +1382,14 @@ export const MasterDataManagerView: React.FC = () => {
                       <td className="py-3 px-4 font-bold text-white">{pos.title}</td>
                       <td className="py-3 px-4 text-slate-300">{pos.departmentName}</td>
                       <td className="py-3 px-4 text-right font-bold text-emerald-400">
-                        {pos.baseSalary.toLocaleString('vi-VN')} đ
+                        {(Number(pos.baseSalary) || 0).toLocaleString('vi-VN')} đ
                       </td>
                       <td className="py-3 px-4 text-right text-amber-400 font-medium">
-                        +{pos.responsibilityAllowance.toLocaleString('vi-VN')} đ
+                        +{(Number(pos.responsibilityAllowance) || 0).toLocaleString('vi-VN')} đ
                       </td>
                       <td className="py-3 px-4">
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-blue-300 border border-blue-500/30 uppercase">
-                          {pos.linkedRole}
+                          {pos.linkedRole || 'Nhân Viên'}
                         </span>
                       </td>
                       <td className="py-3 px-4 text-right space-x-1">

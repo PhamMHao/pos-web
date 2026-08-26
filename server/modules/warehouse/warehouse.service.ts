@@ -18,7 +18,7 @@ export class WarehouseService {
     const dt = receiptData.date ? new Date(receiptData.date) : new Date();
 
     await prisma.$executeRaw`
-      INSERT INTO [StockGoodsReceipt] (id, code, date, inboundInvoiceId, inboundInvoiceCode, supplierName, supplierTaxCode, warehouseName, creatorName, receivedBy, totalItemsCount, totalQuantity, totalCostAmount, totalTaxAmount, grandTotal, paymentStatus, notes)
+      INSERT INTO [PhieuNhapKho] (id, code, date, inboundInvoiceId, inboundInvoiceCode, supplierName, supplierTaxCode, warehouseName, creatorName, receivedBy, totalItemsCount, totalQuantity, totalCostAmount, totalTaxAmount, grandTotal, paymentStatus, notes)
       VALUES (${id}, ${code}, ${dt}, ${receiptData.inboundInvoiceId || null}, ${receiptData.inboundInvoiceCode || null}, ${receiptData.supplierName}, ${receiptData.supplierTaxCode || null}, ${receiptData.warehouseName || "Kho Chính"}, ${receiptData.creatorName}, ${receiptData.receivedBy}, ${receiptData.totalItemsCount}, ${receiptData.totalQuantity}, ${receiptData.totalCostAmount}, ${receiptData.totalTaxAmount}, ${receiptData.grandTotal}, ${receiptData.paymentStatus}, ${receiptData.notes || null})
     `;
 
@@ -26,7 +26,7 @@ export class WarehouseService {
       const item = items[idx];
       const itemId = `receipt-item-${Date.now()}-${idx}`;
       await prisma.$executeRaw`
-        INSERT INTO [StockGoodsReceiptItem] (id, receiptId, productId, productName, sku, unit, quantity, oldStock, newStock, oldCostPrice, newCostPrice, unitCost, taxRate, totalAmount, storageLocation, warehouse, category, notes)
+        INSERT INTO [ChiTietPhieuNhapKho] (id, receiptId, productId, productName, sku, unit, quantity, oldStock, newStock, oldCostPrice, newCostPrice, unitCost, taxRate, totalAmount, storageLocation, warehouse, category, notes)
         VALUES (${itemId}, ${id}, ${item.productId}, ${item.productName}, ${item.sku}, ${item.unit}, ${item.quantity}, ${item.oldStock}, ${item.newStock}, ${item.oldCostPrice}, ${item.newCostPrice}, ${item.unitCost}, ${item.taxRate}, ${item.totalAmount}, ${item.storageLocation || null}, ${item.warehouse || null}, ${item.category || null}, ${item.notes || null})
       `;
 
@@ -49,7 +49,7 @@ export class WarehouseService {
 
         const logId = `inv-log-${Date.now()}-${idx}`;
         await prisma.$executeRaw`
-          INSERT INTO [InventoryLog] (id, productId, productName, sku, type, quantityChange, oldStock, newStock, unitPrice, reason, performedBy, [timestamp])
+          INSERT INTO [NhatKyKho] (id, productId, productName, sku, type, quantityChange, oldStock, newStock, unitPrice, reason, performedBy, [timestamp])
           VALUES (${logId}, ${item.productId}, ${item.productName}, ${item.sku}, 'import', ${addQty}, ${oldStock}, ${newStock}, ${item.unitCost}, ${`Nhập kho từ NCC ${receiptData.supplierName} theo phiếu ${code}`}, ${receiptData.receivedBy || "Thủ kho"}, ${new Date()})
         `;
       }
@@ -207,7 +207,7 @@ export class WarehouseService {
     const dt = new Date();
 
     await prisma.$executeRaw`
-      INSERT INTO [InventoryLog] (id, productId, productName, sku, type, quantityChange, oldStock, newStock, unitPrice, reason, performedBy, [timestamp])
+      INSERT INTO [NhatKyKho] (id, productId, productName, sku, type, quantityChange, oldStock, newStock, unitPrice, reason, performedBy, [timestamp])
       VALUES (${logId}, ${input.productId}, ${input.productName}, ${input.sku}, ${input.type}, ${input.quantityChange}, ${input.oldStock}, ${input.newStock}, ${input.unitPrice || null}, ${input.reason}, ${input.performedBy || "Thủ kho"}, ${dt})
     `;
 

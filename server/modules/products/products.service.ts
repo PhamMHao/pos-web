@@ -183,7 +183,7 @@ export class ProductsService {
     const dt = new Date();
 
     await prisma.$executeRaw`
-      INSERT INTO [Product] (id, sku, barcode, name, category, unit, costPrice, sellingPrice, stock, minStock, image, warehouse, storageLocation, description, isFeatured, weightOrVolume, createdAt, updatedAt)
+      INSERT INTO [SanPham] (id, sku, barcode, name, category, unit, costPrice, sellingPrice, stock, minStock, image, warehouse, storageLocation, description, isFeatured, weightOrVolume, createdAt, updatedAt)
       VALUES (${id}, ${productData.sku}, ${productData.barcode || ""}, ${productData.name}, ${productData.category}, ${productData.unit}, ${productData.costPrice}, ${productData.sellingPrice}, ${productData.stock}, ${productData.minStock || 5}, ${productData.image || null}, ${productData.warehouse || "Kho Chính"}, ${productData.storageLocation || null}, ${productData.description || null}, ${productData.isFeatured ? 1 : 0}, ${productData.weightOrVolume || null}, ${dt}, ${dt})
     `;
 
@@ -192,7 +192,7 @@ export class ProductsService {
         const uom = uomConversions[i] as any;
         const uomId = `uom-${Date.now()}-${i}`;
         await prisma.$executeRaw`
-          INSERT INTO [ProductUOMConversion] (id, productId, unit, ratioToBase, costPrice, sellingPrice, barcode, isBase, referenceUnit, conversionRate, description)
+          INSERT INTO [QuyDoiDonViTinh] (id, productId, unit, ratioToBase, costPrice, sellingPrice, barcode, isBase, referenceUnit, conversionRate, description)
           VALUES (${uomId}, ${id}, ${uom.unit}, ${uom.ratioToBase}, ${uom.costPrice}, ${uom.sellingPrice}, ${uom.barcode || null}, ${uom.isBase ? 1 : 0}, ${uom.referenceUnit || null}, ${uom.conversionRate || null}, ${uom.description || null})
         `;
       }
@@ -247,7 +247,7 @@ export class ProductsService {
           const uom = uomConversions[i] as any;
           const uomId = `uom-${Date.now()}-${i}`;
           await prisma.$executeRaw`
-            INSERT INTO [ProductUOMConversion] (id, productId, unit, ratioToBase, costPrice, sellingPrice, barcode, isBase, referenceUnit, conversionRate, description)
+            INSERT INTO [QuyDoiDonViTinh] (id, productId, unit, ratioToBase, costPrice, sellingPrice, barcode, isBase, referenceUnit, conversionRate, description)
             VALUES (${uomId}, ${id}, ${uom.unit}, ${uom.ratioToBase}, ${uom.costPrice}, ${uom.sellingPrice}, ${uom.barcode || null}, ${uom.isBase ? 1 : 0}, ${uom.referenceUnit || null}, ${uom.conversionRate || null}, ${uom.description || null})
           `;
         }

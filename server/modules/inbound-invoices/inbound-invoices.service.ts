@@ -32,7 +32,7 @@ export class InboundInvoicesService {
     const rDate = new Date();
 
     await prisma.$executeRaw`
-      INSERT INTO [InboundEInvoice] (id, source, sourceDetail, sourceFile, invoiceCode, invoiceNumber, invoiceSymbol, invoiceTemplate, issueDate, receivedDate, cqtCode, lookupCode, lookupUrl, sellerData, buyerData, subtotal, taxRate, taxAmount, totalAmount, amountInWords, status, goodsReceiptId, targetWarehouse, notes, rawXmlContent)
+      INSERT INTO [HoaDonDauVao] (id, source, sourceDetail, sourceFile, invoiceCode, invoiceNumber, invoiceSymbol, invoiceTemplate, issueDate, receivedDate, cqtCode, lookupCode, lookupUrl, sellerData, buyerData, subtotal, taxRate, taxAmount, totalAmount, amountInWords, status, goodsReceiptId, targetWarehouse, notes, rawXmlContent)
       VALUES (${id}, ${input.source}, ${input.sourceDetail || null}, ${input.sourceFile || null}, ${input.invoiceCode}, ${input.invoiceNumber}, ${input.invoiceSymbol}, ${input.invoiceTemplate || "1/001"}, ${iDate}, ${rDate}, ${input.cqtCode || null}, ${input.lookupCode || null}, ${input.lookupUrl || null}, ${sellerDataStr}, ${buyerDataStr}, ${input.subtotal}, ${input.taxRate}, ${input.taxAmount}, ${input.totalAmount}, ${input.amountInWords}, ${input.status || "pending_review"}, ${input.goodsReceiptId || null}, ${input.targetWarehouse || null}, ${input.notes || null}, ${input.rawXmlContent || null})
     `;
 
@@ -40,7 +40,7 @@ export class InboundInvoicesService {
       const item = input.items[idx];
       const itemId = `inbound-item-${Date.now()}-${idx}`;
       await prisma.$executeRaw`
-        INSERT INTO [InboundInvoiceItem] (id, inboundInvoiceId, lineNumber, productName, skuOrCode, unit, quantity, unitPrice, subtotal, taxRate, taxAmount, total, matchedProductId, matchedProductName, matchedProductSku, currentStock, currentCostPrice, ratioToBaseUnit, isNewProduct, status, assignedCategory, assignedWarehouse, assignedStorageLocation, suggestedSellingPrice, customSku, customBarcode)
+        INSERT INTO [ChiTietHoaDonDauVao] (id, inboundInvoiceId, lineNumber, productName, skuOrCode, unit, quantity, unitPrice, subtotal, taxRate, taxAmount, total, matchedProductId, matchedProductName, matchedProductSku, currentStock, currentCostPrice, ratioToBaseUnit, isNewProduct, status, assignedCategory, assignedWarehouse, assignedStorageLocation, suggestedSellingPrice, customSku, customBarcode)
         VALUES (${itemId}, ${id}, ${item.lineNumber}, ${item.productName}, ${item.skuOrCode || null}, ${item.unit}, ${item.quantity}, ${item.unitPrice}, ${item.subtotal}, ${item.taxRate}, ${item.taxAmount}, ${item.total}, ${item.matchedProductId || null}, ${item.matchedProductName || null}, ${item.matchedProductSku || null}, ${item.currentStock || null}, ${item.currentCostPrice || null}, ${item.ratioToBaseUnit || 1}, ${item.isNewProduct ? 1 : 0}, ${item.status || "unmatched"}, ${item.assignedCategory || null}, ${item.assignedWarehouse || null}, ${item.assignedStorageLocation || null}, ${item.suggestedSellingPrice || null}, ${item.customSku || null}, ${item.customBarcode || null})
       `;
     }
@@ -254,7 +254,7 @@ export class InboundInvoicesService {
 
         const logId = `inv-inbound-${Date.now()}-${idx}`;
         await prisma.$executeRaw`
-          INSERT INTO [InventoryLog] (id, productId, productName, sku, type, quantityChange, oldStock, newStock, reason, performedBy, [timestamp])
+          INSERT INTO [NhatKyKho] (id, productId, productName, sku, type, quantityChange, oldStock, newStock, reason, performedBy, [timestamp])
           VALUES (${logId}, ${matchedProd.id}, ${matchedProd.name}, ${matchedProd.sku}, 'import_invoice', ${importQty}, ${oldStock}, ${newStock}, ${`Nhập kho từ HĐĐT số ${invoice.invoiceNumber || invoice.invoiceCode} (Giá vốn mới: ${newCostPrice.toLocaleString('vi-VN')}đ)`}, ${performedBy}, ${dt})
         `;
 
@@ -276,13 +276,13 @@ export class InboundInvoicesService {
         const sellingPrice = item.suggestedSellingPrice || Math.round(importUnitPrice * 1.25);
 
         await prisma.$executeRaw`
-          INSERT INTO [Product] (id, name, sku, barcode, category, unit, costPrice, sellingPrice, stock, minStock, image, warehouse, storageLocation, description, isFeatured, createdAt, updatedAt)
+          INSERT INTO [SanPham] (id, name, sku, barcode, category, unit, costPrice, sellingPrice, stock, minStock, image, warehouse, storageLocation, description, isFeatured, createdAt, updatedAt)
           VALUES (${newProdId}, ${item.productName}, ${newSku}, ${item.customBarcode || newSku}, ${item.assignedCategory || 'Linh Kiện & Thiết Bị'}, ${item.unit}, ${importUnitPrice}, ${sellingPrice}, ${importQty}, 5, null, ${targetWarehouse}, null, 'Nhập từ hóa đơn đầu vào', 0, ${dt}, ${dt})
         `;
 
         const logId = `inv-inbound-${Date.now()}-${idx}`;
         await prisma.$executeRaw`
-          INSERT INTO [InventoryLog] (id, productId, productName, sku, type, quantityChange, oldStock, newStock, reason, performedBy, [timestamp])
+          INSERT INTO [NhatKyKho] (id, productId, productName, sku, type, quantityChange, oldStock, newStock, reason, performedBy, [timestamp])
           VALUES (${logId}, ${newProdId}, ${item.productName}, ${newSku}, 'import_invoice', ${importQty}, 0, ${importQty}, ${`Khởi tạo & nhập kho từ HĐĐT số ${invoice.invoiceNumber || invoice.invoiceCode}`}, ${performedBy}, ${dt})
         `;
 
@@ -322,7 +322,7 @@ export class InboundInvoicesService {
     }
 
     await prisma.$executeRaw`
-      INSERT INTO [AccountingRecord] (id, code, type, category, amount, date, party, paymentMethod, status, note, receiptNumber)
+      INSERT INTO [SoThuChiKeToan] (id, code, type, category, amount, date, party, paymentMethod, status, note, receiptNumber)
       VALUES (${accId}, ${accCode}, 'expense', 'Nhập hàng', ${invoice.totalAmount}, ${dt}, ${sellerName}, 'transfer', 'completed', ${`Chi tiền nhập hàng theo HĐĐT ${invoice.invoiceNumber || invoice.invoiceCode}`}, ${invoice.invoiceCode})
     `;
 

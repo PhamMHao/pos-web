@@ -15,6 +15,7 @@ import {
 import { Supplier } from '../../types';
 import { formatVND } from '../../utils/vietqr';
 import { sounds } from '../../utils/soundEffects';
+import { useMasterData } from '../../core/contexts/MasterDataContext';
 
 interface NewSupplierModalProps {
   isOpen: boolean;
@@ -29,6 +30,7 @@ export const NewSupplierModal: React.FC<NewSupplierModalProps> = ({
   onSave,
   initialSupplier,
 }) => {
+  const { supplierCategories: masterSupplierCategories } = useMasterData();
   const [name, setName] = useState(initialSupplier?.name || '');
   const [code, setCode] = useState(initialSupplier?.code || ('NCC-' + Date.now().toString().slice(-4)));
   const [taxCode, setTaxCode] = useState(initialSupplier?.taxCode || '');
@@ -174,11 +176,20 @@ export const NewSupplierModal: React.FC<NewSupplierModalProps> = ({
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 focus:outline-none"
               >
-                <option value="Camera & An Ninh">Camera & Thiết Bị An Ninh</option>
-                <option value="Hạ Tầng Mạng & WiFi">Hạ Tầng Mạng & WiFi</option>
-                <option value="Thiết Bị Bán Hàng POS">Thiết Bị Bán Hàng POS & Barcode</option>
-                <option value="Máy Tính & Linh Kiện">Máy Tính & Linh Kiện Server</option>
-                <option value="Vật Tư & Cáp Điện">Vật Tư & Cáp Điện Tử</option>
+                {(masterSupplierCategories && masterSupplierCategories.length > 0
+                  ? masterSupplierCategories
+                  : [
+                      { id: '1', name: 'Camera & Thiết Bị An Ninh' },
+                      { id: '2', name: 'Hạ Tầng Mạng & WiFi' },
+                      { id: '3', name: 'Thiết Bị Bán Hàng POS & Barcode' },
+                      { id: '4', name: 'Máy Tính & Linh Kiện Server' },
+                      { id: '5', name: 'Vật Tư & Cáp Điện Tử' },
+                    ]
+                ).map((cat) => (
+                  <option key={cat.id} value={cat.name}>
+                    {cat.name}
+                  </option>
+                ))}
               </select>
             </div>
           </div>

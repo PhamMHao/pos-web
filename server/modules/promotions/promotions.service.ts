@@ -106,7 +106,7 @@ export class PromotionsService {
     const active = input.isActive !== undefined ? input.isActive : true;
 
     await prisma.$executeRaw`
-      INSERT INTO [Promotion] (id, code, title, discountType, discountValue, minOrderValue, maxDiscount, usageLimit, usedCount, startDate, endDate, isActive)
+      INSERT INTO [ChuongTrinhKhuyenMai] (id, code, title, discountType, discountValue, minOrderValue, maxDiscount, usageLimit, usedCount, startDate, endDate, isActive)
       VALUES (${id}, ${cleanCode}, ${input.title}, ${input.discountType}, ${input.discountValue}, ${input.minOrderValue || 0}, ${maxDisc}, ${input.usageLimit || 100}, ${input.usedCount || 0}, ${startDt}, ${endDt}, ${active})
     `;
 

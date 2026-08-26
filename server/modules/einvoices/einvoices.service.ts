@@ -38,7 +38,7 @@ export class EInvoicesService {
     const sDate = new Date();
 
     await prisma.$executeRaw`
-      INSERT INTO [EInvoice] (id, invoiceCode, invoiceNumber, invoiceSymbol, invoiceTemplate, invoiceType, cqtCode, lookupCode, lookupUrl, issueDate, signDate, status, orderId, orderCode, sellerData, buyerData, subtotal, discountAmount, taxRate, taxAmount, totalAmount, amountInWords, paymentMethod, notes, digitalSignature, cqtStatusMessage)
+      INSERT INTO [HoaDonDienTu] (id, invoiceCode, invoiceNumber, invoiceSymbol, invoiceTemplate, invoiceType, cqtCode, lookupCode, lookupUrl, issueDate, signDate, status, orderId, orderCode, sellerData, buyerData, subtotal, discountAmount, taxRate, taxAmount, totalAmount, amountInWords, paymentMethod, notes, digitalSignature, cqtStatusMessage)
       VALUES (${id}, ${invoiceCode}, ${invoiceNumber}, ${symbol}, ${input.invoiceTemplate || "1/001"}, ${input.invoiceType || "vat"}, ${input.cqtCode || `CQT-${Date.now().toString().slice(-8)}`}, ${lookupCode}, ${input.lookupUrl || "https://hoadondientu.gdt.gov.vn"}, ${iDate}, ${sDate}, ${input.status || "signed"}, ${input.orderId || null}, ${input.orderCode || null}, ${sellerDataStr}, ${buyerDataStr}, ${input.subtotal}, ${input.discountAmount || 0}, ${input.taxRate}, ${input.taxAmount}, ${input.totalAmount}, ${input.amountInWords}, ${input.paymentMethod || "TM/CK"}, ${input.notes || null}, ${digitalSignature}, N'CQT đã cấp mã hóa đơn thành công')
     `;
 
@@ -46,7 +46,7 @@ export class EInvoicesService {
       const item = input.items[idx];
       const itemId = `inv-item-${Date.now()}-${idx}`;
       await prisma.$executeRaw`
-        INSERT INTO [EInvoiceItem] (id, invoiceId, sku, productName, unit, quantity, unitPrice, subtotal, discountPercent, discountAmount, taxRate, taxAmount, total)
+        INSERT INTO [ChiTietHoaDonDienTu] (id, invoiceId, sku, productName, unit, quantity, unitPrice, subtotal, discountPercent, discountAmount, taxRate, taxAmount, total)
         VALUES (${itemId}, ${id}, ${item.sku}, ${item.productName}, ${item.unit}, ${item.quantity}, ${item.unitPrice}, ${item.subtotal}, ${item.discountPercent || 0}, ${item.discountAmount || 0}, ${item.taxRate}, ${item.taxAmount}, ${item.total})
       `;
     }

@@ -29,7 +29,7 @@ export class CostingService {
     const dt = new Date();
 
     await prisma.$executeRaw`
-      INSERT INTO [ProductCosting] (id, productName, sku, rawMaterialsCost, laborCost, machineryAndOverheadCost, totalStandardCost, currentSellingPrice, grossMarginPercent, lastUpdated)
+      INSERT INTO [DinhMucSanXuat] (id, productName, sku, rawMaterialsCost, laborCost, machineryAndOverheadCost, totalStandardCost, currentSellingPrice, grossMarginPercent, lastUpdated)
       VALUES (${id}, ${costingData.productName}, ${costingData.sku}, ${rawMaterialsCost}, ${laborCost}, ${overheadCost}, ${totalStandardCost}, ${currentSellingPrice}, ${grossMarginPercent}, ${dt})
     `;
 
@@ -38,7 +38,7 @@ export class CostingService {
       const itemId = `bom-item-${Date.now()}-${idx}`;
       const totalCost = Number(item.quantity) * Number(item.unitCost);
       await prisma.$executeRaw`
-        INSERT INTO [CostingBOMItem] (id, costingId, materialName, quantity, unit, unitCost, totalCost)
+        INSERT INTO [ChiTietDinhMucBOM] (id, costingId, materialName, quantity, unit, unitCost, totalCost)
         VALUES (${itemId}, ${id}, ${item.materialName}, ${item.quantity}, ${item.unit}, ${item.unitCost}, ${totalCost})
       `;
     }
@@ -166,7 +166,7 @@ export class CostingService {
         const itemId = `bom-item-${Date.now()}-${idx}`;
         const totalCost = Number(item.quantity) * Number(item.unitCost);
         await prisma.$executeRaw`
-          INSERT INTO [CostingBOMItem] (id, costingId, materialName, quantity, unit, unitCost, totalCost)
+          INSERT INTO [ChiTietDinhMucBOM] (id, costingId, materialName, quantity, unit, unitCost, totalCost)
           VALUES (${itemId}, ${id}, ${item.materialName}, ${item.quantity}, ${item.unit}, ${item.unitCost}, ${totalCost})
         `;
       }
@@ -254,7 +254,7 @@ export class CostingService {
 
         const logId = `inv-bom-deduct-${Date.now()}-${idx}`;
         await prisma.$executeRaw`
-          INSERT INTO [InventoryLog] (id, productId, productName, sku, type, quantityChange, oldStock, newStock, reason, performedBy, [timestamp])
+          INSERT INTO [NhatKyKho] (id, productId, productName, sku, type, quantityChange, oldStock, newStock, reason, performedBy, [timestamp])
           VALUES (${logId}, ${compProd.id}, ${compProd.name}, ${compProd.sku}, 'bom_assembly_deduct', ${-requiredQty}, ${oldStock}, ${newStock}, ${`Xuất linh kiện lắp ráp ${assembleQty} bộ ${costing.productName}`}, ${input.technicianName || 'KTV Lắp Ráp'}, ${dt})
         `;
 
@@ -301,20 +301,20 @@ export class CostingService {
 
       const logId = `inv-bom-prod-${Date.now()}`;
       await prisma.$executeRaw`
-        INSERT INTO [InventoryLog] (id, productId, productName, sku, type, quantityChange, oldStock, newStock, reason, performedBy, [timestamp])
+        INSERT INTO [NhatKyKho] (id, productId, productName, sku, type, quantityChange, oldStock, newStock, reason, performedBy, [timestamp])
         VALUES (${logId}, ${finishedProduct.id}, ${finishedProduct.name}, ${finishedProduct.sku}, 'bom_assembly_produce', ${assembleQty}, ${oldStock}, ${newStock}, ${`Nhập kho thành phẩm từ Lệnh lắp ráp BOM ${costing.sku}`}, ${input.technicianName || 'KTV Lắp Ráp'}, ${dt})
       `;
     } else {
       // Create new Finished Product if not exists
       const prodId = `prod-bom-${Date.now()}`;
       await prisma.$executeRaw`
-        INSERT INTO [Product] (id, name, sku, barcode, category, unit, costPrice, sellingPrice, stock, minStock, image, warehouse, storageLocation, description, isFeatured, createdAt, updatedAt)
+        INSERT INTO [SanPham] (id, name, sku, barcode, category, unit, costPrice, sellingPrice, stock, minStock, image, warehouse, storageLocation, description, isFeatured, createdAt, updatedAt)
         VALUES (${prodId}, ${costing.productName}, ${costing.sku}, ${costing.sku}, 'Máy Tính Nguyên Bộ', 'Bộ', ${costing.totalStandardCost}, ${costing.currentSellingPrice}, ${assembleQty}, 2, null, ${input.warehouse || 'Kho Tổng Gia Phúc'}, null, 'Máy tính nguyên bộ xuất xưởng từ BOM', 0, ${dt}, ${dt})
       `;
 
       const logId = `inv-bom-prod-${Date.now()}`;
       await prisma.$executeRaw`
-        INSERT INTO [InventoryLog] (id, productId, productName, sku, type, quantityChange, oldStock, newStock, reason, performedBy, [timestamp])
+        INSERT INTO [NhatKyKho] (id, productId, productName, sku, type, quantityChange, oldStock, newStock, reason, performedBy, [timestamp])
         VALUES (${logId}, ${prodId}, ${costing.productName}, ${costing.sku}, 'bom_assembly_produce', ${assembleQty}, 0, ${assembleQty}, ${`Khởi tạo & nhập kho thành phẩm từ Lệnh lắp ráp BOM ${costing.sku}`}, ${input.technicianName || 'KTV Lắp Ráp'}, ${dt})
       `;
     }

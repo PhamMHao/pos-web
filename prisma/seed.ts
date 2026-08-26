@@ -112,7 +112,7 @@ async function main() {
     const existing = await prisma.user.findMany({ where: { username: u.username } });
     if (existing.length === 0) {
       await prisma.$executeRaw`
-        INSERT INTO [User] (id, username, passwordHash, fullName, email, phone, role, status, createdAt, updatedAt)
+        INSERT INTO [NguoiDung] (id, username, passwordHash, fullName, email, phone, role, status, createdAt, updatedAt)
         VALUES (${u.id}, ${u.username}, ${u.passwordHash}, ${u.fullName}, ${u.email}, ${u.phone}, ${u.role}, ${u.status}, GETDATE(), GETDATE())
       `;
     }
@@ -124,7 +124,7 @@ async function main() {
   const existingSettings = await prisma.storeSettings.findMany({ where: { id: "default_settings" } });
   if (existingSettings.length === 0) {
     await prisma.$executeRaw`
-      INSERT INTO [StoreSettings] (id, storeName, tagline, phone, email, address, taxCode, bankName, bankAccount, bankCode, settingsJson, updatedAt)
+      INSERT INTO [CauHinhCuaHang] (id, storeName, tagline, phone, email, address, taxCode, bankName, bankAccount, bankCode, settingsJson, updatedAt)
       VALUES ('default_settings', ${INITIAL_STORE_SETTINGS.storeName}, ${INITIAL_STORE_SETTINGS.tagline}, ${INITIAL_STORE_SETTINGS.phone}, ${INITIAL_STORE_SETTINGS.email}, ${INITIAL_STORE_SETTINGS.address}, ${INITIAL_STORE_SETTINGS.taxCode}, ${INITIAL_STORE_SETTINGS.bankName}, ${INITIAL_STORE_SETTINGS.bankAccount}, ${INITIAL_STORE_SETTINGS.bankCode}, ${settingsJson}, GETDATE())
     `;
   }
@@ -135,7 +135,7 @@ async function main() {
     const existing = await prisma.customer.findMany({ where: { phone: c.phone } });
     if (existing.length === 0) {
       await prisma.$executeRaw`
-        INSERT INTO [Customer] (id, name, phone, email, address, tier, points, totalSpent, totalOrders, debt, note, createdAt, updatedAt)
+        INSERT INTO [KhachHang] (id, name, phone, email, address, tier, points, totalSpent, totalOrders, debt, note, createdAt, updatedAt)
         VALUES (${c.id}, ${c.name}, ${c.phone}, ${c.email || null}, ${c.address || null}, ${c.tier || "Đồng"}, ${c.points || 0}, ${c.totalSpent || 0}, ${c.totalOrders || 0}, ${c.debt || 0}, ${c.note || null}, GETDATE(), GETDATE())
       `;
     }
@@ -147,7 +147,7 @@ async function main() {
     const existing = await prisma.product.findMany({ where: { sku: p.sku } });
     if (existing.length === 0) {
       await prisma.$executeRaw`
-        INSERT INTO [Product] (id, sku, barcode, name, category, unit, costPrice, sellingPrice, stock, minStock, image, warehouse, storageLocation, description, isFeatured, weightOrVolume, createdAt, updatedAt)
+        INSERT INTO [SanPham] (id, sku, barcode, name, category, unit, costPrice, sellingPrice, stock, minStock, image, warehouse, storageLocation, description, isFeatured, weightOrVolume, createdAt, updatedAt)
         VALUES (${p.id}, ${p.sku}, ${p.barcode || ""}, ${p.name}, ${p.category}, ${p.unit}, ${p.costPrice}, ${p.sellingPrice}, ${p.stock}, ${p.minStock || 5}, ${p.image || null}, ${p.warehouse || "Kho Chính"}, ${p.storageLocation || null}, ${p.description || null}, ${p.isFeatured ? 1 : 0}, ${p.weightOrVolume || null}, GETDATE(), GETDATE())
       `;
 
@@ -156,7 +156,7 @@ async function main() {
           const u = p.uomConversions[i];
           const uomId = `uom-${p.id}-${i}`;
           await prisma.$executeRaw`
-            INSERT INTO [ProductUOMConversion] (id, productId, unit, ratioToBase, costPrice, sellingPrice, barcode, isBase, referenceUnit, conversionRate, description)
+            INSERT INTO [QuyDoiDonViTinh] (id, productId, unit, ratioToBase, costPrice, sellingPrice, barcode, isBase, referenceUnit, conversionRate, description)
             VALUES (${uomId}, ${p.id}, ${u.unit}, ${u.ratioToBase}, ${u.costPrice}, ${u.sellingPrice}, ${u.barcode || null}, ${u.isBase ? 1 : 0}, ${u.referenceUnit || null}, ${u.conversionRate || null}, ${u.description || null})
           `;
         }
@@ -170,7 +170,7 @@ async function main() {
     const existing = await prisma.employee.findMany({ where: { code: emp.code } });
     if (existing.length === 0) {
       await prisma.$executeRaw`
-        INSERT INTO [Employee] (id, code, name, role, phone, email, baseSalary, salesKpiTarget, currentSales, commissionRate, status, avatar, joinedDate, shiftSchedule)
+        INSERT INTO [NhanVien] (id, code, name, role, phone, email, baseSalary, salesKpiTarget, currentSales, commissionRate, status, avatar, joinedDate, shiftSchedule)
         VALUES (${emp.id}, ${emp.code}, ${emp.name}, ${emp.role}, ${emp.phone}, ${emp.email}, ${emp.baseSalary}, ${emp.salesKpiTarget || 0}, ${emp.currentSales || 0}, ${emp.commissionRate || 0}, ${emp.status || "active"}, ${emp.avatar || null}, GETDATE(), ${emp.shiftSchedule || null})
       `;
     }
@@ -184,7 +184,7 @@ async function main() {
       const sDate = safeDate(promo.startDate);
       const eDate = safeDate(promo.endDate);
       await prisma.$executeRaw`
-        INSERT INTO [Promotion] (id, code, title, discountType, discountValue, minOrderValue, maxDiscount, usageLimit, usedCount, startDate, endDate, isActive)
+        INSERT INTO [ChuongTrinhKhuyenMai] (id, code, title, discountType, discountValue, minOrderValue, maxDiscount, usageLimit, usedCount, startDate, endDate, isActive)
         VALUES (${promo.id}, ${promo.code}, ${promo.title}, ${promo.discountType}, ${promo.discountValue}, ${promo.minOrderValue || 0}, ${promo.maxDiscount || null}, ${promo.usageLimit || 100}, ${promo.usedCount || 0}, ${sDate}, ${eDate}, ${promo.isActive ? 1 : 0})
       `;
     }
@@ -197,7 +197,7 @@ async function main() {
     if (existing.length === 0) {
       const dt = safeDate(acc.date);
       await prisma.$executeRaw`
-        INSERT INTO [AccountingRecord] (id, code, type, category, amount, date, party, paymentMethod, status, note, receiptNumber)
+        INSERT INTO [SoThuChiKeToan] (id, code, type, category, amount, date, party, paymentMethod, status, note, receiptNumber)
         VALUES (${acc.id}, ${acc.code}, ${acc.type}, ${acc.category}, ${acc.amount}, ${dt}, ${acc.party}, ${acc.paymentMethod || "cash"}, ${acc.status || "completed"}, ${acc.note || null}, ${acc.receiptNumber || null})
       `;
     }
@@ -210,7 +210,7 @@ async function main() {
     if (existing.length === 0) {
       const vDate = safeDate(q.validUntil);
       await prisma.$executeRaw`
-        INSERT INTO [PriceQuote] (id, code, customerName, customerPhone, customerCompany, totalAmount, discountPercent, finalTotal, validUntil, status, notes, createdAt)
+        INSERT INTO [BaoGia] (id, code, customerName, customerPhone, customerCompany, totalAmount, discountPercent, finalTotal, validUntil, status, notes, createdAt)
         VALUES (${q.id}, ${q.code}, ${q.customerName}, ${q.customerPhone}, ${q.customerCompany || null}, ${q.totalAmount}, ${q.discountPercent || 0}, ${q.finalTotal}, ${vDate}, ${q.status || "draft"}, ${q.notes || null}, GETDATE())
       `;
 
@@ -219,7 +219,7 @@ async function main() {
           const it = q.items[idx];
           const itemId = `qi-${q.id}-${idx}`;
           await prisma.$executeRaw`
-            INSERT INTO [PriceQuoteItem] (id, quoteId, productName, sku, unit, quantity, unitPrice, total)
+            INSERT INTO [ChiTietBaoGia] (id, quoteId, productName, sku, unit, quantity, unitPrice, total)
             VALUES (${itemId}, ${q.id}, ${it.productName}, ${it.sku}, ${it.unit}, ${it.quantity}, ${it.unitPrice}, ${it.total})
           `;
         }
@@ -236,12 +236,12 @@ async function main() {
       if (asset.lastMaintenanceDate) {
         const mDate = safeDate(asset.lastMaintenanceDate);
         await prisma.$executeRaw`
-          INSERT INTO [EnterpriseAsset] (id, code, name, category, purchaseDate, originalValue, depreciationMonths, remainingValue, assignedTo, status, lastMaintenanceDate)
+          INSERT INTO [TaiSanDoanhNghiep] (id, code, name, category, purchaseDate, originalValue, depreciationMonths, remainingValue, assignedTo, status, lastMaintenanceDate)
           VALUES (${asset.id}, ${asset.code}, ${asset.name}, ${asset.category}, ${pDate}, ${asset.originalValue}, ${asset.depreciationMonths}, ${asset.remainingValue}, ${asset.assignedTo}, ${asset.status || "good"}, ${mDate})
         `;
       } else {
         await prisma.$executeRaw`
-          INSERT INTO [EnterpriseAsset] (id, code, name, category, purchaseDate, originalValue, depreciationMonths, remainingValue, assignedTo, status)
+          INSERT INTO [TaiSanDoanhNghiep] (id, code, name, category, purchaseDate, originalValue, depreciationMonths, remainingValue, assignedTo, status)
           VALUES (${asset.id}, ${asset.code}, ${asset.name}, ${asset.category}, ${pDate}, ${asset.originalValue}, ${asset.depreciationMonths}, ${asset.remainingValue}, ${asset.assignedTo}, ${asset.status || "good"})
         `;
       }
@@ -257,12 +257,12 @@ async function main() {
       if (s.soldDate) {
         const sDate = safeDate(s.soldDate);
         await prisma.$executeRaw`
-          INSERT INTO [SerialDeviceRecord] (id, serialNumber, productName, sku, soldOrderCode, soldDate, customerName, customerPhone, warrantyPeriodMonths, warrantyExpiryDate, warrantyStatus, totalRepairsCount, totalMaintenancesCount, notes)
+          INSERT INTO [SoSerialThietBi] (id, serialNumber, productName, sku, soldOrderCode, soldDate, customerName, customerPhone, warrantyPeriodMonths, warrantyExpiryDate, warrantyStatus, totalRepairsCount, totalMaintenancesCount, notes)
           VALUES (${s.id}, ${s.serialNumber}, ${s.productName}, ${s.sku}, ${s.soldOrderCode || null}, ${sDate}, ${s.customerName || null}, ${s.customerPhone || null}, ${s.warrantyPeriodMonths || 12}, ${expDate}, ${s.warrantyStatus || "valid"}, ${s.totalRepairsCount || 0}, ${s.totalMaintenancesCount || 0}, ${s.notes || null})
         `;
       } else {
         await prisma.$executeRaw`
-          INSERT INTO [SerialDeviceRecord] (id, serialNumber, productName, sku, soldOrderCode, customerName, customerPhone, warrantyPeriodMonths, warrantyExpiryDate, warrantyStatus, totalRepairsCount, totalMaintenancesCount, notes)
+          INSERT INTO [SoSerialThietBi] (id, serialNumber, productName, sku, soldOrderCode, customerName, customerPhone, warrantyPeriodMonths, warrantyExpiryDate, warrantyStatus, totalRepairsCount, totalMaintenancesCount, notes)
           VALUES (${s.id}, ${s.serialNumber}, ${s.productName}, ${s.sku}, ${s.soldOrderCode || null}, ${s.customerName || null}, ${s.customerPhone || null}, ${s.warrantyPeriodMonths || 12}, ${expDate}, ${s.warrantyStatus || "valid"}, ${s.totalRepairsCount || 0}, ${s.totalMaintenancesCount || 0}, ${s.notes || null})
         `;
       }
@@ -277,12 +277,12 @@ async function main() {
       if (w.actualReturnDate) {
         const actDate = safeDate(w.actualReturnDate);
         await prisma.$executeRaw`
-          INSERT INTO [WarrantyTicket] (id, code, type, priority, status, orderCode, productId, productName, model, serialNumber, qrCodeUrl, customerName, customerPhone, customerAddress, customerEmail, accessoriesIncluded, cosmeticCondition, issueDescription, technicianDiagnosis, resolution, technicianName, receivedDate, expectedReturnDate, actualReturnDate, laborCost, partsCost, discountAmount, totalFee, paymentStatus, paidAmount, returnedToPerson, returnNote, warrantyExtensionMonths)
+          INSERT INTO [PhieuBaoHanh] (id, code, type, priority, status, orderCode, productId, productName, model, serialNumber, qrCodeUrl, customerName, customerPhone, customerAddress, customerEmail, accessoriesIncluded, cosmeticCondition, issueDescription, technicianDiagnosis, resolution, technicianName, receivedDate, expectedReturnDate, actualReturnDate, laborCost, partsCost, discountAmount, totalFee, paymentStatus, paidAmount, returnedToPerson, returnNote, warrantyExtensionMonths)
           VALUES (${w.id}, ${w.code}, ${w.type || "warranty"}, ${w.priority || "normal"}, ${w.status || "received"}, ${w.orderCode || null}, ${w.productId || null}, ${w.productName}, ${w.model || null}, ${w.serialNumber}, ${w.qrCodeUrl || null}, ${w.customerName}, ${w.customerPhone}, ${w.customerAddress || null}, ${w.customerEmail || null}, ${w.accessoriesIncluded || ""}, ${w.cosmeticCondition || ""}, ${w.issueDescription || ""}, ${w.technicianDiagnosis || null}, ${w.resolution || null}, ${w.technicianName || "Kỹ thuật viên"}, ${recDate}, ${expDate}, ${actDate}, ${w.laborCost || 0}, ${w.partsCost || 0}, ${w.discountAmount || 0}, ${w.totalFee || 0}, ${w.paymentStatus || "free"}, ${w.paidAmount || 0}, ${w.returnedToPerson || null}, ${w.returnNote || null}, ${w.warrantyExtensionMonths || 0})
         `;
       } else {
         await prisma.$executeRaw`
-          INSERT INTO [WarrantyTicket] (id, code, type, priority, status, orderCode, productId, productName, model, serialNumber, qrCodeUrl, customerName, customerPhone, customerAddress, customerEmail, accessoriesIncluded, cosmeticCondition, issueDescription, technicianDiagnosis, resolution, technicianName, receivedDate, expectedReturnDate, laborCost, partsCost, discountAmount, totalFee, paymentStatus, paidAmount, returnedToPerson, returnNote, warrantyExtensionMonths)
+          INSERT INTO [PhieuBaoHanh] (id, code, type, priority, status, orderCode, productId, productName, model, serialNumber, qrCodeUrl, customerName, customerPhone, customerAddress, customerEmail, accessoriesIncluded, cosmeticCondition, issueDescription, technicianDiagnosis, resolution, technicianName, receivedDate, expectedReturnDate, laborCost, partsCost, discountAmount, totalFee, paymentStatus, paidAmount, returnedToPerson, returnNote, warrantyExtensionMonths)
           VALUES (${w.id}, ${w.code}, ${w.type || "warranty"}, ${w.priority || "normal"}, ${w.status || "received"}, ${w.orderCode || null}, ${w.productId || null}, ${w.productName}, ${w.model || null}, ${w.serialNumber}, ${w.qrCodeUrl || null}, ${w.customerName}, ${w.customerPhone}, ${w.customerAddress || null}, ${w.customerEmail || null}, ${w.accessoriesIncluded || ""}, ${w.cosmeticCondition || ""}, ${w.issueDescription || ""}, ${w.technicianDiagnosis || null}, ${w.resolution || null}, ${w.technicianName || "Kỹ thuật viên"}, ${recDate}, ${expDate}, ${w.laborCost || 0}, ${w.partsCost || 0}, ${w.discountAmount || 0}, ${w.totalFee || 0}, ${w.paymentStatus || "free"}, ${w.paidAmount || 0}, ${w.returnedToPerson || null}, ${w.returnNote || null}, ${w.warrantyExtensionMonths || 0})
         `;
       }
@@ -292,7 +292,7 @@ async function main() {
           const p = w.parts[idx];
           const partId = `wp-${w.id}-${idx}`;
           await prisma.$executeRaw`
-            INSERT INTO [WarrantyPartItem] (id, warrantyId, partName, sku, quantity, unit, unitPrice, isUnderWarranty, warrantyMonths)
+            INSERT INTO [LinhKienBaoHanh] (id, warrantyId, partName, sku, quantity, unit, unitPrice, isUnderWarranty, warrantyMonths)
             VALUES (${partId}, ${w.id}, ${p.partName}, ${p.sku || null}, ${p.quantity}, ${p.unit}, ${p.unitPrice}, ${p.isUnderWarranty ? 1 : 0}, ${p.warrantyMonths || 0})
           `;
         }
@@ -304,7 +304,7 @@ async function main() {
           const tlId = `wtl-${w.id}-${idx}`;
           const tlDate = safeDate(tl.timestamp);
           await prisma.$executeRaw`
-            INSERT INTO [WarrantyTimelineEvent] (id, warrantyId, action, actor, timestamp, notes, status)
+            INSERT INTO [NhatKyBaoHanh] (id, warrantyId, action, actor, timestamp, notes, status)
             VALUES (${tlId}, ${w.id}, ${tl.action}, ${tl.actor}, ${tlDate}, ${tl.notes || null}, ${tl.status})
           `;
         }
@@ -322,12 +322,12 @@ async function main() {
       if (inv.signDate) {
         const sDate = safeDate(inv.signDate);
         await prisma.$executeRaw`
-          INSERT INTO [EInvoice] (id, invoiceCode, invoiceNumber, invoiceSymbol, invoiceTemplate, invoiceType, cqtCode, lookupCode, lookupUrl, issueDate, signDate, status, orderCode, sellerData, buyerData, subtotal, discountAmount, taxRate, taxAmount, totalAmount, amountInWords, paymentMethod, notes, digitalSignature, cqtStatusMessage)
+          INSERT INTO [HoaDonDienTu] (id, invoiceCode, invoiceNumber, invoiceSymbol, invoiceTemplate, invoiceType, cqtCode, lookupCode, lookupUrl, issueDate, signDate, status, orderCode, sellerData, buyerData, subtotal, discountAmount, taxRate, taxAmount, totalAmount, amountInWords, paymentMethod, notes, digitalSignature, cqtStatusMessage)
           VALUES (${inv.id}, ${inv.invoiceCode}, ${inv.invoiceNumber}, ${inv.invoiceSymbol}, ${inv.invoiceTemplate}, ${inv.invoiceType || "vat"}, ${inv.cqtCode || null}, ${inv.lookupCode}, ${inv.lookupUrl}, ${iDate}, ${sDate}, ${inv.status || "draft"}, ${inv.orderCode || null}, ${JSON.stringify(inv.seller)}, ${JSON.stringify(inv.buyer)}, ${inv.subtotal}, ${inv.discountAmount || 0}, ${inv.taxRate || 0}, ${inv.taxAmount || 0}, ${inv.totalAmount}, ${inv.amountInWords || ""}, ${inv.paymentMethod || "TM/CK"}, ${inv.notes || null}, ${digSig}, ${inv.cqtStatusMessage || null})
         `;
       } else {
         await prisma.$executeRaw`
-          INSERT INTO [EInvoice] (id, invoiceCode, invoiceNumber, invoiceSymbol, invoiceTemplate, invoiceType, cqtCode, lookupCode, lookupUrl, issueDate, status, orderCode, sellerData, buyerData, subtotal, discountAmount, taxRate, taxAmount, totalAmount, amountInWords, paymentMethod, notes, digitalSignature, cqtStatusMessage)
+          INSERT INTO [HoaDonDienTu] (id, invoiceCode, invoiceNumber, invoiceSymbol, invoiceTemplate, invoiceType, cqtCode, lookupCode, lookupUrl, issueDate, status, orderCode, sellerData, buyerData, subtotal, discountAmount, taxRate, taxAmount, totalAmount, amountInWords, paymentMethod, notes, digitalSignature, cqtStatusMessage)
           VALUES (${inv.id}, ${inv.invoiceCode}, ${inv.invoiceNumber}, ${inv.invoiceSymbol}, ${inv.invoiceTemplate}, ${inv.invoiceType || "vat"}, ${inv.cqtCode || null}, ${inv.lookupCode}, ${inv.lookupUrl}, ${iDate}, ${inv.status || "draft"}, ${inv.orderCode || null}, ${JSON.stringify(inv.seller)}, ${JSON.stringify(inv.buyer)}, ${inv.subtotal}, ${inv.discountAmount || 0}, ${inv.taxRate || 0}, ${inv.taxAmount || 0}, ${inv.totalAmount}, ${inv.amountInWords || ""}, ${inv.paymentMethod || "TM/CK"}, ${inv.notes || null}, ${digSig}, ${inv.cqtStatusMessage || null})
         `;
       }
@@ -337,7 +337,7 @@ async function main() {
           const it = inv.items[idx];
           const itemId = `eii-${inv.id}-${idx}`;
           await prisma.$executeRaw`
-            INSERT INTO [EInvoiceItem] (id, invoiceId, sku, productName, unit, quantity, unitPrice, subtotal, discountPercent, discountAmount, taxRate, taxAmount, total)
+            INSERT INTO [ChiTietHoaDonDienTu] (id, invoiceId, sku, productName, unit, quantity, unitPrice, subtotal, discountPercent, discountAmount, taxRate, taxAmount, total)
             VALUES (${itemId}, ${inv.id}, ${it.sku}, ${it.productName}, ${it.unit}, ${it.quantity}, ${it.unitPrice}, ${it.subtotal}, ${it.discountPercent || 0}, ${it.discountAmount || 0}, ${it.taxRate || 0}, ${it.taxAmount || 0}, ${it.total})
           `;
         }
@@ -355,12 +355,12 @@ async function main() {
       if (ct.endDate) {
         const eDate = safeDate(ct.endDate);
         await prisma.$executeRaw`
-          INSERT INTO [LaborContract] (id, contractNumber, employeeId, employeeCode, employeeName, employeeRole, contractType, startDate, endDate, signDate, status, employerData, employeeInfo, termsData, signaturesData, notes)
+          INSERT INTO [HopDongLaoDong] (id, contractNumber, employeeId, employeeCode, employeeName, employeeRole, contractType, startDate, endDate, signDate, status, employerData, employeeInfo, termsData, signaturesData, notes)
           VALUES (${ct.id}, ${ct.contractNumber}, ${ct.employeeId}, ${ct.employeeCode}, ${ct.employeeName}, ${ct.employeeRole}, ${ct.contractType}, ${sDate}, ${eDate}, ${signDt}, ${ct.status || "active"}, ${JSON.stringify(ct.employer)}, ${JSON.stringify(ct.employeeInfo)}, ${JSON.stringify(ct.terms)}, ${JSON.stringify(ct.signatures)}, ${ct.notes || null})
         `;
       } else {
         await prisma.$executeRaw`
-          INSERT INTO [LaborContract] (id, contractNumber, employeeId, employeeCode, employeeName, employeeRole, contractType, startDate, signDate, status, employerData, employeeInfo, termsData, signaturesData, notes)
+          INSERT INTO [HopDongLaoDong] (id, contractNumber, employeeId, employeeCode, employeeName, employeeRole, contractType, startDate, signDate, status, employerData, employeeInfo, termsData, signaturesData, notes)
           VALUES (${ct.id}, ${ct.contractNumber}, ${ct.employeeId}, ${ct.employeeCode}, ${ct.employeeName}, ${ct.employeeRole}, ${ct.contractType}, ${sDate}, ${signDt}, ${ct.status || "active"}, ${JSON.stringify(ct.employer)}, ${JSON.stringify(ct.employeeInfo)}, ${JSON.stringify(ct.terms)}, ${JSON.stringify(ct.signatures)}, ${ct.notes || null})
         `;
       }
@@ -375,7 +375,7 @@ async function main() {
       const iDate = safeDate(inb.issueDate);
       const rDate = safeDate(inb.receivedDate);
       await prisma.$executeRaw`
-        INSERT INTO [InboundEInvoice] (id, source, sourceDetail, sourceFile, invoiceCode, invoiceNumber, invoiceSymbol, invoiceTemplate, issueDate, receivedDate, cqtCode, lookupCode, lookupUrl, sellerData, buyerData, subtotal, taxRate, taxAmount, totalAmount, amountInWords, status, notes, rawXmlContent)
+        INSERT INTO [HoaDonDauVao] (id, source, sourceDetail, sourceFile, invoiceCode, invoiceNumber, invoiceSymbol, invoiceTemplate, issueDate, receivedDate, cqtCode, lookupCode, lookupUrl, sellerData, buyerData, subtotal, taxRate, taxAmount, totalAmount, amountInWords, status, notes, rawXmlContent)
         VALUES (${inb.id}, ${inb.source || "xml_upload"}, ${inb.sourceDetail || null}, ${inb.sourceFile || null}, ${inb.invoiceCode}, ${inb.invoiceNumber}, ${inb.invoiceSymbol}, ${inb.invoiceTemplate}, ${iDate}, ${rDate}, ${inb.cqtCode || null}, ${inb.lookupCode || null}, ${inb.lookupUrl || null}, ${JSON.stringify(inb.seller)}, ${JSON.stringify(inb.buyer)}, ${inb.subtotal}, ${inb.taxRate || 0}, ${inb.taxAmount || 0}, ${inb.totalAmount}, ${inb.amountInWords || ""}, ${inb.status || "pending_review"}, ${inb.notes || null}, ${inb.rawXmlContent || null})
       `;
 
@@ -384,7 +384,7 @@ async function main() {
           const it = inb.items[idx];
           const itemId = `inbi-${inb.id}-${idx}`;
           await prisma.$executeRaw`
-            INSERT INTO [InboundInvoiceItem] (id, inboundInvoiceId, lineNumber, productName, skuOrCode, unit, quantity, unitPrice, subtotal, taxRate, taxAmount, total, matchedProductId, matchedProductName, matchedProductSku, currentStock, currentCostPrice, ratioToBaseUnit, isNewProduct, status, assignedCategory, assignedWarehouse, assignedStorageLocation, suggestedSellingPrice, customSku, customBarcode)
+            INSERT INTO [ChiTietHoaDonDauVao] (id, inboundInvoiceId, lineNumber, productName, skuOrCode, unit, quantity, unitPrice, subtotal, taxRate, taxAmount, total, matchedProductId, matchedProductName, matchedProductSku, currentStock, currentCostPrice, ratioToBaseUnit, isNewProduct, status, assignedCategory, assignedWarehouse, assignedStorageLocation, suggestedSellingPrice, customSku, customBarcode)
             VALUES (${itemId}, ${inb.id}, ${it.lineNumber}, ${it.productName}, ${it.skuOrCode || null}, ${it.unit}, ${it.quantity}, ${it.unitPrice}, ${it.subtotal}, ${it.taxRate || 0}, ${it.taxAmount || 0}, ${it.total}, ${it.matchedProductId || null}, ${it.matchedProductName || null}, ${it.matchedProductSku || null}, ${it.currentStock || null}, ${it.currentCostPrice || null}, ${it.ratioToBaseUnit || 1}, ${it.isNewProduct ? 1 : 0}, ${it.status || "unmatched"}, ${it.assignedCategory || null}, ${it.assignedWarehouse || null}, ${it.assignedStorageLocation || null}, ${it.suggestedSellingPrice || null}, ${it.customSku || null}, ${it.customBarcode || null})
           `;
         }
@@ -399,7 +399,7 @@ async function main() {
     if (existing.length === 0) {
       const dt = safeDate(f.timestamp);
       await prisma.$executeRaw`
-        INSERT INTO [FraudAlert] (id, severity, title, description, timestamp, source, status, suggestedAction)
+        INSERT INTO [CanhBaoGianLan] (id, severity, title, description, timestamp, source, status, suggestedAction)
         VALUES (${f.id}, ${f.severity || "medium"}, ${f.title}, ${f.description}, ${dt}, ${f.source || "POS"}, ${f.status || "unresolved"}, ${f.suggestedAction || ""})
       `;
     }
@@ -412,7 +412,7 @@ async function main() {
     if (existing.length === 0) {
       const dt = safeDate(s.createdAt);
       await prisma.$executeRaw`
-        INSERT INTO [Supplier] (id, code, name, taxCode, tier, category, contactPerson, phone, email, address, bankName, bankAccount, bankCode, creditLimit, creditDays, currentDebt, ratingQuality, ratingPrice, ratingOnTime, ratingWarranty, notes, createdAt, updatedAt)
+        INSERT INTO [NhaCungCap] (id, code, name, taxCode, tier, category, contactPerson, phone, email, address, bankName, bankAccount, bankCode, creditLimit, creditDays, currentDebt, ratingQuality, ratingPrice, ratingOnTime, ratingWarranty, notes, createdAt, updatedAt)
         VALUES (${s.id}, ${s.code}, ${s.name}, ${s.taxCode || null}, ${s.tier || "Tổng Đại Lý"}, ${s.category || "Camera & An Ninh"}, ${s.contactPerson || null}, ${s.phone}, ${s.email || null}, ${s.address || null}, ${s.bankName || null}, ${s.bankAccount || null}, ${s.bankCode || null}, ${s.creditLimit || 0}, ${s.creditDays || 30}, ${s.currentDebt || 0}, ${s.ratingQuality || 9.5}, ${s.ratingPrice || 9.0}, ${s.ratingOnTime || 9.5}, ${s.ratingWarranty || 9.2}, ${s.notes || null}, ${dt}, ${dt})
       `;
 
@@ -421,7 +421,7 @@ async function main() {
           const it = s.priceList[idx];
           const pId = `sup-price-${s.id}-${idx}`;
           await prisma.$executeRaw`
-            INSERT INTO [SupplierPriceItem] (id, supplierId, sku, productName, costPrice, warrantyMonths, moq)
+            INSERT INTO [BangGiaNhaCungCap] (id, supplierId, sku, productName, costPrice, warrantyMonths, moq)
             VALUES (${pId}, ${s.id}, ${it.sku}, ${it.productName}, ${it.costPrice}, ${it.warrantyMonths || 24}, ${it.moq || 1})
           `;
         }
@@ -437,7 +437,7 @@ async function main() {
       const dt = safeDate(po.orderDate);
       const expDt = safeDate(po.expectedDeliveryDate);
       await prisma.$executeRaw`
-        INSERT INTO [PurchaseOrder] (id, code, supplierId, supplierName, supplierPhone, supplierAddress, supplierTaxCode, warehouseId, warehouseName, orderDate, expectedDeliveryDate, status, subtotal, vatRate, vatAmount, shippingFee, discountAmount, totalAmount, paidAmount, paymentStatus, paymentMethod, notes, createdAt, updatedAt)
+        INSERT INTO [DonDatHangMua] (id, code, supplierId, supplierName, supplierPhone, supplierAddress, supplierTaxCode, warehouseId, warehouseName, orderDate, expectedDeliveryDate, status, subtotal, vatRate, vatAmount, shippingFee, discountAmount, totalAmount, paidAmount, paymentStatus, paymentMethod, notes, createdAt, updatedAt)
         VALUES (${po.id}, ${po.code}, ${po.supplierId}, ${po.supplierName}, ${po.supplierPhone || null}, ${po.supplierAddress || null}, ${po.supplierTaxCode || null}, ${po.warehouseId || "wh-main"}, ${po.warehouseName || "Kho Tổng Gia Phúc TP.HCM"}, ${dt}, ${expDt}, ${po.status || "confirmed"}, ${po.subtotal}, ${po.vatRate || 10}, ${po.vatAmount || 0}, ${po.shippingFee || 0}, ${po.discountAmount || 0}, ${po.totalAmount}, ${po.paidAmount || 0}, ${po.paymentStatus || "unpaid"}, ${po.paymentMethod || "transfer"}, ${po.notes || null}, ${dt}, ${dt})
       `;
 
@@ -446,7 +446,7 @@ async function main() {
           const it = po.items[idx];
           const itemId = `po-item-${po.id}-${idx}`;
           await prisma.$executeRaw`
-            INSERT INTO [PurchaseOrderItem] (id, purchaseOrderId, productId, sku, productName, unit, quantity, unitPrice, total)
+            INSERT INTO [ChiTietDonDatHangMua] (id, purchaseOrderId, productId, sku, productName, unit, quantity, unitPrice, total)
             VALUES (${itemId}, ${po.id}, ${it.productId || null}, ${it.sku}, ${it.productName}, ${it.unit || "Cái"}, ${it.quantity}, ${it.unitPrice}, ${it.total})
           `;
         }

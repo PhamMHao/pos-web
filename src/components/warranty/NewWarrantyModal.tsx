@@ -26,6 +26,7 @@ import {
   WarrantyPartItem,
 } from '../../types';
 import { formatVND } from '../../utils/vietqr';
+import { useMasterData } from '../../core/contexts/MasterDataContext';
 
 interface NewWarrantyModalProps {
   isOpen: boolean;
@@ -44,6 +45,16 @@ export const NewWarrantyModal: React.FC<NewWarrantyModalProps> = ({
   customers = [],
   orders = [],
 }) => {
+  const { customers: masterCustomers } = useMasterData();
+  const effectiveCustomers = React.useMemo(() => {
+    const map = new Map<string, Customer>();
+    (masterCustomers || []).forEach((c) => map.set(c.id, c));
+    (customers || []).forEach((c) => {
+      if (!map.has(c.id)) map.set(c.id, c);
+    });
+    return Array.from(map.values());
+  }, [masterCustomers, customers]);
+
   if (!isOpen) return null;
 
   const [type, setType] = useState<WarrantyTicketType>('warranty');
@@ -417,13 +428,13 @@ export const NewWarrantyModal: React.FC<NewWarrantyModalProps> = ({
                   placeholder="Nguyễn Văn A"
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
                 />
-                {customers.length > 0 && (
+                {effectiveCustomers.length > 0 && (
                   <select
                     onChange={(e) => handleSelectCustomer(e.target.value)}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-2 py-1 text-[10px] text-slate-300 focus:outline-none mt-1"
                   >
-                    <option value="">-- Chọn khách từ CRM --</option>
-                    {customers.map((c) => (
+                    <option value="">-- Chọn khách từ Master Data / CRM --</option>
+                    {effectiveCustomers.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name} - {c.phone}
                       </option>

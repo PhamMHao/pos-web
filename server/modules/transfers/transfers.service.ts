@@ -107,7 +107,7 @@ export class TransfersService {
 
     // 1. Insert StockTransfer
     await prisma.$executeRaw`
-      INSERT INTO [StockTransfer] (id, code, fromWarehouse, toWarehouse, transferDate, status, totalItems, totalQuantity, senderName, receiverName, transportMethod, trackingNumber, notes, createdAt)
+      INSERT INTO [PhieuDieuChuyenKho] (id, code, fromWarehouse, toWarehouse, transferDate, status, totalItems, totalQuantity, senderName, receiverName, transportMethod, trackingNumber, notes, createdAt)
       VALUES (${id}, ${code}, ${transferData.fromWarehouse}, ${transferData.toWarehouse}, ${tDate}, ${transferData.status || "in_transit"}, ${transferData.totalItems}, ${transferData.totalQuantity}, ${transferData.senderName}, ${transferData.receiverName || null}, ${transferData.transportMethod || null}, ${transferData.trackingNumber || null}, ${transferData.notes || null}, ${now})
     `;
 
@@ -116,7 +116,7 @@ export class TransfersService {
       const it = items[idx];
       const itemId = `st-item-${Date.now()}-${idx}`;
       await prisma.$executeRaw`
-        INSERT INTO [StockTransferItem] (id, transferId, productId, productName, sku, unit, quantity, unitCost, totalCost)
+        INSERT INTO [ChiTietDieuChuyenKho] (id, transferId, productId, productName, sku, unit, quantity, unitCost, totalCost)
         VALUES (${itemId}, ${id}, ${it.productId}, ${it.productName}, ${it.sku}, ${it.unit || "Cái"}, ${it.quantity}, ${it.unitCost}, ${it.totalCost})
       `;
 
@@ -130,7 +130,7 @@ export class TransfersService {
           const newStock = Math.max(0, oldStock - transferQty);
 
           await prisma.$executeRaw`
-            UPDATE [Product]
+            UPDATE [SanPham]
             SET stock = ${newStock}, updatedAt = ${new Date()}
             WHERE id = ${prod.id}
           `;
@@ -138,7 +138,7 @@ export class TransfersService {
           const logId = `log-st-out-${Date.now()}-${idx}`;
           const reasonText = `Xuất chuyển kho từ [${transferData.fromWarehouse}] đến [${transferData.toWarehouse}] theo phiếu ${code}`;
           await prisma.$executeRaw`
-            INSERT INTO [InventoryLog] (id, productId, productName, sku, type, quantityChange, oldStock, newStock, reason, performedBy, timestamp)
+            INSERT INTO [NhatKyKho] (id, productId, productName, sku, type, quantityChange, oldStock, newStock, reason, performedBy, timestamp)
             VALUES (${logId}, ${prod.id}, ${prod.name}, ${prod.sku}, 'transfer_out', ${-transferQty}, ${oldStock}, ${newStock}, ${reasonText}, ${transferData.senderName || "Thủ kho"}, ${new Date()})
           `;
         }
@@ -162,13 +162,13 @@ export class TransfersService {
         const logId = `log-st-in-${Date.now()}-${idx}`;
         const reasonText = `Đã nhận hàng chuyển kho vào [${current.toWarehouse}] từ [${current.fromWarehouse}] theo phiếu ${current.code}`;
         await prisma.$executeRaw`
-          INSERT INTO [InventoryLog] (id, productId, productName, sku, type, quantityChange, oldStock, newStock, reason, performedBy, timestamp)
+          INSERT INTO [NhatKyKho] (id, productId, productName, sku, type, quantityChange, oldStock, newStock, reason, performedBy, timestamp)
           VALUES (${logId}, ${it.productId}, ${it.productName}, ${it.sku}, 'transfer_in', ${it.quantity}, ${curStock}, ${curStock}, ${reasonText}, ${input.receiverName || "Thủ kho nhận"}, ${now})
         `;
       }
 
       await prisma.$executeRaw`
-        UPDATE [StockTransfer]
+        UPDATE [PhieuDieuChuyenKho]
         SET status = 'completed', receivedDate = ${now}, receiverName = ${input.receiverName || current.receiverName || "Thủ kho nhận"}, notes = ${input.notes || current.notes || null}
         WHERE id = ${id}
       `;
@@ -184,7 +184,7 @@ export class TransfersService {
           const newStock = oldStock + revertQty;
 
           await prisma.$executeRaw`
-            UPDATE [Product]
+            UPDATE [SanPham]
             SET stock = ${newStock}, updatedAt = ${now}
             WHERE id = ${prod.id}
           `;
@@ -192,20 +192,20 @@ export class TransfersService {
           const logId = `log-st-revert-${Date.now()}-${idx}`;
           const reasonText = `Hủy phiếu chuyển kho ${current.code} - hoàn lại tồn kho cho [${current.fromWarehouse}]`;
           await prisma.$executeRaw`
-            INSERT INTO [InventoryLog] (id, productId, productName, sku, type, quantityChange, oldStock, newStock, reason, performedBy, timestamp)
+            INSERT INTO [NhatKyKho] (id, productId, productName, sku, type, quantityChange, oldStock, newStock, reason, performedBy, timestamp)
             VALUES (${logId}, ${prod.id}, ${prod.name}, ${prod.sku}, 'transfer_cancel_revert', ${revertQty}, ${oldStock}, ${newStock}, ${reasonText}, ${input.receiverName || "Thủ kho"}, ${now})
           `;
         }
       }
 
       await prisma.$executeRaw`
-        UPDATE [StockTransfer]
+        UPDATE [PhieuDieuChuyenKho]
         SET status = 'cancelled', notes = ${input.notes || current.notes || null}
         WHERE id = ${id}
       `;
     } else {
       await prisma.$executeRaw`
-        UPDATE [StockTransfer]
+        UPDATE [PhieuDieuChuyenKho]
         SET status = ${input.status}, receiverName = ${input.receiverName || current.receiverName || null}, notes = ${input.notes || current.notes || null}
         WHERE id = ${id}
       `;
