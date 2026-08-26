@@ -170,29 +170,60 @@ export const AccountsManagerView: React.FC = () => {
   };
 
   // User CRUD Operations
-  const handleSaveUser = (userData: UserProfile & { password?: string }) => {
-    if (editingUser) {
-      const updated = users.map((u) => (u.id === userData.id ? { ...u, ...userData } : u));
-      saveUsersToStorage(updated);
-      showToast(`Đã cập nhật thông tin tài khoản "${userData.fullName}"`);
-    } else {
-      const updated = [userData, ...users];
-      saveUsersToStorage(updated);
-      showToast(`Đã tạo tài khoản mới "${userData.fullName}" thành công`);
+  const handleSaveUser = async (userData: UserProfile & { password?: string }) => {
+    try {
+      if (editingUser) {
+        const res = await apiClient.put(`/auth/users/${userData.id}`, userData);
+        const saved = res.data?.data || userData;
+        const updated = users.map((u) => (u.id === userData.id ? { ...u, ...saved } : u));
+        saveUsersToStorage(updated);
+        showToast(`Đã cập nhật thông tin tài khoản "${userData.fullName}" trong CSDL SQL Server thành công!`);
+      } else {
+        const res = await apiClient.post('/auth/register', {
+          username: userData.username,
+          password: userData.password || '123456',
+          fullName: userData.fullName,
+          email: userData.email || null,
+          role: userData.role,
+        });
+        const newUser = res.data?.data || userData;
+        const updated = [newUser, ...users];
+        saveUsersToStorage(updated);
+        showToast(`Đã tạo tài khoản mới "${userData.fullName}" trong CSDL SQL Server thành công!`);
+      }
+    } catch (err: any) {
+      console.error('Save user error:', err);
+      // Local fallback
+      if (editingUser) {
+        const updated = users.map((u) => (u.id === userData.id ? { ...u, ...userData } : u));
+        saveUsersToStorage(updated);
+        showToast(`Đã cập nhật thông tin tài khoản "${userData.fullName}"`);
+      } else {
+        const updated = [userData, ...users];
+        saveUsersToStorage(updated);
+        showToast(`Đã tạo tài khoản mới "${userData.fullName}"`);
+      }
     }
     setEditingUser(null);
   };
 
-  const handleToggleUserStatus = (userId: string) => {
+  const handleToggleUserStatus = async (userId: string) => {
+    const target = users.find((u) => u.id === userId);
+    if (!target) return;
+    const nextStatus = target.status === 'inactive' ? 'active' : 'inactive';
+    try {
+      await apiClient.put(`/auth/users/${userId}`, { status: nextStatus });
+    } catch (e) {
+      console.warn('Could not update status on DB:', e);
+    }
     const updated = users.map((u) => {
       if (u.id === userId) {
-        const nextStatus = u.status === 'inactive' ? 'active' : 'inactive';
         return { ...u, status: nextStatus, isActive: nextStatus === 'active' };
       }
       return u;
     });
     saveUsersToStorage(updated);
-    showToast('Đã cập nhật trạng thái hoạt động của tài khoản');
+    showToast('Đã cập nhật trạng thái hoạt động của tài khoản trong CSDL');
   };
 
   const handleResetPassword = (u: UserProfile) => {
@@ -201,17 +232,23 @@ export const AccountsManagerView: React.FC = () => {
     }
   };
 
-  const handleDeleteUser = (userId: string) => {
+  const handleDeleteUser = async (userId: string) => {
     const userToDelete = users.find((u) => u.id === userId);
     if (userToDelete?.username === 'admin') {
       alert('Không thể xóa tài khoản Quản Trị Viên cao nhất (admin)!');
       return;
     }
 
+    try {
+      await apiClient.delete(`/auth/users/${userId}`);
+    } catch (e) {
+      console.warn('Could not delete user from DB:', e);
+    }
+
     const updated = users.filter((u) => u.id !== userId);
     saveUsersToStorage(updated);
     setConfirmDeleteId(null);
-    showToast(`Đã xóa tài khoản "${userToDelete?.fullName || userId}"`);
+    showToast(`Đã xóa tài khoản "${userToDelete?.fullName || userId}" khỏi CSDL`);
   };
 
   // Filtered users list

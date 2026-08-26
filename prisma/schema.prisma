@@ -25,6 +25,34 @@ model User {
   @@map("NguoiDung")
 }
 
+// 1.1. PHÂN QUYỀN & VAI TRÒ HỆ THỐNG (RBAC)
+model RolePermission {
+  id          String   @id @default(uuid())
+  roleKey     String   @unique
+  roleNameVi  String
+  description String?  @db.NVarChar(Max)
+  badgeColor  String?
+  gradient    String?
+  defaultTab  String?  @default("pos")
+  permissions String   @db.NVarChar(Max)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("PhanQuyenVaiTro")
+}
+
+model SystemModule {
+  id          String   @id
+  label       String
+  category    String
+  description String?  @db.NVarChar(Max)
+  orderIndex  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("DanhMucPhanHe")
+}
+
 // 2. SẢN PHẨM & ĐƠN VỊ TÍNH QUY ĐỔI (MULTI-UOM)
 model Product {
   id              String                 @id @default(uuid())

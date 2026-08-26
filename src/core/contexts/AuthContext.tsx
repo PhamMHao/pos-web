@@ -10,6 +10,7 @@ import {
   normalizeRoleKey,
   DEFAULT_RBAC_MATRIX,
 } from "../../config/rbac.config";
+import { rbacApi } from "../../features/auth/api/rbacApi";
 
 export interface UserProfile {
   id: string;
@@ -51,8 +52,8 @@ interface AuthContextType {
   hasRole: (roles: string[]) => boolean;
   hasModuleAccess: (moduleId: string) => boolean;
   hasActionAccess: (actionId: string) => boolean;
-  updatePermissionsMatrix: (newMatrix: Record<RoleKey, string[]>) => void;
-  resetPermissionsToDefault: () => void;
+  updatePermissionsMatrix: (newMatrix: Record<RoleKey, string[]>) => Promise<void>;
+  resetPermissionsToDefault: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
 
@@ -76,6 +77,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     getSavedRbacMatrix()
   );
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    // Load live RBAC Matrix from SQL Server DB
+    const loadMatrixFromDb = async () => {
+      try {
+        const matrix = await rbacApi.getMatrix();
+        if (matrix && Object.keys(matrix).length > 0) {
+          setPermissionsMatrix(matrix);
+          saveRbacMatrix(matrix);
+        }
+      } catch (err) {
+        console.warn("Could not load RBAC matrix from DB, using cache:", err);
+      }
+    };
+    loadMatrixFromDb();
+  }, []);
 
   useEffect(() => {
     if (token) {
@@ -168,14 +185,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return canRolePerformAction(user.role, actionId, permissionsMatrix);
   };
 
-  const updatePermissionsMatrix = (newMatrix: Record<RoleKey, string[]>) => {
+  const updatePermissionsMatrix = async (newMatrix: Record<RoleKey, string[]>) => {
     saveRbacMatrix(newMatrix);
     setPermissionsMatrix({ ...newMatrix });
+    try {
+      await rbacApi.saveMatrix(newMatrix);
+    } catch (err) {
+      console.error("Failed to save matrix to SQL Server DB:", err);
+    }
   };
 
-  const resetPermissionsToDefault = () => {
+  const resetPermissionsToDefault = async () => {
     const defaultMat = resetRbacMatrix();
     setPermissionsMatrix(defaultMat);
+    try {
+      await rbacApi.saveMatrix(defaultMat);
+    } catch (err) {
+      console.error("Failed to reset matrix in SQL Server DB:", err);
+    }
   };
 
   return (
