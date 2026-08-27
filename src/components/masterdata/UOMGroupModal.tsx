@@ -360,12 +360,12 @@ export const UOMGroupModal: React.FC<UOMGroupModalProps> = ({
             </div>
           </div>
 
-          {/* SECTION 3: CÁC TẦNG QUY ĐỔI ĐA CẤP (DYNAMIC CHILD TIERS) */}
-          <div className="bg-slate-850/70 p-4 rounded-2xl border border-slate-700/80 space-y-4">
-            <div className="flex items-center justify-between">
+          {/* SECTION 3: BẢNG CẤU HÌNH CÁC TẦNG QUY ĐỔI ĐA CẤP */}
+          <div className="bg-slate-850/70 rounded-2xl border border-slate-700/80 overflow-hidden space-y-0">
+            <div className="p-3.5 bg-slate-800/80 border-b border-slate-700/80 flex items-center justify-between">
               <div className="flex items-center space-x-2 text-xs font-bold text-indigo-400 uppercase tracking-wider">
                 <TrendingUp className="w-4 h-4" />
-                <span>3. Các Tầng Quy Đổi Phía Trên (Tầng 2, 3, 4, 5... Không Giới Hạn)</span>
+                <span>3. Bảng Cấu Hình Các Tầng Quy Đổi (Tầng 2, 3, 4, 5...)</span>
               </div>
 
               <button
@@ -379,147 +379,132 @@ export const UOMGroupModal: React.FC<UOMGroupModalProps> = ({
             </div>
 
             {childTiers.length === 0 ? (
-              <div className="py-8 text-center border-2 border-dashed border-slate-800 rounded-2xl space-y-2">
-                <Layers className="w-8 h-8 mx-auto text-slate-600" />
-                <p className="text-xs text-slate-400">
-                  Chưa có tầng quy đổi nào. Bấm nút <strong>"+ Thêm Tầng Quy Đổi"</strong> để thiết lập chuỗi (ví dụ: Cuộn, Thùng, Pallet...).
-                </p>
+              <div className="py-6 text-center text-slate-500 text-xs">
+                Chưa có tầng quy đổi nào. Bấm nút <strong>"+ Thêm Tầng Quy Đổi"</strong> ở góc phải trên để thêm (VD: Cuộn, Thùng, Pallet...).
               </div>
             ) : (
-              <div className="space-y-3">
-                {childTiers.map((tier, idx) => (
-                  <div
-                    key={tier.id}
-                    className="p-3.5 bg-slate-800/90 rounded-2xl border border-slate-700/80 space-y-2.5 transition-all hover:border-indigo-500/50"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <span className="w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs flex items-center justify-center border border-indigo-500/30">
-                          T{idx + 2}
-                        </span>
-                        <span className="text-xs font-bold text-white">Tầng quy đổi thứ {idx + 2}</span>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveTier(idx)}
-                        className="p-1 text-slate-400 hover:text-rose-400 rounded-lg cursor-pointer transition-colors"
-                        title="Xóa tầng này"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
-                      {/* 1. Chọn ĐVT của tầng này */}
-                      <div className="sm:col-span-4">
-                        <label className="block text-[11px] font-bold text-slate-400 mb-1">Đơn Vị Tính Tầng Này</label>
-                        <select
-                          value={tier.unitName}
-                          onChange={(e) => handleUpdateTier(idx, 'unitName', e.target.value)}
-                          className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs font-semibold focus:border-indigo-500 focus:outline-none"
-                        >
-                          {unitsOfMeasure
-                            .filter((u) => u.name !== selectedBaseUOM?.name)
-                            .map((u) => (
-                              <option key={u.id} value={u.name}>
-                                {u.name} ({u.symbol || u.name})
-                              </option>
-                            ))}
-                        </select>
-                      </div>
-
-                      {/* 2. Hệ số bước */}
-                      <div className="sm:col-span-3">
-                        <label className="block text-[11px] font-bold text-slate-400 mb-1">
-                          1 {tier.unitSymbol || tier.unitName} =
-                        </label>
-                        <input
-                          type="number"
-                          min="0.0001"
-                          step="any"
-                          value={tier.stepFactor}
-                          onChange={(e) => handleUpdateTier(idx, 'stepFactor', e.target.value)}
-                          placeholder="VD: 10, 100..."
-                          className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-xl text-cyan-400 text-xs font-mono font-bold focus:border-indigo-500 focus:outline-none"
-                        />
-                      </div>
-
-                      {/* 3. Quy đổi theo ĐVT nào */}
-                      <div className="sm:col-span-5">
-                        <label className="block text-[11px] font-bold text-slate-400 mb-1">
-                          Quy Đổi Theo ĐVT Cấp Dưới
-                        </label>
-                        <select
-                          value={tier.parentUnitName}
-                          onChange={(e) => handleUpdateTier(idx, 'parentUnitName', e.target.value)}
-                          className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs focus:border-indigo-500 focus:outline-none"
-                        >
-                          {availableParentUnitNames
-                            .filter((pName) => pName !== tier.unitName)
-                            .map((pName) => (
-                              <option key={pName} value={pName}>
-                                {pName}
-                              </option>
-                            ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Dòng ghi chú tương đương phụ (e.g. ~ 10 Kg) */}
-                    <div className="pt-1 flex items-center gap-2">
-                      <span className="text-[10px] text-slate-400 whitespace-nowrap">Ghi chú tương đương (tùy chọn):</span>
-                      <input
-                        type="text"
-                        value={tier.equivalentNote}
-                        onChange={(e) => handleUpdateTier(idx, 'equivalentNote', e.target.value)}
-                        placeholder="VD: ~ 10 Kg, hoặc tương đương 100 mét, 24 lon..."
-                        className="flex-1 px-2 py-1 bg-slate-900/60 border border-slate-700/60 rounded-lg text-slate-300 text-[11px]"
-                      />
-                    </div>
-                  </div>
-                ))}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-900 text-slate-400 text-[10px] uppercase font-bold tracking-wider border-b border-slate-800">
+                    <tr>
+                      <th className="py-2.5 px-3 w-16 text-center">Tầng</th>
+                      <th className="py-2.5 px-3 w-40">Đơn Vị Tính</th>
+                      <th className="py-2.5 px-3 w-28">Hệ Số Bước</th>
+                      <th className="py-2.5 px-3 w-40">Quy Đổi Theo</th>
+                      <th className="py-2.5 px-3">Ghi Chú Tương Đương</th>
+                      <th className="py-2.5 px-3 w-12 text-center">Xóa</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                    {childTiers.map((tier, idx) => (
+                      <tr key={tier.id} className="hover:bg-slate-800/40">
+                        <td className="py-2.5 px-3 text-center">
+                          <span className="w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs inline-flex items-center justify-center border border-indigo-500/30">
+                            T{idx + 2}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <select
+                            value={tier.unitName}
+                            onChange={(e) => handleUpdateTier(idx, 'unitName', e.target.value)}
+                            className="w-full px-2 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs font-semibold focus:border-indigo-500 focus:outline-none"
+                          >
+                            {unitsOfMeasure
+                              .filter((u) => u.name !== selectedBaseUOM?.name)
+                              .map((u) => (
+                                <option key={u.id} value={u.name}>
+                                  {u.name} ({u.symbol || u.name})
+                                </option>
+                              ))}
+                          </select>
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <input
+                            type="number"
+                            min="0.0001"
+                            step="any"
+                            value={tier.stepFactor}
+                            onChange={(e) => handleUpdateTier(idx, 'stepFactor', e.target.value)}
+                            placeholder="VD: 10, 100..."
+                            className="w-full px-2 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-cyan-400 text-xs font-mono font-bold focus:border-indigo-500 focus:outline-none text-right"
+                          />
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <select
+                            value={tier.parentUnitName}
+                            onChange={(e) => handleUpdateTier(idx, 'parentUnitName', e.target.value)}
+                            className="w-full px-2 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs focus:border-indigo-500 focus:outline-none"
+                          >
+                            {availableParentUnitNames
+                              .filter((pName) => pName !== tier.unitName)
+                              .map((pName) => (
+                                <option key={pName} value={pName}>
+                                  {pName}
+                                </option>
+                              ))}
+                          </select>
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <input
+                            type="text"
+                            value={tier.equivalentNote}
+                            onChange={(e) => handleUpdateTier(idx, 'equivalentNote', e.target.value)}
+                            placeholder="VD: ~ 10 Kg, 24 lon..."
+                            className="w-full px-2 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-slate-300 text-xs focus:border-indigo-500 focus:outline-none"
+                          />
+                        </td>
+                        <td className="py-2.5 px-3 text-center">
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveTier(idx)}
+                            className="p-1 text-slate-400 hover:text-rose-400 rounded-lg cursor-pointer transition-colors"
+                            title="Xóa tầng này"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
 
-          {/* SECTION 4: SƠ ĐỒ CHUỖI VÀ BẢNG XEM TRƯỚC THỜI GIAN THỰC */}
-          <div className="bg-gradient-to-br from-slate-900 to-indigo-950/40 p-4 rounded-2xl border border-indigo-500/30 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2 text-xs font-bold text-cyan-400 uppercase tracking-wider">
-                <Sparkles className="w-4 h-4" />
-                <span>4. Sơ Đồ Chuỗi Quy Đổi Trực Quan Thời Gian Thực</span>
-              </div>
-              <span className="text-[11px] text-slate-400">
-                Tổng cộng: <strong className="text-white">{resolvedTiers.length} tầng</strong>
+          {/* SECTION 4: TỔNG KẾT CHUỖI QUY ĐỔI */}
+          <div className="bg-slate-900/90 p-3.5 rounded-2xl border border-slate-800 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-bold text-slate-300 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Xem trước chuỗi quy đổi:</span>
+              </span>
+              <span className="text-[11px] text-cyan-400 font-mono font-bold">
+                {resolvedTiers.length} tầng ({selectedBaseUOM?.name} là gốc)
               </span>
             </div>
 
-            {/* Visual Node Flow */}
-            <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800 flex items-center flex-wrap gap-2 overflow-x-auto">
+            <div className="flex items-center flex-wrap gap-1 text-xs">
               {[...resolvedTiers].reverse().map((tier, rIdx) => (
                 <React.Fragment key={tier.id}>
-                  <div
-                    className={`px-3 py-1.5 rounded-xl border flex items-center space-x-1.5 ${
+                  <span
+                    className={`px-2 py-0.5 rounded-lg border text-xs ${
                       tier.isBase
-                        ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
-                        : 'bg-indigo-500/20 border-indigo-500/40 text-white'
+                        ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 font-bold'
+                        : 'bg-indigo-500/20 border-indigo-500/40 text-white font-medium'
                     }`}
                   >
-                    <span className="text-[10px] font-bold uppercase tracking-wider">T{tier.tierLevel}:</span>
-                    <strong className="text-xs font-black">{tier.unitSymbol || tier.unitName}</strong>
-                    <span className="text-[10px] font-mono opacity-80">
+                    {tier.unitSymbol || tier.unitName}{' '}
+                    <span className="text-[10px] opacity-75 font-mono">
                       (x{tier.ratioToBase.toLocaleString('vi-VN')} {selectedBaseUOM?.symbol || selectedBaseUOM?.name})
                     </span>
-                  </div>
+                  </span>
 
                   {rIdx < resolvedTiers.length - 1 && (
-                    <ArrowRight className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                    <ArrowRight className="w-3 h-3 text-slate-500 flex-shrink-0" />
                   )}
                 </React.Fragment>
               ))}
             </div>
-
             {/* Formula Summary List */}
             <div className="space-y-1 pt-1 text-xs">
               {resolvedTiers
