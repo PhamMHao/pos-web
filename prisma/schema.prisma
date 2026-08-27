@@ -71,6 +71,11 @@ model Product {
   description     String?                @db.NVarChar(Max)
   isFeatured      Boolean                @default(false)
   weightOrVolume  String?
+  specifications  String?                @db.NVarChar(Max)
+  color           String?
+  brand           String?
+  warrantyMonths  Int?                   @default(12)
+  accessories     String?                @db.NVarChar(Max)
   createdAt       DateTime               @default(now())
   updatedAt       DateTime               @updatedAt
   uomConversions  ProductUOMConversion[]
@@ -221,10 +226,15 @@ model StockGoodsReceipt {
   id                 String                  @id @default(uuid())
   code               String                  @unique // e.g. PNK-2026-0816-001
   date               DateTime                @default(now())
+  sourceType         String?                 @default("manual") // 'po' | 'quote' | 'inbound_invoice' | 'manual'
+  sourceId           String?
+  sourceCode         String?
   inboundInvoiceId   String?
   inboundInvoiceCode String?
   supplierName       String
   supplierTaxCode    String?
+  supplierPhone      String?
+  supplierAddress    String?
   warehouseName      String                  @default("Kho Chính")
   creatorName        String
   receivedBy         String
@@ -260,9 +270,53 @@ model StockGoodsReceiptItem {
   storageLocation String?
   warehouse       String?
   category        String?
+  specifications  String?           @db.NVarChar(Max)
+  color           String?
+  brand           String?
+  warrantyMonths  Int?              @default(12)
+  accessories     String?           @db.NVarChar(Max)
+  serials         String?           @db.NVarChar(Max)
   notes           String?
 
   @@map("ChiTietPhieuNhapKho")
+}
+
+// 6.1 PHIẾU XUẤT KHO (STOCK GOODS ISSUE / OUTBOUND NOTE)
+model StockGoodsIssue {
+  id              String                @id @default(uuid())
+  code            String                @unique // e.g. XK-2026-0001
+  orderId         String?
+  orderCode       String                // DH-10029
+  customerName    String
+  customerPhone   String?
+  customerAddress String?
+  warehouseName   String                @default("Kho Chính")
+  dispatchedBy    String
+  dispatchedAt    DateTime              @default(now())
+  totalQuantity   Decimal               @db.Decimal(18, 2)
+  totalItemsCount Int                   @default(1)
+  status          String                @default("completed") // 'completed' | 'cancelled'
+  notes           String?               @db.NVarChar(Max)
+  createdAt       DateTime              @default(now())
+  items           StockGoodsIssueItem[]
+
+  @@map("PhieuXuatKho")
+}
+
+model StockGoodsIssueItem {
+  id             String          @id @default(uuid())
+  issueId        String
+  issue          StockGoodsIssue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  productId      String
+  productName    String
+  sku            String
+  unit           String          @default("Cái")
+  quantity       Decimal         @db.Decimal(18, 2)
+  serials        String?         @db.NVarChar(Max) // JSON array of serial strings
+  warrantyMonths Int?            @default(12)
+  notes          String?
+
+  @@map("ChiTietPhieuXuatKho")
 }
 
 // 7. BÁO GIÁ (PRICE QUOTES)
@@ -417,14 +471,25 @@ model WarrantyTimelineEvent {
 model SerialDeviceRecord {
   id                     String    @id @default(uuid())
   serialNumber           String    @unique
+  productId              String?
   productName            String
   sku                    String
+  brand                  String?
+  color                  String?
+  specifications         String?   @db.NVarChar(Max)
+  accessories            String?   @db.NVarChar(Max)
+  status                 String    @default("in_stock") // 'in_stock' | 'reserved' | 'sold' | 'under_warranty' | 'defective' | 'returned_to_vendor'
+  warehouseName          String?   @default("Kho Chính")
+  storageLocation        String?
+  receiptCode            String?
+  receiptDate            DateTime?
   soldOrderCode          String?
   soldDate               DateTime?
   customerName           String?
   customerPhone          String?
+  customerAddress        String?
   warrantyPeriodMonths   Int       @default(12)
-  warrantyExpiryDate     DateTime
+  warrantyExpiryDate     DateTime?
   warrantyStatus         String    @default("valid") // 'valid' | 'expired' | 'voided'
   totalRepairsCount      Int       @default(0)
   totalMaintenancesCount Int       @default(0)

@@ -13,6 +13,7 @@ import {
   Upload,
   CheckCircle2,
   FileText,
+  FileCheck,
   Filter,
   X,
   History,
@@ -57,6 +58,7 @@ import { ProductBarcodeLabelModal } from './ProductBarcodeLabelModal';
 import { BarcodeLabelPreviewModal, PrintLabelItem } from '../common/BarcodeLabelPreviewModal';
 import { ProductLifecycleModal } from './ProductLifecycleModal';
 import { productsApi } from '../../features/products/api/productsApi';
+import { warehouseApi } from '../../features/warehouse/api/warehouseApi';
 import { QuickAddMasterDataModal, MasterDataType } from '../common/QuickAddMasterDataModal';
 import { useMasterData } from '../../core/contexts/MasterDataContext';
 import { WebImagePickerModal } from '../common/WebImagePickerModal';
@@ -64,6 +66,10 @@ import { StockTransferModal } from './StockTransferModal';
 import { BatchBarcodeLabelModal, BatchPrintItem } from './BatchBarcodeLabelModal';
 import { OrderOutboundDispatchModal } from './OrderOutboundDispatchModal';
 import { PrintInvoiceModal } from '../common/PrintInvoiceModal';
+import { NewStockGoodsReceiptModal } from './NewStockGoodsReceiptModal';
+import { NewStockGoodsIssueModal } from './NewStockGoodsIssueModal';
+import { StockGoodsIssuePrintModal } from './StockGoodsIssuePrintModal';
+import { PriceQuote, Supplier, PurchaseOrder, StockGoodsIssue } from '../../types';
 
 const LIFECYCLE_STAGE_BADGES: Record<string, { label: string; badge: string }> = {
   new_inbound: { label: 'Nhập Mới', badge: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
@@ -103,6 +109,9 @@ interface InventoryViewProps {
   onSaveOrder?: (order: Order) => void;
   serialRecords?: SerialDeviceRecord[];
   setSerialRecords?: (records: SerialDeviceRecord[] | ((prev: SerialDeviceRecord[]) => SerialDeviceRecord[])) => void;
+  purchaseOrders?: PurchaseOrder[];
+  quotes?: PriceQuote[];
+  suppliers?: Supplier[];
 }
 
 export const InventoryView: React.FC<InventoryViewProps> = ({
@@ -129,6 +138,9 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   onSaveOrder,
   serialRecords = [],
   setSerialRecords,
+  purchaseOrders = [],
+  quotes = [],
+  suppliers = [],
 }) => {
   const {
     productCategories: masterCategories,
@@ -137,7 +149,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
     suppliers: masterSuppliers,
   } = useMasterData();
 
-  const [activeTab, setActiveTab] = useState<'catalog' | 'outbound' | 'logs'>('catalog');
+  const [activeTab, setActiveTab] = useState<'catalog' | 'receipts' | 'outbound' | 'serial_devices' | 'logs'>('catalog');
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [warehouseFilter, setWarehouseFilter] = useState<string>('all');
@@ -145,7 +157,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   const [quickAddType, setQuickAddType] = useState<MasterDataType | null>(null);
   const [categoriesList, setCategoriesList] = useState<string[]>([]);
   const [warehouseList, setWarehouseList] = useState<string[]>(
-    settings.warehouseList || [
+    settings?.warehouseList || [
       'Kho Chính Gia Phúc Computer',
       'Kho Kỹ Thuật & Showroom',
       'Kho Chi Nhánh TP.HCM',
@@ -161,6 +173,52 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   const [previewModalItems, setPreviewModalItems] = useState<PrintLabelItem[]>([]);
   const [showLifecycleModal, setShowLifecycleModal] = useState(false);
   const [lifecycleModalProduct, setLifecycleModalProduct] = useState<Product | null>(null);
+
+  // New Inward Goods Receipt Modal & Outbound Goods Issue Modal state
+  const [showNewReceiptModal, setShowNewReceiptModal] = useState<boolean>(false);
+  const [showNewIssueModal, setShowNewIssueModal] = useState<boolean>(false);
+  const [printReceiptData, setPrintReceiptData] = useState<StockGoodsReceipt | null>(null);
+  const [printIssueData, setPrintIssueData] = useState<StockGoodsIssue | null>(null);
+  const [receiptsSearchTerm, setReceiptsSearchTerm] = useState<string>('');
+  const [serialSearchTerm, setSerialSearchTerm] = useState<string>('');
+  const [serialStatusFilter, setSerialStatusFilter] = useState<string>('all');
+
+  const handleSaveReceipt = async (
+    receiptData: Partial<StockGoodsReceipt>,
+    options?: { printAfterSave?: boolean }
+  ) => {
+    try {
+      const created = await warehouseApi.createGoodsReceipt(receiptData);
+      setStockReceipts((prev) => [created, ...(Array.isArray(prev) ? prev : [])]);
+      if (onRefreshDb) onRefreshDb();
+      setShowNewReceiptModal(false);
+      setActiveTab('catalog');
+      if (options?.printAfterSave) {
+        setPrintReceiptData(created);
+      }
+    } catch (err: any) {
+      console.error('Error saving goods receipt:', err);
+      throw err;
+    }
+  };
+
+  const handleSaveIssue = async (
+    issueData: Partial<StockGoodsIssue>,
+    options?: { printAfterSave?: boolean }
+  ) => {
+    try {
+      const created = await warehouseApi.createGoodsIssue(issueData);
+      if (onRefreshDb) onRefreshDb();
+      setShowNewIssueModal(false);
+      setActiveTab('catalog');
+      if (options?.printAfterSave) {
+        setPrintIssueData(created);
+      }
+    } catch (err: any) {
+      console.error('Error saving goods issue:', err);
+      throw err;
+    }
+  };
 
   // Outbound Dispatch State
   const [selectedDispatchOrder, setSelectedDispatchOrder] = useState<Order | null>(null);
@@ -184,6 +242,49 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 
   const safeProducts = Array.isArray(products) ? products : [];
   const safeLogs = Array.isArray(inventoryLogs) ? inventoryLogs : [];
+
+  const filteredReceipts = useMemo(() => {
+    if (!receiptsSearchTerm.trim()) return stockReceipts;
+    const t = receiptsSearchTerm.toLowerCase();
+    return stockReceipts.filter(
+      (r) =>
+        r.code.toLowerCase().includes(t) ||
+        (r.supplierName && r.supplierName.toLowerCase().includes(t)) ||
+        (r.sourceCode && r.sourceCode.toLowerCase().includes(t)) ||
+        (r.warehouseName && r.warehouseName.toLowerCase().includes(t)) ||
+        (r.notes && r.notes.toLowerCase().includes(t)) ||
+        (r.items &&
+          r.items.some(
+            (it) =>
+              it.productName.toLowerCase().includes(t) ||
+              it.sku.toLowerCase().includes(t) ||
+              (it.serials && it.serials.some((sn) => sn.toLowerCase().includes(t)))
+          ))
+    );
+  }, [stockReceipts, receiptsSearchTerm]);
+
+  const filteredSerials = useMemo(() => {
+    return serialRecords.filter((s) => {
+      if (serialStatusFilter !== 'all') {
+        const curStatus = s.status || 'in_stock';
+        if (curStatus !== serialStatusFilter) return false;
+      }
+      if (serialSearchTerm.trim()) {
+        const t = serialSearchTerm.toLowerCase();
+        const matchSn = s.serialNumber.toLowerCase().includes(t);
+        const matchProd = (s.productName || '').toLowerCase().includes(t);
+        const matchSku = (s.sku || '').toLowerCase().includes(t);
+        const matchBrand = (s.brand || '').toLowerCase().includes(t);
+        const matchCust = (s.customerName || '').toLowerCase().includes(t);
+        const matchOrd = (s.soldOrderCode || '').toLowerCase().includes(t);
+        const matchReceipt = (s.receiptCode || '').toLowerCase().includes(t);
+        if (!matchSn && !matchProd && !matchSku && !matchBrand && !matchCust && !matchOrd && !matchReceipt) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [serialRecords, serialStatusFilter, serialSearchTerm]);
 
   const dynamicCategories = useMemo(() => {
     const fromMaster = (masterCategories || []).filter((c) => c.status === 'active').map((c) => c.name);
@@ -649,7 +750,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         formData.image ||
         'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80',
       description: formData.description || '',
-      warehouse: formData.warehouse || settings.defaultWarehouse,
+      warehouse: formData.warehouse || settings?.defaultWarehouse || 'Kho Chính Gia Phúc Computer',
       storageLocation: formData.storageLocation || '',
       uomConversions: finalUomList,
       createdAt: editingProduct ? editingProduct.createdAt : new Date().toISOString(),
@@ -747,7 +848,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 sellingPrice,
                 stock,
                 minStock,
-                warehouse: settings.defaultWarehouse || 'Kho Chính',
+                warehouse: settings?.defaultWarehouse || 'Kho Chính',
                 description: `Nhập khẩu hàng loạt từ file ${file.name}`,
               });
             }
@@ -842,10 +943,32 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* Main Action 1: + Lập Phiếu Nhập Kho */}
+          <button
+            type="button"
+            onClick={() => setShowNewReceiptModal(true)}
+            className="flex items-center space-x-1.5 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-extrabold rounded-xl shadow-lg shadow-emerald-600/30 border border-emerald-400/40 transition-all hover:scale-[1.02] active:scale-98 cursor-pointer"
+            title="Lập phiếu nhập kho từ Báo Giá, Đơn đặt hàng PO, HĐĐT hoặc thủ công"
+          >
+            <Plus className="w-4 h-4" />
+            <span>+ Lập Phiếu Nhập Kho</span>
+          </button>
+
+          {/* Main Action 2: + Lập Phiếu Xuất Kho */}
+          <button
+            type="button"
+            onClick={() => setShowNewIssueModal(true)}
+            className="flex items-center space-x-1.5 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-extrabold rounded-xl shadow-lg shadow-blue-600/30 border border-blue-400/40 transition-all hover:scale-[1.02] active:scale-98 cursor-pointer"
+            title="Lập phiếu xuất kho dựa trên Hóa đơn bán hàng & quét súng barcode"
+          >
+            <Boxes className="w-4 h-4" />
+            <span>+ Lập Phiếu Xuất Kho</span>
+          </button>
+
           <button
             type="button"
             onClick={() => onOpenDocOcrScanner ? onOpenDocOcrScanner('stock_in') : null}
-            className="flex items-center space-x-1.5 px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold rounded-xl shadow-md shadow-emerald-600/25 border border-emerald-400/40 transition-all cursor-pointer active:scale-95"
+            className="flex items-center space-x-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition-all cursor-pointer"
             title="Quét phiếu nhập kho bằng camera điện thoại & Import Excel (AI Vision)"
           >
             <Sparkles className="w-4 h-4 text-amber-300" />
@@ -863,10 +986,10 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           </button>
           <button
             onClick={() => setShowInboundModal(true)}
-            className="flex items-center space-x-1.5 px-3.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl shadow-md shadow-blue-600/25 border border-blue-400/30 transition-all hover:scale-[1.02] active:scale-98"
+            className="flex items-center space-x-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl border border-slate-700 transition-all"
           >
-            <FileCode2 className="w-4 h-4 text-blue-200" />
-            <span>Nhập Kho Từ HĐĐT (Thuế / Gmail)</span>
+            <FileCode2 className="w-4 h-4 text-purple-400" />
+            <span>Nhập Kho HĐĐT</span>
             {pendingInboundCount > 0 && (
               <span className="px-1.5 py-0.2 bg-amber-400 text-slate-950 rounded-full text-[10px] font-black animate-pulse">
                 {pendingInboundCount}
@@ -876,11 +999,11 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 
           <button
             onClick={() => setShowTransferModal(true)}
-            className="flex items-center space-x-1.5 px-3.5 py-2 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white text-xs font-bold rounded-xl shadow-md shadow-teal-600/25 border border-teal-400/30 transition-all hover:scale-[1.02] active:scale-98 cursor-pointer"
+            className="flex items-center space-x-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl border border-slate-700 transition-all cursor-pointer"
             title="Quản lý điều chuyển hàng hóa giữa Kho Tổng và các Cửa hàng chi nhánh"
           >
-            <Truck className="w-4 h-4 text-teal-200" />
-            <span>Chuyển Kho Nội Bộ ({transfers.length})</span>
+            <Truck className="w-4 h-4 text-teal-300" />
+            <span>Chuyển Kho ({transfers.length})</span>
           </button>
           <button
             onClick={() => {
@@ -896,36 +1019,29 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               setPreviewModalItems(items);
               setShowPrintPreviewModal(true);
             }}
-            className="flex items-center space-x-1.5 px-3.5 py-2 bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white text-xs font-bold rounded-xl shadow-md shadow-sky-600/25 border border-sky-400/30 transition-all hover:scale-[1.02] active:scale-98 cursor-pointer"
+            className="flex items-center space-x-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl border border-slate-700 transition-all cursor-pointer"
             title="Mở bản xem trước và in tem mã vạch (30x20mm, 50x30mm, Tùy chỉnh)"
           >
-            <Eye className="w-4 h-4 text-sky-200" />
-            <span>Xem Trước Tem (30x20, 50x30, Tùy Chỉnh)</span>
+            <Eye className="w-4 h-4 text-sky-300" />
+            <span>Xem Tem</span>
           </button>
           <button
             onClick={() => {
               setBarcodeModalProduct(null);
               setShowBarcodeModal(true);
             }}
-            className="flex items-center space-x-1.5 px-3.5 py-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white text-xs font-bold rounded-xl shadow-md shadow-amber-600/25 border border-amber-400/30 transition-all hover:scale-[1.02] active:scale-98 cursor-pointer"
+            className="flex items-center space-x-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl border border-slate-700 transition-all cursor-pointer"
             title="In tem nhãn mã vạch Barcode và QR Code theo kích thước máy in nhiệt (30x20mm, 35x22mm, 50x30mm...)"
           >
-            <Barcode className="w-4 h-4 text-amber-200" />
-            <span>In Tem Mã Vạch / QR</span>
-          </button>
-          <button
-            onClick={handleExportCSV}
-            className="flex items-center space-x-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl border border-slate-700 transition-colors cursor-pointer"
-          >
-            <Download className="w-4 h-4" />
-            <span className="hidden sm:inline">Xuất CSV</span>
+            <Barcode className="w-4 h-4 text-amber-300" />
+            <span>In Tem Mã Vạch</span>
           </button>
           <button
             onClick={openAddModal}
-            className="flex items-center space-x-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold rounded-xl transition-all shadow-lg shadow-emerald-500/20 cursor-pointer"
+            className="flex items-center space-x-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs font-bold rounded-xl border border-slate-700 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>Thêm Sản Phẩm Mới</span>
+            <span>+ SP Mới</span>
           </button>
         </div>
       </div>
@@ -1040,7 +1156,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       {/* Tabs & Search Bar */}
       <div className="bg-slate-900/80 p-4 rounded-2xl border border-slate-800 space-y-3">
         <div className="flex flex-col md:flex-row gap-3 items-center justify-between">
-          <div className="flex space-x-1 bg-slate-800 p-1 rounded-xl border border-slate-700">
+          <div className="flex flex-wrap space-x-1 bg-slate-800 p-1 rounded-xl border border-slate-700">
             <button
               onClick={() => setActiveTab('catalog')}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
@@ -1049,7 +1165,18 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              Danh Mục Sản Phẩm ({products.length})
+              📦 Danh Mục Sản Phẩm ({products.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('receipts')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 ${
+                activeTab === 'receipts'
+                  ? 'bg-emerald-500 text-slate-950 shadow'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <FileCheck className="w-3.5 h-3.5" />
+              <span>📥 Sổ Nhập Kho ({stockReceipts.length})</span>
             </button>
             <button
               onClick={() => setActiveTab('outbound')}
@@ -1060,7 +1187,18 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               }`}
             >
               <Boxes className="w-3.5 h-3.5" />
-              <span>Xuất Kho Đơn Hàng ({orders.filter((o) => o.status !== 'cancelled').length})</span>
+              <span>📤 Sổ Xuất Kho ({orders.filter((o) => o.status !== 'cancelled').length})</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('serial_devices')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 ${
+                activeTab === 'serial_devices'
+                  ? 'bg-emerald-500 text-slate-950 shadow'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Barcode className="w-3.5 h-3.5" />
+              <span>🏷️ Quản Lý Serial ({serialRecords.length})</span>
             </button>
             <button
               onClick={() => setActiveTab('logs')}
@@ -1071,9 +1209,87 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               }`}
             >
               <History className="w-3.5 h-3.5" />
-              <span>Lịch Sử Nhập Xuất ({inventoryLogs.length})</span>
+              <span>📋 Lịch Sử Nhập Xuất ({inventoryLogs.length})</span>
             </button>
           </div>
+
+          {activeTab === 'receipts' && (
+            <div className="flex flex-wrap gap-2 w-full md:w-auto items-center">
+              <div className="relative flex-1 md:w-80">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                <input
+                  type="text"
+                  value={receiptsSearchTerm}
+                  onChange={(e) => setReceiptsSearchTerm(e.target.value)}
+                  placeholder="Tìm mã PNK, NCC, Serial, Sản phẩm..."
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowNewReceiptModal(true)}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-emerald-600/20"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Lập Phiếu Nhập</span>
+              </button>
+            </div>
+          )}
+
+          {activeTab === 'serial_devices' && (
+            <div className="flex flex-wrap gap-2 w-full md:w-auto items-center">
+              <div className="relative flex-1 md:w-72">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                <input
+                  type="text"
+                  value={serialSearchTerm}
+                  onChange={(e) => setSerialSearchTerm(e.target.value)}
+                  placeholder="Quét hoặc tìm Serial/IMEI, SKU, SP..."
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 font-mono"
+                />
+              </div>
+
+              {/* Serial Status Filter Pills */}
+              <div className="flex space-x-1 bg-slate-800 p-0.5 rounded-xl border border-slate-700 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setSerialStatusFilter('all')}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                    serialStatusFilter === 'all' ? 'bg-emerald-500 text-slate-950' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Tất cả ({serialRecords.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSerialStatusFilter('in_stock')}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                    serialStatusFilter === 'in_stock' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Trong kho ({serialRecords.filter((s) => s.status === 'in_stock' || !s.status).length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSerialStatusFilter('sold')}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                    serialStatusFilter === 'sold' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Đã bán ({serialRecords.filter((s) => s.status === 'sold').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSerialStatusFilter('defective')}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                    serialStatusFilter === 'defective' ? 'bg-rose-600 text-white' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Lỗi/BH ({serialRecords.filter((s) => s.status === 'defective' || s.status === 'under_warranty').length})
+                </button>
+              </div>
+            </div>
+          )}
 
           {activeTab === 'outbound' && (
             <div className="flex flex-wrap gap-2 w-full md:w-auto items-center">
@@ -1119,6 +1335,15 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                   Đã xuất kho
                 </button>
               </div>
+
+              <button
+                type="button"
+                onClick={() => setShowNewIssueModal(true)}
+                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-blue-600/20"
+              >
+                <Boxes className="w-3.5 h-3.5" />
+                <span>Lập Phiếu Xuất</span>
+              </button>
             </div>
           )}
 
@@ -1157,7 +1382,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
               >
                 <option value="all">Tất cả kho hàng</option>
-                {(settings.warehouseList || [
+                {(settings?.warehouseList || [
                   'Kho Chính Gia Phúc Computer',
                   'Kho Kỹ Thuật & Showroom',
                   'Kho Chi Nhánh TP.HCM',
@@ -1263,7 +1488,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                         <td className="py-3 px-4">
                           <div className="text-[11px] space-y-0.5">
                             <span className="font-semibold text-blue-300 block line-clamp-1">
-                              🏬 {p.warehouse || settings.defaultWarehouse || 'Kho Chính Gia Phúc Computer'}
+                              🏬 {p.warehouse || settings?.defaultWarehouse || 'Kho Chính Gia Phúc Computer'}
                             </span>
                             {p.storageLocation ? (
                               <span className="text-emerald-400 font-medium block text-[10px] bg-slate-800/80 px-1.5 py-0.5 rounded border border-slate-700/60">
@@ -1434,6 +1659,153 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         </div>
       )}
 
+      {/* Inward Goods Receipts Tab */}
+      {activeTab === 'receipts' && (
+        <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="bg-slate-950/60 text-slate-400 border-b border-slate-800 uppercase tracking-wider font-semibold">
+                  <th className="py-3.5 px-4">Mã Phiếu Nhập</th>
+                  <th className="py-3.5 px-4">Ngày Nhập</th>
+                  <th className="py-3.5 px-4">Nhà Cung Cấp / Đối Tác</th>
+                  <th className="py-3.5 px-4">Nguồn Chứng Từ</th>
+                  <th className="py-3.5 px-4">Mặt Hàng & Serial Nạp</th>
+                  <th className="py-3.5 px-4 text-right">Tổng Tiền Hàng</th>
+                  <th className="py-3.5 px-4 text-center">Thanh Toán</th>
+                  <th className="py-3.5 px-4 text-right">Thao Tác</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                {filteredReceipts.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-12 text-center text-slate-500">
+                      <div className="flex flex-col items-center justify-center space-y-2">
+                        <FileText className="w-8 h-8 text-slate-600" />
+                        <p className="text-sm font-semibold">Chưa có phiếu nhập kho nào</p>
+                        <p className="text-xs text-slate-500">
+                          Nhấn nút "+ Lập Phiếu Nhập Kho" phía trên để tạo phiếu nhập từ Đơn Đặt Hàng (PO), Báo Giá, HĐĐT hoặc thủ công.
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredReceipts.map((rc) => {
+                    const totalQty = rc.totalQuantity || (rc.items ? rc.items.reduce((s, i) => s + i.quantity, 0) : 0);
+
+                    return (
+                      <tr key={rc.id} className="hover:bg-slate-850/60 transition-colors">
+                        <td className="py-3 px-4">
+                          <div className="font-mono font-bold text-emerald-400">{rc.code}</div>
+                          <span className="text-[10px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700 mt-0.5 inline-block">
+                            {rc.warehouseName || 'Kho Chính'}
+                          </span>
+                        </td>
+
+                        <td className="py-3 px-4 text-slate-400">
+                          <div>{new Date(rc.date).toLocaleDateString('vi-VN')}</div>
+                          <div className="text-[10px] text-slate-500">Người nhập: {rc.creatorName || rc.receivedBy || 'Thủ kho'}</div>
+                        </td>
+
+                        <td className="py-3 px-4">
+                          <div className="font-bold text-slate-200">{rc.supplierName}</div>
+                          {rc.supplierPhone && (
+                            <div className="text-[11px] text-slate-400 font-mono">{rc.supplierPhone}</div>
+                          )}
+                          {rc.supplierTaxCode && (
+                            <div className="text-[10px] text-slate-500 font-mono">MST: {rc.supplierTaxCode}</div>
+                          )}
+                        </td>
+
+                        <td className="py-3 px-4">
+                          <span
+                            className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              rc.sourceType === 'po'
+                                ? 'bg-blue-950 text-blue-300 border border-blue-800'
+                                : rc.sourceType === 'quote'
+                                ? 'bg-amber-950 text-amber-300 border border-amber-800'
+                                : rc.sourceType === 'inbound_invoice'
+                                ? 'bg-purple-950 text-purple-300 border border-purple-800'
+                                : 'bg-slate-800 text-slate-300 border border-slate-700'
+                            }`}
+                          >
+                            {rc.sourceType === 'po'
+                              ? `📦 PO: ${rc.sourceCode || ''}`
+                              : rc.sourceType === 'quote'
+                              ? `📋 Báo Giá: ${rc.sourceCode || ''}`
+                              : rc.sourceType === 'inbound_invoice'
+                              ? `📑 HĐĐT: ${rc.sourceCode || ''}`
+                              : '✍️ Thủ công'}
+                          </span>
+                        </td>
+
+                        <td className="py-3 px-4">
+                          <div className="text-slate-300 font-medium">
+                            {rc.items ? rc.items.length : rc.totalItemsCount || 0} mặt hàng ({totalQty} cái)
+                          </div>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {(rc.items || []).map((it, itIdx) => (
+                              <span
+                                key={itIdx}
+                                className="text-[10px] px-1.5 py-0.5 rounded font-mono bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
+                                title={it.serials && it.serials.length > 0 ? `Serials: ${it.serials.join(', ')}` : 'Không có serial'}
+                              >
+                                {it.productName.slice(0, 16)}... ({it.serials ? it.serials.length : 0}/{it.quantity} SN)
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+
+                        <td className="py-3 px-4 text-right">
+                          <span className="font-mono font-bold text-emerald-400">
+                            {formatVND(rc.grandTotal || rc.totalCostAmount || 0)}
+                          </span>
+                          {rc.totalTaxAmount ? (
+                            <div className="text-[10px] text-slate-400 font-mono">VAT: {formatVND(rc.totalTaxAmount)}</div>
+                          ) : null}
+                        </td>
+
+                        <td className="py-3 px-4 text-center">
+                          <span
+                            className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                              rc.paymentStatus === 'paid'
+                                ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                                : rc.paymentStatus === 'debt_pending'
+                                ? 'bg-amber-950 text-amber-300 border border-amber-800'
+                                : 'bg-blue-950 text-blue-300 border border-blue-800'
+                            }`}
+                          >
+                            {rc.paymentStatus === 'paid'
+                              ? '✓ Đã thanh toán'
+                              : rc.paymentStatus === 'debt_pending'
+                              ? 'Ghi nợ NCC'
+                              : 'Thanh toán 1 phần'}
+                          </span>
+                        </td>
+
+                        <td className="py-3 px-4 text-right">
+                          <div className="flex items-center justify-end space-x-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setPrintReceiptData(rc)}
+                              className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl border border-slate-700 transition-colors flex items-center gap-1 cursor-pointer font-bold text-xs"
+                              title="In Phiếu Nhập Kho A4/A5"
+                            >
+                              <Printer className="w-3.5 h-3.5 text-emerald-400" />
+                              <span>In Phiếu</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* Outbound Orders Dispatch Tab */}
       {activeTab === 'outbound' && (
         <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
@@ -1570,6 +1942,143 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                               <Printer className="w-3.5 h-3.5" />
                             </button>
                           </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Serial Devices Management Tab */}
+      {activeTab === 'serial_devices' && (
+        <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="bg-slate-950/60 text-slate-400 border-b border-slate-800 uppercase tracking-wider font-semibold">
+                  <th className="py-3.5 px-4">Số Serial / IMEI</th>
+                  <th className="py-3.5 px-4">Tên Thiết Bị & SKU</th>
+                  <th className="py-3.5 px-4">Hãng SX, Màu & Quy Cách</th>
+                  <th className="py-3.5 px-4 text-center">Trạng Thái Kho</th>
+                  <th className="py-3.5 px-4">Vị Trí Kệ / Đơn Hàng Bán</th>
+                  <th className="py-3.5 px-4">Phiếu Nhập Kho</th>
+                  <th className="py-3.5 px-4">Thời Hạn Bảo Hành</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                {filteredSerials.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-12 text-center text-slate-500">
+                      <div className="flex flex-col items-center justify-center space-y-2">
+                        <Barcode className="w-8 h-8 text-slate-600" />
+                        <p className="text-sm font-semibold">Không tìm thấy mã Serial / IMEI nào</p>
+                        <p className="text-xs text-slate-500">
+                          Khi lập Phiếu Nhập Kho hoặc Quét Barcode, các thiết bị kèm Serial sẽ tự động được lưu và theo dõi tại đây.
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredSerials.map((s) => {
+                    const status = s.status || 'in_stock';
+                    return (
+                      <tr key={s.id} className="hover:bg-slate-850/60 transition-colors">
+                        <td className="py-3 px-4">
+                          <div className="font-mono font-bold text-sm text-sky-400 flex items-center gap-1.5">
+                            <Barcode className="w-4 h-4 text-sky-500" />
+                            <span>{s.serialNumber}</span>
+                          </div>
+                          {s.barcode && s.barcode !== s.serialNumber && (
+                            <div className="text-[10px] text-slate-500 font-mono">Mã vạch: {s.barcode}</div>
+                          )}
+                        </td>
+
+                        <td className="py-3 px-4">
+                          <div className="font-semibold text-slate-200">{s.productName}</div>
+                          <div className="text-[11px] text-slate-400 font-mono">SKU: {s.sku}</div>
+                        </td>
+
+                        <td className="py-3 px-4 text-slate-300">
+                          <div className="flex items-center gap-1.5">
+                            {s.brand && (
+                              <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-[10px] font-bold text-slate-300">
+                                {s.brand}
+                              </span>
+                            )}
+                            {s.color && (
+                              <span className="text-[10px] text-slate-400">Màu: {s.color}</span>
+                            )}
+                          </div>
+                          {s.specifications && (
+                            <div className="text-[10px] text-slate-500 mt-0.5 line-clamp-1">{s.specifications}</div>
+                          )}
+                          {s.accessories && (
+                            <div className="text-[10px] text-amber-400/80 mt-0.5 line-clamp-1">PK: {s.accessories}</div>
+                          )}
+                        </td>
+
+                        <td className="py-3 px-4 text-center">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
+                              status === 'in_stock'
+                                ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                                : status === 'sold'
+                                ? 'bg-blue-950 text-blue-300 border border-blue-800'
+                                : 'bg-rose-950 text-rose-300 border border-rose-800'
+                            }`}
+                          >
+                            {status === 'in_stock' && '✓ Trong kho'}
+                            {status === 'sold' && 'Đã xuất bán'}
+                            {status === 'defective' && 'Lỗi / Sửa chữa'}
+                            {status === 'under_warranty' && 'Đang bảo hành'}
+                          </span>
+                        </td>
+
+                        <td className="py-3 px-4">
+                          {status === 'in_stock' ? (
+                            <div>
+                              <span className="text-slate-300 text-xs font-semibold block">{s.warehouseName || 'Kho Chính'}</span>
+                              <span className="text-[11px] text-emerald-400 bg-slate-800/80 px-1.5 py-0.5 rounded border border-slate-700 inline-block mt-0.5">
+                                📍 {s.storageLocation || 'Kệ A1 - Tầng 1'}
+                              </span>
+                            </div>
+                          ) : (
+                            <div>
+                              <span className="text-blue-400 font-mono font-bold block">Đơn: {s.soldOrderCode || 'N/A'}</span>
+                              <span className="text-slate-300 text-xs block">{s.customerName || 'Khách lẻ'}</span>
+                              {s.customerPhone && <span className="text-[10px] text-slate-500 font-mono">{s.customerPhone}</span>}
+                            </div>
+                          )}
+                        </td>
+
+                        <td className="py-3 px-4 text-slate-400">
+                          {s.receiptCode ? (
+                            <div>
+                              <span className="font-mono text-emerald-400 font-semibold">{s.receiptCode}</span>
+                              <div className="text-[10px] text-slate-500">
+                                {s.receiptDate ? new Date(s.receiptDate).toLocaleDateString('vi-VN') : ''}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-slate-500 italic">Khởi tạo ban đầu</span>
+                          )}
+                        </td>
+
+                        <td className="py-3 px-4">
+                          <div className="text-slate-300">
+                            <span className="font-bold text-emerald-400">{s.warrantyPeriodMonths || 24} tháng</span>
+                          </div>
+                          {s.warrantyExpiryDate ? (
+                            <div className="text-[10px] text-slate-400 font-mono">
+                              Hết hạn: {new Date(s.warrantyExpiryDate).toLocaleDateString('vi-VN')}
+                            </div>
+                          ) : (
+                            <div className="text-[10px] text-slate-500 italic">Kích hoạt khi xuất bán</div>
+                          )}
                         </td>
                       </tr>
                     );
@@ -1871,7 +2380,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                     </button>
                   </div>
                   <select
-                    value={formData.warehouse || settings.defaultWarehouse || 'Kho Chính Gia Phúc Computer'}
+                    value={formData.warehouse || settings?.defaultWarehouse || 'Kho Chính Gia Phúc Computer'}
                     onChange={(e) => setFormData({ ...formData, warehouse: e.target.value })}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500 text-xs"
                   >
@@ -2730,11 +3239,19 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             if (result.inventoryLogs) {
               result.inventoryLogs.forEach((log) => onAdjustStock(log));
             }
+            if (onRefreshDb) onRefreshDb();
+            // Tự động đóng modal và chuyển ngay về tab Quản lý / Danh mục sản phẩm
+            setIsDispatchModalOpen(false);
+            setSelectedDispatchOrder(null);
+            setActiveTab('catalog');
           }}
           onPrintDeliveryNote={(ord) => {
             setPrintOutboundOrder(ord);
+            setIsDispatchModalOpen(false);
+            setSelectedDispatchOrder(null);
+            setActiveTab('catalog');
           }}
-          currentUserName={settings.defaultCreatorName || 'Thủ Kho Trưởng'}
+          currentUserName={settings?.defaultCreatorName || 'Thủ Kho Trưởng'}
         />
       )}
 
@@ -2747,6 +3264,54 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           initialPaperSize="A4"
           settings={settings}
           onClose={() => setPrintOutboundOrder(null)}
+        />
+      )}
+
+      {/* New Inward Stock Goods Receipt Modal */}
+      {showNewReceiptModal && (
+        <NewStockGoodsReceiptModal
+          isOpen={showNewReceiptModal}
+          onClose={() => setShowNewReceiptModal(false)}
+          products={products}
+          suppliers={suppliers}
+          purchaseOrders={purchaseOrders}
+          quotes={quotes}
+          inboundInvoices={inboundInvoices}
+          settings={settings}
+          onSaveReceipt={handleSaveReceipt}
+          currentUserName={settings?.defaultCreatorName || 'Nguyễn Văn Minh (Thủ Kho)'}
+        />
+      )}
+
+      {/* New Outbound Stock Goods Issue Modal */}
+      {showNewIssueModal && (
+        <NewStockGoodsIssueModal
+          isOpen={showNewIssueModal}
+          onClose={() => setShowNewIssueModal(false)}
+          orders={orders}
+          products={products}
+          serialRecords={serialRecords}
+          settings={settings}
+          onSaveIssue={handleSaveIssue}
+          currentUserName={settings?.defaultCreatorName || 'Nguyễn Văn Minh (Thủ Kho)'}
+        />
+      )}
+
+      {/* Print Stock Goods Receipt Modal */}
+      {printReceiptData && (
+        <StockReceiptPrintModal
+          receipt={printReceiptData}
+          settings={settings}
+          onClose={() => setPrintReceiptData(null)}
+        />
+      )}
+
+      {/* Print Stock Goods Issue Modal */}
+      {printIssueData && (
+        <StockGoodsIssuePrintModal
+          issue={printIssueData}
+          settings={settings}
+          onClose={() => setPrintIssueData(null)}
         />
       )}
     </div>

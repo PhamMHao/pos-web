@@ -37,12 +37,16 @@ function escapeSqlBit(val: any, defaultVal = false): string {
 
 export class SettingsService {
   static async getSettings() {
-    const records = await prisma.storeSettings.findMany({
+    let records = await prisma.storeSettings.findMany({
       where: { id: "default_settings" },
     });
 
     if (records.length === 0) {
-      return null;
+      await this.ensureAdminAndSettings();
+      records = await prisma.storeSettings.findMany({
+        where: { id: "default_settings" },
+      });
+      if (records.length === 0) return null;
     }
 
     const rec = records[0];
@@ -86,6 +90,14 @@ export class SettingsService {
     const mergedExtended = {
       ...current,
       ...extendedSettings,
+      ...(extendedSettings.printDocConfigs
+        ? {
+            printDocConfigs: {
+              ...(current.printDocConfigs || {}),
+              ...extendedSettings.printDocConfigs,
+            },
+          }
+        : {}),
     };
 
     delete mergedExtended.storeName;

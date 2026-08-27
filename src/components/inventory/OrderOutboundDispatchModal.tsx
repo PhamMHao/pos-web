@@ -460,7 +460,16 @@ export const OrderOutboundDispatchModal: React.FC<OrderOutboundDispatchModalProp
               </button>
             )}
 
-            {!isAlreadyDispatched && (
+            {dispatchedSuccessNote ? (
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/25 flex items-center space-x-1.5 cursor-pointer transition-all animate-pulse"
+              >
+                <Check className="w-4 h-4" />
+                <span>✓ Hoàn Tất & Về Quản Lý Sản Phẩm</span>
+              </button>
+            ) : !isAlreadyDispatched ? (
               <button
                 type="button"
                 onClick={handleConfirm}
@@ -468,6 +477,15 @@ export const OrderOutboundDispatchModal: React.FC<OrderOutboundDispatchModalProp
               >
                 <Check className="w-4 h-4" />
                 <span>✓ Xác Nhận Xuất Kho & Cấp Bảo Hành</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 bg-emerald-750 hover:bg-emerald-650 text-emerald-100 font-bold text-xs rounded-xl flex items-center space-x-1.5 cursor-pointer transition-colors"
+              >
+                <Check className="w-4 h-4" />
+                <span>Đã Xuất Kho (Quay Về)</span>
               </button>
             )}
           </div>

@@ -3,6 +3,7 @@ import { WarehouseService } from "./warehouse.service";
 import { sendSuccess, sendCreated } from "../../core/utils/responseFormatter";
 
 export class WarehouseController {
+  // 1. Goods Receipts (Phiếu Nhập Kho)
   static async createGoodsReceipt(req: Request, res: Response, next: NextFunction) {
     try {
       const receipt = await WarehouseService.createGoodsReceipt(req.body);
@@ -38,6 +39,43 @@ export class WarehouseController {
     }
   }
 
+  // 2. Goods Issues (Phiếu Xuất Kho)
+  static async createGoodsIssue(req: Request, res: Response, next: NextFunction) {
+    try {
+      const issue = await WarehouseService.createGoodsIssue(req.body);
+      return sendCreated(res, issue, "Tạo phiếu xuất kho thành công");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async getGoodsIssues(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await WarehouseService.getGoodsIssues(req.query as any);
+      return sendSuccess(res, result.items, "Lấy danh sách phiếu xuất kho thành công", 200, {
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: result.totalPages,
+        hasNext: result.hasNext,
+        hasPrev: result.hasPrev,
+      });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async getGoodsIssueById(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const issue = await WarehouseService.getGoodsIssueById(id);
+      return sendSuccess(res, issue, "Lấy chi tiết phiếu xuất kho thành công");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  // 3. Stock Adjustments & Logs
   static async adjustStock(req: Request, res: Response, next: NextFunction) {
     try {
       const log = await WarehouseService.adjustStock(req.body);

@@ -1,0 +1,10 @@
+# GP-ERP Enterprise Rules
+
+- Tuyệt đối không mock data trong source code (không tạo mảng hardcoded mock/dummy data ở frontend hay backend).
+- Mọi dữ liệu phải lưu trữ và truy vấn trực tiếp từ cơ sở dữ liệu qua Prisma ORM và API backend.
+- Khi tạo chức năng mới:
+  1. Cập nhật schema Prisma (nếu cần).
+  2. Tạo/cập nhật seed data vào DB (`prisma/seed.ts` / `prisma/seedData.ts` hoặc script seed) để nạp dữ liệu vào Database.
+  3. Viết API backend kết nối DB bằng Prisma.
+  4. Frontend gọi API backend để render dữ liệu thật từ DB ra giao diện.
+- Không tạo giao diện mẫu / placeholder UI tạm bợ; giao diện phải kết nối dữ liệu thực và xử lý đầy đủ các trạng thái nghiệp vụ.

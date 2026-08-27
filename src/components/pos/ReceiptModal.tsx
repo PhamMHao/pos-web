@@ -5,6 +5,7 @@ import { formatVND, generateVietQRUrl } from '../../utils/vietqr';
 import { GiaPhucLogo } from '../common/GiaPhucLogo';
 import { PrinterSelectDropdown } from '../common/PrinterSelectDropdown';
 import { SlipBarcodeQR } from '../common/SlipBarcodeQR';
+import { getEffectivePrintConfig } from '../../utils/printTemplates';
 
 interface ReceiptModalProps {
   order: Order;
@@ -19,10 +20,13 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
   onClose,
   onSwitchToA4,
 }) => {
+  const effectiveConfig = getEffectivePrintConfig(settings, 'sales_invoice');
   const [paperSize, setPaperSize] = useState<'K80' | 'K58'>(
     settings.defaultPrintPaperSize === 'K58' ? 'K58' : 'K80'
   );
-  const [codePlacement, setCodePlacement] = useState<'header' | 'footer' | 'both'>('header');
+  const [codePlacement, setCodePlacement] = useState<'header' | 'footer' | 'both'>(
+    effectiveConfig.codePlacement || 'header'
+  );
 
   const handlePrint = () => {
     requestAnimationFrame(() => {
@@ -181,7 +185,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
             )}
             <div className="pt-2">
               <span className="inline-block px-3 py-0.5 text-xs font-bold uppercase tracking-wider bg-slate-100 rounded text-slate-800">
-                Phiếu Thanh Toán (Retail Bill)
+                {effectiveConfig.customTitle || 'Phiếu Thanh Toán (Retail Bill)'}
               </span>
             </div>
           </div>
@@ -388,8 +392,18 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
 
           {/* Footer Note */}
           <div className="text-center pt-1 space-y-1 text-[10px] text-slate-500">
-            <p className="font-semibold text-slate-700">{settings.receiptHeaderNote}</p>
-            <p>{settings.receiptFooterNote}</p>
+            {effectiveConfig.notes && effectiveConfig.notes.length > 0 ? (
+              <div className="space-y-0.5 text-left text-[9px] text-slate-600 border-t border-dotted border-slate-300 pt-1.5 px-1">
+                {effectiveConfig.notes.map((n, i) => (
+                  <p key={i}>{n}</p>
+                ))}
+              </div>
+            ) : (
+              <>
+                <p className="font-semibold text-slate-700">{settings.receiptHeaderNote}</p>
+                <p>{settings.receiptFooterNote}</p>
+              </>
+            )}
             <p className="text-[9px] text-slate-400 pt-1">
               Gia Phúc ERP • Tra cứu chứng từ nhanh phím tắt F7
             </p>

@@ -42,11 +42,16 @@ import {
   FileJson,
   FolderArchive,
   X,
+  Edit3,
+  Search,
+  Sliders,
+  FileEdit,
 } from 'lucide-react';
-import { StoreSettings, PrintDocType } from '../../types';
+import { StoreSettings, PrintDocType, PrintDocConfig } from '../../types';
 import { generateVietQRUrl, POPULAR_VIETNAMESE_BANKS } from '../../utils/vietqr';
 import { GiaPhucLogo, GIA_PHUC_LOGO_SVG_DATA_URI } from '../common/GiaPhucLogo';
 import { PrintInvoiceModal } from '../common/PrintInvoiceModal';
+import { PrintTemplateEditorModal } from './PrintTemplateEditorModal';
 import { sounds } from '../../utils/soundEffects';
 import { settingsApi } from '../../features/settings/api/settingsApi';
 import { LabelPrintSettingsTab } from './LabelPrintSettingsTab';
@@ -59,6 +64,52 @@ interface SettingsViewProps {
   onExportAllData: () => void;
   onRefreshData?: () => void;
 }
+
+const DOC_CATEGORIES: Record<
+  string,
+  { label: string; types: PrintDocType[] }
+> = {
+  all: {
+    label: 'Tất Cả Biểu Mẫu (19)',
+    types: [
+      'sales_invoice',
+      'sales_order',
+      'goods_receipt',
+      'delivery_note',
+      'quote',
+      'payment_receipt',
+      'warranty_receipt',
+      'einvoice_vat',
+      'exchange_return',
+      'warranty_intake',
+      'warranty_return',
+      'delivery_dispatch',
+      'shipping_label',
+      'goods_delivery_record',
+      'sales_return',
+      'asset_handover',
+      'asset_transfer',
+      'stock_disposal',
+      'liquidation_receipt',
+    ],
+  },
+  sales: {
+    label: 'Bán Hàng & Đơn Hàng',
+    types: ['sales_invoice', 'sales_order', 'delivery_note', 'quote', 'payment_receipt', 'warranty_receipt', 'einvoice_vat'],
+  },
+  inventory: {
+    label: 'Kho Hàng & Giao Nhận',
+    types: ['goods_receipt', 'exchange_return', 'delivery_dispatch', 'shipping_label', 'goods_delivery_record', 'sales_return'],
+  },
+  warranty: {
+    label: 'Bảo Hành & Kỹ Thuật',
+    types: ['warranty_intake', 'warranty_return'],
+  },
+  assets: {
+    label: 'Tài Sản & Tiêu Hủy',
+    types: ['asset_handover', 'asset_transfer', 'stock_disposal', 'liquidation_receipt'],
+  },
+};
 
 const DOC_TYPE_LABELS: Record<PrintDocType, { label: string; desc: string; defaultSize: 'A4' | 'A5' | 'K80'; defaultOrientation: 'portrait' | 'landscape' }> = {
   sales_order: {
@@ -195,6 +246,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [testModalOpen, setTestModalOpen] = useState(false);
   const [testDocType, setTestDocType] = useState<PrintDocType>('sales_invoice');
 
+  // Print Template Editor Modal State
+  const [editorModalOpen, setEditorModalOpen] = useState(false);
+  const [editingDocType, setEditingDocType] = useState<PrintDocType>('sales_invoice');
+  const [docFilterCategory, setDocFilterCategory] = useState<string>('all');
+  const [docSearchTerm, setDocSearchTerm] = useState<string>('');
+
   // Test Barcode Scanner State
   const [testBarcodeScanInput, setTestBarcodeScanInput] = useState('');
   const [testScanHistory, setTestScanHistory] = useState<
@@ -317,6 +374,28 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       ...formData,
       printDocConfigs: updatedConfigs,
     });
+  };
+
+  // Open the detailed Print Template Editor Modal for a specific form
+  const handleOpenEditor = (type: PrintDocType) => {
+    setEditingDocType(type);
+    setEditorModalOpen(true);
+  };
+
+  // Save the full configuration from Print Template Editor Modal
+  const handleSaveDocConfigFromEditor = (type: PrintDocType, updatedConfig: PrintDocConfig) => {
+    const updatedConfigs = {
+      ...(formData.printDocConfigs || {}),
+      [type]: updatedConfig,
+    };
+    const newFormData = {
+      ...formData,
+      printDocConfigs: updatedConfigs,
+    };
+    setFormData(newFormData);
+    onSaveSettings(newFormData);
+    setSavedSuccess(true);
+    setTimeout(() => setSavedSuccess(false), 3000);
   };
 
   // Handle hardware barcode test typing / laser scan
@@ -1034,143 +1113,227 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
             {/* Matrix of Individual Document Settings */}
             <div className="bg-slate-900 p-5 md:p-6 rounded-2xl border border-slate-800 space-y-4 shadow-xl">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
                 <div>
                   <h3 className="text-sm font-bold text-white flex items-center space-x-2">
                     <Layers className="w-4 h-4 text-blue-400" />
-                    <span>Cấu Hình Khổ Giấy (A4 / A5) Tùy Chỉnh Cho Từng Loại Phiếu</span>
+                    <span>Cấu Hình & Chỉnh Sửa Chi Tiết Từng Loại Biểu Mẫu In (19 Mẫu)</span>
                   </h3>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Hệ thống sẽ tự động chuyển đúng khổ giấy A4 hoặc A5 tương ứng khi người dùng mở phiếu.
+                    Tùy biến Tiêu đề phiếu, Diễn giải, Ghi chú điều khoản từng dòng, Khổ giấy, Barcode/QR, Chữ ký và lưu trực tiếp vào cơ sở dữ liệu.
                   </p>
+                </div>
+
+                {/* Quick Search */}
+                <div className="relative w-full sm:w-64">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={docSearchTerm}
+                    onChange={(e) => setDocSearchTerm(e.target.value)}
+                    placeholder="Tìm tên hoặc loại phiếu..."
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:border-blue-500 outline-none"
+                  />
+                  {docSearchTerm && (
+                    <button
+                      type="button"
+                      onClick={() => setDocSearchTerm('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs"
+                    >
+                      ×
+                    </button>
+                  )}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-3">
-                {(Object.keys(DOC_TYPE_LABELS) as PrintDocType[]).map((type) => {
-                  const meta = DOC_TYPE_LABELS[type];
-                  const cfg = formData.printDocConfigs?.[type] || {
-                    paperSize: meta.defaultSize,
-                    orientation: meta.defaultOrientation,
-                    emptyRowsCount: meta.defaultSize === 'A5' ? 2 : 4,
-                    signatureStyle: 'two_blocks' as const,
-                    showVietQR: true,
-                  };
-
+              {/* Category Filter Pills */}
+              <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 text-xs">
+                {Object.entries(DOC_CATEGORIES).map(([catKey, catMeta]) => {
+                  const isActive = docFilterCategory === catKey;
                   return (
-                    <div
-                      key={type}
-                      className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 text-xs hover:border-slate-700 transition-colors"
+                    <button
+                      key={catKey}
+                      type="button"
+                      onClick={() => setDocFilterCategory(catKey)}
+                      className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all cursor-pointer ${
+                        isActive
+                          ? 'bg-blue-600 text-white shadow-md'
+                          : 'bg-slate-950 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
+                      }`}
                     >
-                      <div className="lg:w-1/3">
-                        <div className="flex items-center space-x-2">
-                          <span className="font-bold text-white text-sm">{meta.label}</span>
-                          <span
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase ${
-                              cfg.paperSize === 'A5'
-                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                                : cfg.paperSize === 'A4'
-                                ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
-                                : 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                            }`}
-                          >
-                            Khổ {cfg.paperSize}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-400 mt-0.5">{meta.desc}</p>
-                      </div>
-
-                      {/* Controls for this document */}
-                      <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-                        {/* Paper Size selector */}
-                        <div>
-                          <label className="block text-[10px] text-slate-400 font-semibold mb-0.5">
-                            Khổ giấy:
-                          </label>
-                          <div className="flex items-center bg-slate-900 rounded-lg p-0.5 border border-slate-700">
-                            {(['A4', 'A5', 'K80'] as const).map((sz) => (
-                              <button
-                                key={sz}
-                                type="button"
-                                onClick={() => handleUpdateDocConfig(type, 'paperSize', sz)}
-                                className={`px-2.5 py-1 rounded text-xs font-bold transition-all ${
-                                  cfg.paperSize === sz
-                                    ? 'bg-blue-600 text-white shadow'
-                                    : 'text-slate-400 hover:text-slate-200'
-                                }`}
-                              >
-                                {sz}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Orientation selector */}
-                        <div>
-                          <label className="block text-[10px] text-slate-400 font-semibold mb-0.5">
-                            Hướng in:
-                          </label>
-                          <select
-                            value={cfg.orientation}
-                            onChange={(e) => handleUpdateDocConfig(type, 'orientation', e.target.value)}
-                            className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-slate-200 focus:border-blue-500 outline-none"
-                          >
-                            <option value="portrait">Dọc</option>
-                            <option value="landscape">Ngang</option>
-                          </select>
-                        </div>
-
-                        {/* Empty rows count */}
-                        <div>
-                          <label className="block text-[10px] text-slate-400 font-semibold mb-0.5">
-                            Dòng trống:
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            max="12"
-                            value={cfg.emptyRowsCount}
-                            onChange={(e) =>
-                              handleUpdateDocConfig(type, 'emptyRowsCount', Number(e.target.value))
-                            }
-                            className="w-16 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-slate-200 text-center font-mono outline-none"
-                          />
-                        </div>
-
-                        {/* Signature Style */}
-                        <div>
-                          <label className="block text-[10px] text-slate-400 font-semibold mb-0.5">
-                            Chữ ký:
-                          </label>
-                          <select
-                            value={cfg.signatureStyle}
-                            onChange={(e) => handleUpdateDocConfig(type, 'signatureStyle', e.target.value)}
-                            className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-slate-200 focus:border-blue-500 outline-none"
-                          >
-                            <option value="two_blocks">2 Khối (Khách & Lập)</option>
-                            <option value="five_blocks">5 Khối đầy đủ</option>
-                          </select>
-                        </div>
-
-                        {/* Test print button */}
-                        <div className="pt-3">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setTestDocType(type);
-                              setTestModalOpen(true);
-                            }}
-                            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 font-semibold transition-colors shrink-0"
-                            title="Mở bản in xem trước và in thử nghiệm mẫu phiếu này"
-                          >
-                            <Printer className="w-3.5 h-3.5" />
-                            <span>In Thử Mẫu</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+                      {catMeta.label}
+                    </button>
                   );
                 })}
+              </div>
+
+              {/* List of Document Templates */}
+              <div className="grid grid-cols-1 gap-3 pt-1">
+                {(Object.keys(DOC_TYPE_LABELS) as PrintDocType[])
+                  .filter((type) => {
+                    // Category filter
+                    if (
+                      docFilterCategory !== 'all' &&
+                      !DOC_CATEGORIES[docFilterCategory]?.types.includes(type)
+                    ) {
+                      return false;
+                    }
+                    // Search filter
+                    if (docSearchTerm.trim()) {
+                      const term = docSearchTerm.toLowerCase();
+                      const meta = DOC_TYPE_LABELS[type];
+                      const cfg = formData.printDocConfigs?.[type];
+                      const title = cfg?.customTitle?.toLowerCase() || '';
+                      return (
+                        meta.label.toLowerCase().includes(term) ||
+                        meta.desc.toLowerCase().includes(term) ||
+                        type.toLowerCase().includes(term) ||
+                        title.includes(term)
+                      );
+                    }
+                    return true;
+                  })
+                  .map((type) => {
+                    const meta = DOC_TYPE_LABELS[type];
+                    const cfg = formData.printDocConfigs?.[type] || {
+                      paperSize: meta.defaultSize,
+                      orientation: meta.defaultOrientation,
+                      emptyRowsCount: meta.defaultSize === 'A5' ? 2 : 4,
+                      signatureStyle: 'two_blocks' as const,
+                      showVietQR: true,
+                    };
+                    const isCustomized =
+                      Boolean(cfg.customTitle) ||
+                      Boolean(cfg.customSubtitle) ||
+                      Boolean(cfg.notes && cfg.notes.length > 0) ||
+                      Boolean(cfg.signLeftLabel) ||
+                      Boolean(cfg.signRightLabel);
+
+                    return (
+                      <div
+                        key={type}
+                        className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 text-xs hover:border-slate-700 transition-colors"
+                      >
+                        <div className="lg:w-5/12 space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-bold text-white text-sm">
+                              {cfg.customTitle ? `${meta.label} (${cfg.customTitle})` : meta.label}
+                            </span>
+                            <span
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase ${
+                                cfg.paperSize === 'A5'
+                                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                  : cfg.paperSize === 'A4'
+                                  ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                                  : 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                              }`}
+                            >
+                              Khổ {cfg.paperSize}
+                            </span>
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-800 text-slate-300 border border-slate-700">
+                              {cfg.orientation === 'portrait' ? 'Dọc' : 'Ngang'}
+                            </span>
+                            {isCustomized && (
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center space-x-1">
+                                <Sparkles className="w-3 h-3" />
+                                <span>Đã tùy chỉnh nội dung</span>
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-slate-400">{meta.desc}</p>
+                          {cfg.notes && cfg.notes.length > 0 && (
+                            <p className="text-[10px] text-slate-500 italic">
+                              • Đã cấu hình {cfg.notes.length} dòng ghi chú riêng
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Controls and Action Buttons */}
+                        <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
+                          {/* Paper Size selector */}
+                          <div>
+                            <label className="block text-[10px] text-slate-400 font-semibold mb-0.5">
+                              Khổ giấy:
+                            </label>
+                            <div className="flex items-center bg-slate-900 rounded-lg p-0.5 border border-slate-700">
+                              {(['A4', 'A5', 'K80'] as const).map((sz) => (
+                                <button
+                                  key={sz}
+                                  type="button"
+                                  onClick={() => handleUpdateDocConfig(type, 'paperSize', sz)}
+                                  className={`px-2.5 py-1 rounded text-xs font-bold transition-all cursor-pointer ${
+                                    cfg.paperSize === sz
+                                      ? 'bg-blue-600 text-white shadow'
+                                      : 'text-slate-400 hover:text-slate-200'
+                                  }`}
+                                >
+                                  {sz}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Orientation selector */}
+                          <div>
+                            <label className="block text-[10px] text-slate-400 font-semibold mb-0.5">
+                              Hướng in:
+                            </label>
+                            <select
+                              value={cfg.orientation}
+                              onChange={(e) => handleUpdateDocConfig(type, 'orientation', e.target.value)}
+                              className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-slate-200 focus:border-blue-500 outline-none"
+                            >
+                              <option value="portrait">Dọc</option>
+                              <option value="landscape">Ngang</option>
+                            </select>
+                          </div>
+
+                          {/* Empty rows count */}
+                          <div>
+                            <label className="block text-[10px] text-slate-400 font-semibold mb-0.5">
+                              Dòng kẻ:
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="12"
+                              value={cfg.emptyRowsCount}
+                              onChange={(e) =>
+                                handleUpdateDocConfig(type, 'emptyRowsCount', Number(e.target.value))
+                              }
+                              className="w-14 bg-slate-900 border border-slate-700 rounded-lg px-1.5 py-1 text-slate-200 text-center font-mono outline-none"
+                            />
+                          </div>
+
+                          {/* Action Buttons: Edit Template & Test Print */}
+                          <div className="flex items-center space-x-2 pt-3">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditor(type)}
+                              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-md shadow-blue-600/20 transition-all shrink-0 cursor-pointer"
+                              title="Mở bảng chỉnh sửa Tiêu đề, Ghi chú, QR/Barcode và Chữ ký cho mẫu này"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                              <span>Chỉnh Sửa Mẫu In</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setTestDocType(type);
+                                setTestModalOpen(true);
+                              }}
+                              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 font-semibold transition-colors shrink-0 cursor-pointer"
+                              title="Mở bản in xem trước và in thử nghiệm mẫu phiếu này"
+                            >
+                              <Printer className="w-3.5 h-3.5" />
+                              <span>In Thử Mẫu</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
               </div>
             </div>
           </div>
@@ -2307,6 +2470,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Print Template Editor Modal */}
+      {editorModalOpen && (
+        <PrintTemplateEditorModal
+          isOpen={editorModalOpen}
+          onClose={() => setEditorModalOpen(false)}
+          docType={editingDocType}
+          docMeta={DOC_TYPE_LABELS[editingDocType]}
+          initialConfig={formData.printDocConfigs?.[editingDocType]}
+          settings={formData}
+          onSave={handleSaveDocConfigFromEditor}
+          onOpenTestPrint={(type) => {
+            setTestDocType(type);
+            setTestModalOpen(true);
+          }}
+        />
       )}
 
       {/* Test Print Modal */}

@@ -1829,6 +1829,9 @@ export function App() {
                     onSaveOrder={handleSaveOrder}
                     serialRecords={serialRecords}
                     setSerialRecords={setSerialRecords}
+                    purchaseOrders={purchaseOrders}
+                    quotes={quotes}
+                    suppliers={suppliers}
                   />
                 )}
 

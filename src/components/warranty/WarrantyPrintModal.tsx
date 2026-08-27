@@ -342,26 +342,6 @@ export const WarrantyPrintModal: React.FC<WarrantyPrintModalProps> = ({
             </ul>
           </div>
 
-          {/* Footer Barcode / QR Code */}
-          {(codePlacement === 'footer' || codePlacement === 'both') && (
-            <div className="py-2 border-t border-dotted border-slate-300 flex justify-center">
-              <SlipBarcodeQR
-                docCode={ticket.code}
-                docType="warranty_intake"
-                date={ticket.receivedDate}
-                customerName={ticket.customerName}
-                totalAmount={ticket.totalFee || 0}
-                paperSize={paperSize}
-                showBarcode={true}
-                showQr={true}
-                qrPayloadMode="erp_smart"
-                renderMode="both"
-                align="center"
-                layout="row"
-              />
-            </div>
-          )}
-
           {/* Signatures */}
           <div className="grid grid-cols-3 gap-4 text-center pt-4 pb-2 text-[11px]">
             <div className="space-y-10">
@@ -382,6 +362,28 @@ export const WarrantyPrintModal: React.FC<WarrantyPrintModalProps> = ({
               <p className="font-bold text-slate-800">{settings?.storeName || 'GP-ERP Store'}</p>
             </div>
           </div>
+
+          {/* Barcode & ERP QR Chân Trang (Ảnh 2) */}
+          {(codePlacement === 'footer' || codePlacement === 'both') && (
+            <SlipBarcodeQR
+              docCode={ticket.code}
+              orderCode={ticket.orderCode || ticket.code}
+              docType="warranty_intake"
+              date={ticket.receivedDate}
+              customerName={ticket.customerName}
+              totalAmount={ticket.totalFee || 0}
+              paperSize={paperSize}
+              showBarcode={true}
+              showQr={true}
+              qrPayloadMode="erp_smart"
+              renderMode="both"
+              variant="warranty_footer"
+              brandName={settings?.brandName || 'GIA PHÚC'}
+              align="between"
+              layout="row"
+              className="mt-3"
+            />
+          )}
         </div>
       </div>
     </div>

@@ -71,6 +71,11 @@ export interface Product {
   lifecycleLogs?: ProductLifecycleLog[];
   requiresSerial?: boolean; // Bắt buộc quản lý Serial/IMEI khi xuất kho
   warrantyPeriodMonths?: number; // Thời hạn bảo hành tiêu chuẩn (tháng)
+  specifications?: string; // Quy cách / thông số kỹ thuật (VD: '1TB NVMe PCIe Gen 4x4', '16 Kênh NVR 4K')
+  color?: string; // Màu sắc (VD: 'Đen', 'Trắng', 'Xám Titan')
+  brand?: string; // Hãng sản xuất (VD: 'Hikvision', 'Kingston', 'Gigabyte', 'Western Digital')
+  warrantyMonths?: number; // Thời gian bảo hành (tháng, VD: 24, 36)
+  accessories?: string; // Kèm phụ kiện (VD: 'Adapter, Chuột quang, Cáp SATA, Ốc vít')
 }
 
 export interface CartItem {
@@ -307,18 +312,7 @@ export interface StoreSettings {
   defaultShowLogo?: boolean;
   defaultDeliveryTerms?: string;
   // Per-form custom configurations
-  printDocConfigs?: Partial<
-    Record<
-      PrintDocType,
-      {
-        paperSize: PaperSize;
-        orientation: 'portrait' | 'landscape';
-        emptyRowsCount: number;
-        signatureStyle: 'two_blocks' | 'five_blocks';
-        showVietQR: boolean;
-      }
-    >
-  >;
+  printDocConfigs?: Partial<Record<PrintDocType, PrintDocConfig>>;
   // Hardware Printer & Cash Drawer
   printerConnectionType?: 'browser' | 'usb_escpos' | 'network_escpos' | 'bluetooth';
   printerIpAddress?: string;
@@ -396,6 +390,28 @@ export type PrintDocType =
   | 'shipping_label' // TEM VẬN ĐƠN DÁN KIỆN HÀNG (K80 / A5)
   | 'goods_delivery_record' // BIÊN BẢN GIAO NHẬN HÀNG HÓA (Theo Ảnh 1)
   | 'sales_return'; // PHIẾU HÀNG BÁN TRẢ LẠI MẪU 02-TT TT200 (Theo Ảnh 2)
+
+export interface PrintDocConfig {
+  paperSize: PaperSize;
+  orientation: 'portrait' | 'landscape';
+  emptyRowsCount: number;
+  signatureStyle: 'two_blocks' | 'five_blocks';
+  showVietQR: boolean;
+  // Per-form custom configurations
+  customTitle?: string; // Tiêu đề phiếu tùy chỉnh (VD: "HÓA ĐƠN BÁN HÀNG KIÊM XUẤT KHO")
+  customSubtitle?: string; // Tiêu đề phụ / Dòng ghi chú dưới tiêu đề
+  notes?: string[]; // Mảng các dòng ghi chú/điều khoản (Mục 1, 2, 3, 4...)
+  notesText?: string; // Đoạn ghi chú nhiều dòng
+  showLogo?: boolean; // Bật/Tắt logo công ty
+  showBarcode?: boolean; // Bật/Tắt mã vạch số phiếu
+  showDocQr?: boolean; // Bật/Tắt mã QR ERP tra cứu
+  showBankInfo?: boolean; // Bật/Tắt STK & VietQR ngân hàng
+  codePlacement?: 'header' | 'footer' | 'both'; // Vị trí đặt mã vạch/QR
+  signLeftLabel?: string; // Nhãn bên ký trái (VD: "Khách hàng / Người nhận", "Người giao hàng")
+  signRightLabel?: string; // Nhãn bên ký phải (VD: "Người lập phiếu", "Đại diện bên bán")
+  defaultWarehouse?: string; // Kho mặc định cho mẫu phiếu này
+  defaultCreator?: string; // Người lập mặc định cho mẫu phiếu này
+}
 
 // Enterprise Module Types
 export interface AccountingRecord {
@@ -931,14 +947,46 @@ export interface InboundEInvoice {
   rawXmlContent?: string;
 }
 
+export interface StockGoodsReceiptItem {
+  id?: string;
+  receiptId?: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  unit: string;
+  quantity: number;
+  oldStock: number;
+  newStock: number;
+  oldCostPrice: number;
+  newCostPrice: number;
+  unitCost: number;
+  taxRate: number;
+  totalAmount: number;
+  storageLocation?: string; // Vị trí kệ / ô lưu kho
+  warehouse?: string; // Tên kho
+  category?: string; // Nhóm sản phẩm
+  specifications?: string; // Quy cách
+  color?: string; // Màu sắc
+  brand?: string; // Hãng sản xuất
+  warrantyMonths?: number; // Thời gian bảo hành (tháng)
+  accessories?: string; // Kèm phụ kiện
+  serials?: string[]; // Danh sách số Serial / IMEI đã quét
+  notes?: string;
+}
+
 export interface StockGoodsReceipt {
   id: string;
   code: string; // PNK-2026-0816-001
   date: string;
+  sourceType?: 'po' | 'quote' | 'inbound_invoice' | 'manual';
+  sourceId?: string;
+  sourceCode?: string;
   inboundInvoiceId?: string;
   inboundInvoiceCode?: string;
   supplierName: string;
   supplierTaxCode?: string;
+  supplierPhone?: string;
+  supplierAddress?: string;
   warehouseName: string;
   creatorName: string;
   receivedBy: string;
@@ -947,26 +995,41 @@ export interface StockGoodsReceipt {
   totalCostAmount: number;
   totalTaxAmount: number;
   grandTotal: number;
-  items: {
-    productId: string;
-    productName: string;
-    sku: string;
-    unit: string;
-    quantity: number;
-    oldStock: number;
-    newStock: number;
-    oldCostPrice: number;
-    newCostPrice: number;
-    unitCost: number;
-    taxRate: number;
-    totalAmount: number;
-    storageLocation?: string; // Vị trí kệ / ô lưu kho
-    warehouse?: string; // Tên kho
-    category?: string; // Nhóm sản phẩm
-    notes?: string;
-  }[];
+  items: StockGoodsReceiptItem[];
   paymentStatus: 'paid' | 'debt_pending' | 'partial';
   notes?: string;
+}
+
+export interface StockGoodsIssueItem {
+  id?: string;
+  issueId?: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  unit: string;
+  quantity: number;
+  serials?: string[]; // Danh sách số Serial / IMEI đã xuất
+  warrantyMonths?: number;
+  notes?: string;
+}
+
+export interface StockGoodsIssue {
+  id: string;
+  code: string; // e.g. XK-2026-0001
+  orderId?: string;
+  orderCode: string; // DH-10029
+  customerName: string;
+  customerPhone?: string;
+  customerAddress?: string;
+  warehouseName: string;
+  dispatchedBy: string;
+  dispatchedAt: string;
+  totalQuantity: number;
+  totalItemsCount: number;
+  status: 'completed' | 'cancelled';
+  notes?: string;
+  createdAt: string;
+  items: StockGoodsIssueItem[];
 }
 
 export interface Supplier {

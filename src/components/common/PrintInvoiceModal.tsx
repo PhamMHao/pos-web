@@ -26,6 +26,7 @@ import { GiaPhucLogo } from './GiaPhucLogo';
 import { PrinterSelectDropdown } from './PrinterSelectDropdown';
 import { PrinterProfile } from '../../utils/printerStorage';
 import { SlipBarcodeQR } from './SlipBarcodeQR';
+import { DEFAULT_DOC_TEMPLATES, getEffectivePrintConfig } from '../../utils/printTemplates';
 
 export interface PrintItem {
   id?: string;
@@ -102,74 +103,80 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
   onSaveSettings,
 }) => {
   // Document Configuration State
+  const initialEffectiveConfig = getEffectivePrintConfig(settings, initialDocType);
   const [docType, setDocType] = useState<PrintDocType>(initialDocType);
   const [paperSize, setPaperSize] = useState<PaperSize>(
-    initialPaperSize || settings.printDocConfigs?.[initialDocType]?.paperSize || settings.defaultPrintPaperSize || 'A4'
+    initialPaperSize || initialEffectiveConfig.paperSize || 'A4'
   );
   const [orientation, setOrientation] = useState<'portrait' | 'landscape'>(
-    settings.printDocConfigs?.[initialDocType]?.orientation || settings.defaultPrintOrientation || 'portrait'
+    initialEffectiveConfig.orientation || 'portrait'
   );
   const [emptyRowsCount, setEmptyRowsCount] = useState<number>(
-    settings.printDocConfigs?.[initialDocType]?.emptyRowsCount !== undefined
-      ? settings.printDocConfigs[initialDocType]!.emptyRowsCount
-      : settings.defaultEmptyRowsCount !== undefined
-      ? settings.defaultEmptyRowsCount
-      : paperSize === 'A5'
-      ? 2
-      : 4
+    initialEffectiveConfig.emptyRowsCount !== undefined ? initialEffectiveConfig.emptyRowsCount : 4
   );
 
   // Customization Drawer State
   const [showEditor, setShowEditor] = useState<boolean>(false);
-  const [showBarcode, setShowBarcode] = useState<boolean>(true);
-  const [showDocQr, setShowDocQr] = useState<boolean>(true);
-  const [codePlacement, setCodePlacement] = useState<'header' | 'footer' | 'both'>('header');
-  const [showVietQR, setShowVietQR] = useState<boolean>(
-    settings.printDocConfigs?.[initialDocType]?.showVietQR !== undefined
-      ? settings.printDocConfigs[initialDocType]!.showVietQR
-      : true
+  const [showBarcode, setShowBarcode] = useState<boolean>(initialEffectiveConfig.showBarcode !== false);
+  const [showDocQr, setShowDocQr] = useState<boolean>(initialEffectiveConfig.showDocQr !== false);
+  const [codePlacement, setCodePlacement] = useState<'header' | 'footer' | 'both'>(
+    initialEffectiveConfig.codePlacement || 'header'
   );
+  const [showVietQR, setShowVietQR] = useState<boolean>(initialEffectiveConfig.showVietQR !== false);
   const [signatureStyle, setSignatureStyle] = useState<'two_blocks' | 'five_blocks'>(
-    settings.printDocConfigs?.[initialDocType]?.signatureStyle || settings.defaultSignatureStyle || 'two_blocks'
+    initialEffectiveConfig.signatureStyle || 'two_blocks'
   );
-  const [showLogo, setShowLogo] = useState<boolean>(settings.defaultShowLogo !== false);
-  const [customLogoUrl, setCustomLogoUrl] = useState<string>(settings.logoUrl || '');
+  const [showLogo, setShowLogo] = useState<boolean>(initialEffectiveConfig.showLogo !== false);
+  const [customLogoUrl, setCustomLogoUrl] = useState<string>(settings?.logoUrl || '');
   const [savedDefaultToast, setSavedDefaultToast] = useState<boolean>(false);
 
-  // Dynamically load per-form default configuration when docType changes
+  // Sync docType when modal opens or initialDocType changes
   useEffect(() => {
-    setCustomLogoUrl(settings.logoUrl || '');
-    const config = settings.printDocConfigs?.[docType];
-    if (config) {
-      if (config.paperSize) setPaperSize(config.paperSize);
-      if (config.orientation) setOrientation(config.orientation);
-      if (config.emptyRowsCount !== undefined) setEmptyRowsCount(config.emptyRowsCount);
-      if (config.signatureStyle) setSignatureStyle(config.signatureStyle);
-      if (config.showVietQR !== undefined) setShowVietQR(config.showVietQR);
-    } else {
-      if (settings.defaultPrintPaperSize) setPaperSize(settings.defaultPrintPaperSize);
-      if (settings.defaultPrintOrientation) setOrientation(settings.defaultPrintOrientation);
-      if (settings.defaultEmptyRowsCount !== undefined) {
-        setEmptyRowsCount(settings.defaultEmptyRowsCount);
-      } else {
-        setEmptyRowsCount(settings.defaultPrintPaperSize === 'A5' ? 2 : 4);
-      }
+    if (isOpen && initialDocType) {
+      setDocType(initialDocType);
     }
-  }, [docType, settings]);
+  }, [isOpen, initialDocType]);
+
+  // Dynamically load per-form configuration when docType or settings change
+  useEffect(() => {
+    setCustomLogoUrl(settings?.logoUrl || '');
+    const config = getEffectivePrintConfig(settings, docType);
+    if (initialPaperSize) {
+      setPaperSize(initialPaperSize);
+    } else if (config.paperSize) {
+      setPaperSize(config.paperSize);
+    }
+    if (config.orientation) setOrientation(config.orientation);
+    if (config.emptyRowsCount !== undefined) setEmptyRowsCount(config.emptyRowsCount);
+    if (config.signatureStyle) setSignatureStyle(config.signatureStyle);
+    if (config.showVietQR !== undefined) setShowVietQR(config.showVietQR);
+    if (config.showBarcode !== undefined) setShowBarcode(config.showBarcode);
+    if (config.showDocQr !== undefined) setShowDocQr(config.showDocQr);
+    if (config.showLogo !== undefined) setShowLogo(config.showLogo);
+    if (config.codePlacement) setCodePlacement(config.codePlacement);
+    if (!propWarehouseName && config.defaultWarehouse) setWarehouse(config.defaultWarehouse);
+    if (!propCreatorName && config.defaultCreator) setCreator(config.defaultCreator);
+  }, [docType, settings, initialPaperSize, propWarehouseName, propCreatorName]);
 
   // Save current settings as default for this docType
   const handleSaveAsDefault = () => {
     if (!onSaveSettings) return;
+    const existing = settings.printDocConfigs?.[docType] || {};
     const updated: StoreSettings = {
       ...settings,
       printDocConfigs: {
         ...(settings.printDocConfigs || {}),
         [docType]: {
+          ...existing,
           paperSize,
           orientation,
           emptyRowsCount,
           signatureStyle,
           showVietQR,
+          showBarcode,
+          showDocQr,
+          showLogo,
+          codePlacement,
         },
       },
     };
@@ -239,14 +246,17 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
     }
   }, [settings]);
 
-  // Adjust default empty rows based on paper size
+  // Adjust default empty rows based on paper size if not customized
   useEffect(() => {
-    if (paperSize === 'A5') {
+    const config = getEffectivePrintConfig(settings, docType);
+    if (config.emptyRowsCount !== undefined) {
+      setEmptyRowsCount(config.emptyRowsCount);
+    } else if (paperSize === 'A5') {
       setEmptyRowsCount(2);
     } else if (paperSize === 'A4') {
       setEmptyRowsCount(4);
     }
-  }, [paperSize]);
+  }, [paperSize, docType, settings]);
 
   // Items State (Default matching actual sample images)
   const initialItems: PrintItem[] = useMemo(() => {
@@ -405,46 +415,11 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
   if (!isOpen) return null;
 
   const getDocTitle = () => {
-    switch (docType) {
-      case 'sales_order':
-        return 'ĐƠN ĐẶT HÀNG';
-      case 'goods_receipt':
-        return 'PHIẾU NHẬP KHO';
-      case 'sales_invoice':
-        return 'HÓA ĐƠN BÁN HÀNG';
-      case 'exchange_return':
-        return 'PHIẾU ĐỔI TRẢ HÀNG HÓA KIÊM PHIẾU NHẬP XUẤT';
-      case 'warranty_intake':
-        return 'PHIẾU NHẬN HÀNG BẢO HÀNH';
-      case 'warranty_return':
-        return 'PHIẾU TRẢ HÀNG BẢO HÀNH';
-      case 'delivery_note':
-        return 'PHIẾU XUẤT KHO KIÊM GIAO HÀNG';
-      case 'warranty_receipt':
-        return 'PHIẾU BÁN HÀNG & BẢO HÀNH THIẾT BỊ';
-      case 'payment_receipt':
-        return 'PHIẾU THU TIỀN';
-      case 'einvoice_vat':
-        return 'HÓA ĐƠN GIÁ TRỊ GIA TĂNG';
-      case 'asset_handover':
-        return 'BIÊN BẢN BÀN GIAO & CUNG CẤP TÀI SẢN';
-      case 'asset_transfer':
-        return 'PHIẾU ĐIỀU CHUYỂN TÀI SẢN & KHO NỘI BỘ';
-      case 'stock_disposal':
-        return 'BIÊN BẢN KIỂM KÊ & TIÊU HỦY VẬT TƯ, TÀI SẢN';
-      case 'liquidation_receipt':
-        return 'PHIẾU THU TIỀN THANH LÝ VẬT TƯ / TÀI SẢN';
-      case 'delivery_dispatch':
-        return 'PHIẾU ĐIỀU PHỐI GIAO HÀNG & THU TIỀN COD';
-      case 'shipping_label':
-        return 'TEM VẬN ĐƠN DÁN KIỆN HÀNG';
-      case 'goods_delivery_record':
-        return 'BIÊN BẢN GIAO NHẬN HÀNG HÓA';
-      case 'sales_return':
-        return 'HÀNG BÁN TRẢ LẠI';
-      default:
-        return 'HÓA ĐƠN BÁN HÀNG';
+    const config = getEffectivePrintConfig(settings, docType);
+    if (config.customTitle && config.customTitle.trim()) {
+      return config.customTitle.trim();
     }
+    return DEFAULT_DOC_TEMPLATES[docType]?.title || 'HÓA ĐƠN BÁN HÀNG';
   };
 
   const handleAddItem = () => {
@@ -1415,6 +1390,15 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                         >
                           {getDocTitle()}
                         </h2>
+                        {getEffectivePrintConfig(settings, docType).customSubtitle && (
+                          <div
+                            className={`${
+                              paperSize === 'A5' ? 'text-[7.5pt]' : 'text-[8.5pt]'
+                            } text-gray-700 italic mt-0.5`}
+                          >
+                            {getEffectivePrintConfig(settings, docType).customSubtitle}
+                          </div>
+                        )}
                         <div
                           className={`${
                             paperSize === 'A5' ? 'text-[8pt]' : 'text-[9pt]'
@@ -2086,88 +2070,64 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                       </tfoot>
                     </table>
                   </div>
+                  {/* -------------------------------------------------------------
+                      DÒNG SỐ TIỀN BẰNG CHỮ & TÀI KHOẢN NGÂN HÀNG & VIETQR (Ảnh 1)
+                      ------------------------------------------------------------- */}
+                  {docType !== 'goods_delivery_record' &&
+                    getEffectivePrintConfig(settings, docType).showBankInfo !== false && (
+                    <div className="border-t border-b border-dotted border-gray-400 py-1.5 my-1.5 flex items-center justify-between gap-2 text-black">
+                      <div className="flex-1 text-[8pt] sm:text-[8.5pt] leading-snug space-y-0.5 text-left">
+                        <div className="text-gray-900">
+                          <span className="font-semibold">* Số tiền bằng chữ: </span>
+                          <span className="italic font-bold text-black">{amountInWords || numberToVietnameseWords(calculatedGrandTotal)}</span>
+                        </div>
+                        {settings?.bankAccount && (
+                          <div className="text-[7.5pt] sm:text-[8pt] text-gray-800">
+                            <span>Ngân hàng: </span>
+                            <strong className="font-bold text-black">{settings.bankName || 'Techcombank - Ngân hàng Kỹ Thương VN'}</strong>
+                            <span> | STK: </span>
+                            <strong className="font-mono font-bold text-black">{settings.bankAccount}</strong>
+                            <span> ({settings.bankAccountName || brandTitle})</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* VietQR Quick Scan on the right */}
+                      {showVietQR && qrUrl && (
+                        <div className="flex-shrink-0 flex items-center gap-1.5 pl-2 border-l border-dotted border-gray-300">
+                          <img src={qrUrl} alt="VietQR" className="w-10 h-10 object-contain rounded border border-gray-300 p-0.5 bg-white shadow-2xs" />
+                          <span className="text-[7pt] sm:text-[7.5pt] font-bold text-blue-700 whitespace-nowrap">Quét VietQR</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* -------------------------------------------------------------
                       FOOTNOTES & REMARKS SECTION
                       ------------------------------------------------------------- */}
-                  {docType === 'goods_delivery_record' ? (
-                    /* Ghi chú chuẩn Biên Bản Giao Nhận (Ảnh 1) */
-                    <div className="mt-2 text-[8pt] text-gray-900 leading-snug border-t border-gray-300 pt-1.5 space-y-1">
-                      <div className="font-bold underline">Ghi chú:</div>
-                      <div className="pl-2 space-y-0.5">
-                        <div>- Hàng hóa được giao nhận mới 100%, đầy đủ phụ kiện (adapter) kèm theo.</div>
-                        <div>- Hình thức thanh toán: Tiền Mặt / Chuyển Khoản / Thanh toán cho người giao hàng.</div>
-                        <div>- Bên Mua (bên B) kiểm tra hàng hóa trước khi nhận. Mọi sự thiếu sót về sau không được giải quyết.</div>
-                      </div>
-                    </div>
-                  ) : docType === 'sales_return' ? (
-                    /* Ghi chú & Đọc tiền bằng chữ chuẩn Mẫu 02-TT (Ảnh 2) */
-                    <div className="mt-2 text-[8pt] text-gray-900 leading-snug border-t border-gray-300 pt-1.5 space-y-1">
-                      <div>
-                        - <strong>Tổng số tiền (Viết bằng chữ):</strong>{' '}
-                        <span className="italic font-bold text-black">{numberToVietnameseWords(calculatedGrandTotal)}</span>
-                      </div>
-                      <div className="flex items-baseline">
-                        <span className="w-56">- Số chứng từ gốc kèm theo:</span>
-                        <span className="flex-1 border-b border-dotted border-gray-500 pb-0.5 text-gray-700">
-                          {docNumber} ({docDateStr})
-                        </span>
-                      </div>
-                      <div className="text-right italic text-[7.5pt] text-gray-700 pt-1">
-                        Ngày {new Date().getDate()} tháng {new Date().getMonth() + 1} năm {new Date().getFullYear()}
-                      </div>
-                    </div>
-                  ) : (
-                    /* 4 Standard Footnotes */
-                    <div className={`mt-2 ${paperSize === 'A5' ? 'text-[7pt]' : 'text-[8pt]'} text-gray-900 leading-snug`}>
-                      <div className="font-bold underline mb-0.5">Ghi chú:</div>
-                      <ol className="list-none space-y-0.5 pl-0">
-                        <li>
-                          1. Giá trên bao gồm VAT {taxRate}%. Chưa bao gồm phí vận chuyển và cấu hình lắp đặt ( Liên hệ:{' '}
-                          <strong>0914 665 994 Mr. Thơm</strong>)
-                        </li>
-                        <li>2. Bảo hành 1 năm theo tiêu chuẩn nhà sản xuất tại Công Ty Gia Phúc</li>
-                        <li>
-                          3. Hình thức thanh toán:{' '}
-                          {docType === 'sales_order'
-                            ? 'Thanh toán 50% Tiền mặt/ chuyển khoản sau khi đặt hàng'
-                            : 'Tiền mặt/ chuyển khoản'}
-                        </li>
-                        <li>4. Vui lòng kiểm tra hàng trước khi rời khỏi công ty</li>
-                      </ol>
-                    </div>
-                  )}
+                  {(() => {
+                    const effectiveConfig = getEffectivePrintConfig(settings, docType);
+                    const notesToRender =
+                      effectiveConfig.notes && effectiveConfig.notes.length > 0
+                        ? effectiveConfig.notes
+                        : DEFAULT_DOC_TEMPLATES[docType]?.notes;
+                    if (notesToRender && notesToRender.length > 0) {
+                      return (
+                        <div className={`mt-2 ${paperSize === 'A5' ? 'text-[7pt]' : 'text-[8pt]'} text-gray-900 leading-snug`}>
+                          <div className="font-bold underline mb-0.5">Ghi chú:</div>
+                          <ol className="list-none space-y-0.5 pl-0">
+                            {notesToRender.map((noteLine, idx) => (
+                              <li key={idx}>{noteLine}</li>
+                            ))}
+                          </ol>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
 
                   {/* Bottom Footer Section: Barcode/QR & Signatures */}
                   <div className="mt-auto pt-1 space-y-1">
-                    {/* Delivery & Warranty Notes */}
-                    {docType !== 'goods_delivery_record' && docType !== 'sales_return' && (
-                      <div className={`${paperSize === 'A5' ? 'text-[7pt]' : 'text-[7.5pt]'} text-gray-700 italic space-y-0.5 border-t border-dotted border-gray-400 pt-1`}>
-                        {explanationNote && <div>• <strong>Ghi chú:</strong> {explanationNote}</div>}
-                        {settings?.receiptFooterNote && <div>• {settings.receiptFooterNote}</div>}
-                      </div>
-                    )}
-
-                    {/* Barcode 1D & QR Code Tra Cứu Footer */}
-                    {(showBarcode || showDocQr) && (codePlacement === 'footer' || codePlacement === 'both') && (
-                      <div className="py-1 border-t border-dotted border-gray-300">
-                        <SlipBarcodeQR
-                          docCode={docNumber}
-                          docType={docType}
-                          date={docDateStr}
-                          customerName={customerName}
-                          totalAmount={calculatedGrandTotal}
-                          showBarcode={showBarcode}
-                          showQr={showDocQr}
-                          renderMode={showBarcode && showDocQr ? 'both' : showBarcode ? 'barcode_only' : 'qr_only'}
-                          paperSize={paperSize}
-                          vietQrUrl={qrUrl}
-                          qrPayloadMode={showVietQR ? 'vietqr' : 'erp_smart'}
-                          align="between"
-                          layout="row"
-                        />
-                      </div>
-                    )}
 
                     {/* Signatures Area */}
                     {docType === 'goods_delivery_record' ? (
@@ -2239,17 +2199,9 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                         <div className="flex flex-col items-center justify-between min-h-[70px]">
                           <div>
                             <div className="font-bold text-black">
-                              {docType === 'goods_receipt'
-                                ? 'Người giao hàng'
-                                : docType === 'asset_handover'
-                                ? 'Người nhận bàn giao (Cán bộ sử dụng)'
-                                : docType === 'asset_transfer'
-                                ? 'Thủ kho tiếp nhận (Kho nhận)'
-                                : docType === 'stock_disposal'
-                                ? 'Trưởng ban / Hội đồng tiêu hủy'
-                                : docType === 'liquidation_receipt'
-                                ? 'Khách mua thanh lý'
-                                : 'Khách hàng / Người nhận'}
+                              {getEffectivePrintConfig(settings, docType).signLeftLabel ||
+                                DEFAULT_DOC_TEMPLATES[docType]?.signLeft ||
+                                'Khách hàng / Người nhận'}
                             </div>
                             <div className="text-[7pt] text-gray-600 italic">(Ký và ghi rõ họ tên)</div>
                           </div>
@@ -2262,15 +2214,9 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                         <div className="flex flex-col items-center justify-between min-h-[70px]">
                           <div>
                             <div className="font-bold text-black">
-                              {docType === 'asset_handover'
-                                ? 'Đại diện bên giao / Quản lý tài sản'
-                                : docType === 'asset_transfer'
-                                ? 'Thủ kho xuất / Người vận chuyển'
-                                : docType === 'stock_disposal'
-                                ? 'Thủ kho bảo quản / Người lập biên bản'
-                                : docType === 'liquidation_receipt'
-                                ? 'Thủ quỹ / Kế toán thu tiền'
-                                : 'Người lập phiếu'}
+                              {getEffectivePrintConfig(settings, docType).signRightLabel ||
+                                DEFAULT_DOC_TEMPLATES[docType]?.signRight ||
+                                'Người lập phiếu'}
                             </div>
                             <div className="text-[7pt] text-gray-600 italic">(Ký và ghi rõ họ tên)</div>
                           </div>
@@ -2322,6 +2268,26 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                           <div className="font-bold text-blue-900 text-[7pt] pt-6">Phạm Gia Phúc</div>
                         </div>
                       </div>
+                    )}
+
+                    {/* Barcode 1D & QR Code Tra Cứu Chân Trang (Ảnh 2) */}
+                    {(showBarcode || showDocQr) && (codePlacement === 'footer' || codePlacement === 'both') && (
+                      <SlipBarcodeQR
+                        docCode={docNumber}
+                        orderCode={order?.code || docNumber}
+                        docType={docType}
+                        date={docDateStr}
+                        customerName={customerName}
+                        totalAmount={calculatedGrandTotal}
+                        showBarcode={showBarcode}
+                        showQr={showDocQr}
+                        renderMode={showBarcode && showDocQr ? 'both' : showBarcode ? 'barcode_only' : 'qr_only'}
+                        paperSize={paperSize}
+                        variant="warranty_footer"
+                        brandName={brandTitle || 'GIA PHÚC'}
+                        align="between"
+                        layout="row"
+                      />
                     )}
                   </div>
                 </div>

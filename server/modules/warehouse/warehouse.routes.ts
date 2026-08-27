@@ -3,15 +3,17 @@ import { WarehouseController } from "./warehouse.controller";
 import { validateRequest } from "../../core/middlewares/validateRequest";
 import {
   createGoodsReceiptSchema,
-  adjustStockSchema,
+  createGoodsIssueSchema,
   goodsReceiptQuerySchema,
+  goodsIssueQuerySchema,
+  adjustStockSchema,
   inventoryLogQuerySchema,
 } from "./warehouse.schema";
 import { authenticate } from "../../core/middlewares/authMiddleware";
 
 const router = Router();
 
-// Goods Receipt Routes
+// 1. Goods Receipt Routes (Phiếu Nhập Kho)
 router.get(
   "/receipts",
   validateRequest({ query: goodsReceiptQuerySchema }),
@@ -25,7 +27,21 @@ router.post(
   WarehouseController.createGoodsReceipt
 );
 
-// Stock Adjustments & Logs
+// 2. Goods Issue Routes (Phiếu Xuất Kho)
+router.get(
+  "/issues",
+  validateRequest({ query: goodsIssueQuerySchema }),
+  WarehouseController.getGoodsIssues
+);
+router.get("/issues/:id", WarehouseController.getGoodsIssueById);
+router.post(
+  "/issues",
+  authenticate,
+  validateRequest({ body: createGoodsIssueSchema }),
+  WarehouseController.createGoodsIssue
+);
+
+// 3. Stock Adjustments & Logs (Điều Chỉnh & Sổ Nhật Ký Kho)
 router.post(
   "/adjust-stock",
   authenticate,

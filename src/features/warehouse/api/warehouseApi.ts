@@ -1,51 +1,23 @@
 import apiClient, { ApiResponse } from "../../../core/api/apiClient";
-import { InventoryLog } from "../../../types";
-
-export interface StockGoodsReceiptItem {
-  id?: string;
-  productId: string;
-  productName: string;
-  sku: string;
-  unit: string;
-  quantity: number;
-  oldStock: number;
-  newStock: number;
-  oldCostPrice: number;
-  newCostPrice: number;
-  unitCost: number;
-  taxRate: number;
-  totalAmount: number;
-  storageLocation?: string | null;
-  warehouse?: string | null;
-  category?: string | null;
-  notes?: string | null;
-}
-
-export interface StockGoodsReceipt {
-  id: string;
-  code: string;
-  date: string;
-  inboundInvoiceId?: string | null;
-  inboundInvoiceCode?: string | null;
-  supplierName: string;
-  supplierTaxCode?: string | null;
-  warehouseName: string;
-  creatorName: string;
-  receivedBy: string;
-  totalItemsCount: number;
-  totalQuantity: number;
-  totalCostAmount: number;
-  totalTaxAmount: number;
-  grandTotal: number;
-  paymentStatus: string;
-  notes?: string | null;
-  items: StockGoodsReceiptItem[];
-}
+import { InventoryLog, StockGoodsReceipt, StockGoodsIssue } from "../../../types";
 
 export interface GoodsReceiptQueryParams {
   search?: string;
   supplierName?: string;
   paymentStatus?: string;
+  warehouseName?: string;
+  startDate?: string;
+  endDate?: string;
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+}
+
+export interface GoodsIssueQueryParams {
+  search?: string;
+  orderCode?: string;
+  customerName?: string;
   warehouseName?: string;
   startDate?: string;
   endDate?: string;
@@ -66,6 +38,7 @@ export interface InventoryLogQueryParams {
 }
 
 export const warehouseApi = {
+  // 1. Goods Receipts (Phiếu Nhập Kho)
   getGoodsReceipts: async (params?: GoodsReceiptQueryParams) => {
     const response = await apiClient.get<ApiResponse<StockGoodsReceipt[]>>("/warehouse/receipts", {
       params,
@@ -83,6 +56,25 @@ export const warehouseApi = {
     return response.data.data;
   },
 
+  // 2. Goods Issues (Phiếu Xuất Kho)
+  getGoodsIssues: async (params?: GoodsIssueQueryParams) => {
+    const response = await apiClient.get<ApiResponse<StockGoodsIssue[]>>("/warehouse/issues", {
+      params,
+    });
+    return response.data;
+  },
+
+  getGoodsIssueById: async (id: string) => {
+    const response = await apiClient.get<ApiResponse<StockGoodsIssue>>(`/warehouse/issues/${id}`);
+    return response.data.data;
+  },
+
+  createGoodsIssue: async (issue: Partial<StockGoodsIssue>) => {
+    const response = await apiClient.post<ApiResponse<StockGoodsIssue>>("/warehouse/issues", issue);
+    return response.data.data;
+  },
+
+  // 3. Stock Adjustments & Logs
   adjustStock: async (data: {
     productId: string;
     productName: string;

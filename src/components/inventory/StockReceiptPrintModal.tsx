@@ -380,30 +380,24 @@ export const StockReceiptPrintModal: React.FC<StockReceiptPrintModalProps> = ({
                 </table>
               </div>
 
-              {/* Total In Words */}
-              <p className="italic text-[11px] text-slate-700 mb-2">
-                <span className="font-semibold not-italic text-slate-900">Số tiền bằng chữ:</span>{' '}
-                {numberToVietnameseWords(receipt.grandTotal)}
-              </p>
-
-              {/* Barcode & ERP QR Code Tra Cứu */}
-              {(codePlacement === 'footer' || codePlacement === 'both') && (
-                <div className="py-2 border-t border-dotted border-slate-300">
-                  <SlipBarcodeQR
-                    docCode={receipt.code}
-                    docType="goods_receipt"
-                    date={receipt.date}
-                    customerName={receipt.supplierName}
-                    totalAmount={receipt.grandTotal}
-                    paperSize={paperSize}
-                    showBarcode={true}
-                    showQr={true}
-                    renderMode="both"
-                    align="between"
-                    layout="row"
-                  />
+              {/* Dòng Số tiền bằng chữ & Tài khoản Ngân Hàng (Ảnh 1) */}
+              <div className="border-t border-b border-dotted border-slate-300 py-1.5 my-2 flex items-center justify-between gap-2 text-slate-900">
+                <div className="flex-1 text-[11px] leading-snug space-y-0.5 text-left">
+                  <div>
+                    <span className="font-semibold">* Số tiền bằng chữ: </span>
+                    <span className="italic font-bold text-slate-900">{numberToVietnameseWords(receipt.grandTotal)}</span>
+                  </div>
+                  {settings?.bankAccount && (
+                    <div className="text-[10px] text-slate-700">
+                      <span>Ngân hàng: </span>
+                      <strong className="font-bold text-slate-900">{settings.bankName || 'Techcombank - Ngân hàng Kỹ Thương VN'}</strong>
+                      <span> | STK: </span>
+                      <strong className="font-mono font-bold text-slate-900">{settings.bankAccount}</strong>
+                      <span> ({settings.bankAccountName || settings.brandName || 'GIA PHUC COMPUTER'})</span>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
 
               {/* Signatures 4 columns */}
               <div className="grid grid-cols-4 gap-2 text-center text-[10px] mt-6 pt-3 border-t border-slate-200">
@@ -438,6 +432,27 @@ export const StockReceiptPrintModal: React.FC<StockReceiptPrintModalProps> = ({
                   </div>
                 </div>
               </div>
+
+              {/* Barcode 1D & QR Code Tra Cứu Chân Trang (Ảnh 2) */}
+              {(codePlacement === 'footer' || codePlacement === 'both') && (
+                <SlipBarcodeQR
+                  docCode={receipt.code}
+                  orderCode={receipt.sourceCode || receipt.code}
+                  docType="goods_receipt"
+                  date={receipt.date}
+                  customerName={receipt.supplierName}
+                  totalAmount={receipt.grandTotal}
+                  paperSize={paperSize}
+                  showBarcode={true}
+                  showQr={true}
+                  renderMode="both"
+                  variant="warranty_footer"
+                  brandName={settings?.brandName || 'GIA PHÚC'}
+                  align="between"
+                  layout="row"
+                  className="mt-3"
+                />
+              )}
             </div>
           </div>
         </div>

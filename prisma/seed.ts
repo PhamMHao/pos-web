@@ -17,6 +17,7 @@ import {
   INITIAL_SUPPLIERS,
   INITIAL_PURCHASE_ORDERS,
   INITIAL_INBOUND_INVOICES,
+  INITIAL_ORDERS,
 } from "./seedData";
 
 const prisma = new PrismaClient();
@@ -127,12 +128,34 @@ async function main() {
       INSERT INTO [CauHinhCuaHang] (id, storeName, tagline, phone, email, address, taxCode, bankName, bankAccount, bankCode, settingsJson, updatedAt)
       VALUES ('default_settings', ${INITIAL_STORE_SETTINGS.storeName}, ${INITIAL_STORE_SETTINGS.tagline}, ${INITIAL_STORE_SETTINGS.phone}, ${INITIAL_STORE_SETTINGS.email}, ${INITIAL_STORE_SETTINGS.address}, ${INITIAL_STORE_SETTINGS.taxCode}, ${INITIAL_STORE_SETTINGS.bankName}, ${INITIAL_STORE_SETTINGS.bankAccount}, ${INITIAL_STORE_SETTINGS.bankCode}, ${settingsJson}, GETDATE())
     `;
+  } else {
+    const current = existingSettings[0];
+    let parsed: any = {};
+    if (current.settingsJson) {
+      try {
+        parsed = JSON.parse(current.settingsJson);
+      } catch {}
+    }
+    const merged = {
+      ...INITIAL_STORE_SETTINGS,
+      ...parsed,
+      printDocConfigs: {
+        ...(INITIAL_STORE_SETTINGS.printDocConfigs || {}),
+        ...(parsed.printDocConfigs || {}),
+      },
+    };
+    const updatedJson = JSON.stringify(merged);
+    await prisma.$executeRaw`
+      UPDATE [CauHinhCuaHang]
+      SET settingsJson = ${updatedJson}, updatedAt = GETDATE()
+      WHERE id = 'default_settings'
+    `;
   }
 
   // 3. Khách hàng (Customers)
   console.log(`3. Seeding ${INITIAL_CUSTOMERS.length} Customers...`);
   for (const c of INITIAL_CUSTOMERS) {
-    const existing = await prisma.customer.findMany({ where: { phone: c.phone } });
+    const existing = await prisma.customer.findMany({ where: { id: c.id } });
     if (existing.length === 0) {
       await prisma.$executeRaw`
         INSERT INTO [KhachHang] (id, name, phone, email, address, tier, points, totalSpent, totalOrders, debt, note, createdAt, updatedAt)
@@ -627,8 +650,135 @@ async function main() {
     }
   }
 
-  // 26. Phân quyền vai trò hệ thống (RBAC Roles & Modules)
-  console.log("26. Seeding RBAC Roles & Modules...");
+  // 26. Phiếu Nhập Kho & Xuất Kho Mẫu (Stock Goods Receipts & Issues with Multiple Serials)
+  console.log("26. Seeding Stock Goods Receipts & Issues with Multiple Serials...");
+  
+  // 26.1 Phiếu Nhập Kho 1 (PNK-2026-0827-001 - FPT Synnex)
+  const existingReceipts1 = await prisma.stockGoodsReceipt.findMany({ where: { code: "PNK-2026-0827-001" } });
+  if (existingReceipts1.length === 0) {
+    const rcId = "rc-2026-827-01";
+    const rcDate = new Date("2026-08-27T08:00:00");
+    await prisma.$executeRaw`
+      INSERT INTO [PhieuNhapKho] (id, code, date, sourceType, sourceId, sourceCode, supplierName, supplierTaxCode, supplierPhone, supplierAddress, warehouseName, creatorName, receivedBy, totalItemsCount, totalQuantity, totalCostAmount, totalTaxAmount, grandTotal, paymentStatus, notes)
+      VALUES (${rcId}, 'PNK-2026-0827-001', ${rcDate}, 'po', 'po-01', 'PO-2026-001', N'Công Ty Cổ Phần Phân Phối Synnex FPT', '0101778899', '028 7300 6666', N'Tòa nhà FPT Tân Thuận, Quận 7, TP.HCM', N'Kho Chính Gia Phúc Computer', N'Nguyễn Văn Minh (Thủ Kho)', N'Nguyễn Văn Minh (Thủ Kho)', 4, 14, 21430000, 1714400, 23144400, 'paid', N'Nhập linh kiện máy tính Kingston, Gigabyte, Corsair kèm Serial 100% nguyên seal')
+    `;
+
+    // 5x SSD Kingston
+    const serialsSsd = JSON.stringify(["SN-SSD-KS-5001", "SN-SSD-KS-5002", "SN-SSD-KS-5003", "SN-SSD-KS-5004", "SN-SSD-KS-5005"]);
+    await prisma.$executeRaw`
+      INSERT INTO [ChiTietPhieuNhapKho] (id, receiptId, productId, productName, sku, unit, quantity, oldStock, newStock, oldCostPrice, newCostPrice, unitCost, taxRate, totalAmount, storageLocation, warehouse, category, specifications, color, brand, warrantyMonths, accessories, serials, notes)
+      VALUES ('rc-item-827-1', ${rcId}, 'prod-gp-ssd-500', N'Ổ Cứng SSD Kingston NV2 500GB PCIe 4.0 NVMe M.2 2280', 'SSD-KINGSTON-500G', N'Cái', 5, 10, 15, 850000, 850000, 850000, 8, 4590000, N'Kệ A2 - Tầng 2 (Ổ cứng & SSD)', N'Kho Chính Gia Phúc Computer', N'Linh kiện Máy tính & Laptop', N'PCIe 4.0 x4 NVMe 3500MB/s', N'Xanh Đen', 'Kingston', 36, N'Vít M.2, Sách HDSD', ${serialsSsd}, N'Bảo hành chính hãng 36 tháng SPC/Vĩnh Xuân')
+    `;
+
+    // 3x Mainboard Gigabyte
+    const serialsMb = JSON.stringify(["SN-MB-GIGA-001", "SN-MB-GIGA-002", "SN-MB-GIGA-003"]);
+    await prisma.$executeRaw`
+      INSERT INTO [ChiTietPhieuNhapKho] (id, receiptId, productId, productName, sku, unit, quantity, oldStock, newStock, oldCostPrice, newCostPrice, unitCost, taxRate, totalAmount, storageLocation, warehouse, category, specifications, color, brand, warrantyMonths, accessories, serials, notes)
+      VALUES ('rc-item-827-2', ${rcId}, 'prod-gp-mb-b760', N'Mainboard Gigabyte B760M GAMING PLUS WIFI DDR4', 'MB-GIGA-B760M', N'Cái', 3, 5, 8, 2950000, 2950000, 2950000, 8, 9558000, N'Kệ B2 - Tầng 2 (RAM & Linh kiện PC)', N'Kho Chính Gia Phúc Computer', N'Linh kiện Máy tính & Laptop', N'Socket LGA1700, WiFi 6 + BT 5.2', N'Đen Bạc', 'Gigabyte', 36, N'Antenna WiFi, Cáp SATA, Chặn Fe I/O', ${serialsMb}, N'Hàng phân phối chính hãng Viễn Sơn')
+    `;
+
+    // 4x RAM Corsair
+    const serialsRam = JSON.stringify(["SN-RAM-CS-16G-01", "SN-RAM-CS-16G-02", "SN-RAM-CS-16G-03", "SN-RAM-CS-16G-04"]);
+    await prisma.$executeRaw`
+      INSERT INTO [ChiTietPhieuNhapKho] (id, receiptId, productId, productName, sku, unit, quantity, oldStock, newStock, oldCostPrice, newCostPrice, unitCost, taxRate, totalAmount, storageLocation, warehouse, category, specifications, color, brand, warrantyMonths, accessories, serials, notes)
+      VALUES ('rc-item-827-3', ${rcId}, 'prod-gp-ram-16g', N'RAM Desktop Corsair Vengeance LPX 16GB DDR4 3200MHz', 'RAM-CORSAIR-16G', N'Thanh', 4, 16, 20, 920000, 920000, 920000, 8, 3974400, N'Kệ B2 - Tầng 2 (RAM & Linh kiện PC)', N'Kho Chính Gia Phúc Computer', N'Linh kiện Máy tính & Laptop', N'DDR4 3200MHz CL16 1.35V', N'Đen Nhám', 'Corsair', 36, N'Hộp Mica', ${serialsRam}, N'Tem KTC phân phối')
+    `;
+
+    // 2x Đầu Ghi Hikvision
+    const serialsDvr = JSON.stringify(["SN-DVR-HIK-8801", "SN-DVR-HIK-8802"]);
+    await prisma.$executeRaw`
+      INSERT INTO [ChiTietPhieuNhapKho] (id, receiptId, productId, productName, sku, unit, quantity, oldStock, newStock, oldCostPrice, newCostPrice, unitCost, taxRate, totalAmount, storageLocation, warehouse, category, specifications, color, brand, warrantyMonths, accessories, serials, notes)
+      VALUES ('rc-item-827-4', ${rcId}, 'prod-gp-1', N'Đầu ghi hình IP DS-7616NXI-K1 (16 Kênh Chuẩn NVR 4K AcuSense)', 'DVR7616-k1', 'PCS', 2, 16, 18, 2350000, 2350000, 2350000, 8, 5076000, N'Kệ A1 - Tầng 1 (Đầu ghi & Camera)', N'Kho Chính Gia Phúc Computer', N'Điện tử & Cáp điện', N'16 Kênh 4K AcuSense H.265+', N'Đen', 'Hikvision', 24, N'Adapter 12V, Chuột USB, Cáp SATA, Ốc vít', ${serialsDvr}, N'Nguyên seal nhà máy Hikvision')
+    `;
+  }
+
+  // 26.2 Phiếu Nhập Kho 2 (PNK-2026-0827-002 - Phong Vũ)
+  const existingReceipts2 = await prisma.stockGoodsReceipt.findMany({ where: { code: "PNK-2026-0827-002" } });
+  if (existingReceipts2.length === 0) {
+    const rcId2 = "rc-2026-827-02";
+    const rcDate2 = new Date("2026-08-27T09:00:00");
+    await prisma.$executeRaw`
+      INSERT INTO [PhieuNhapKho] (id, code, date, sourceType, sourceId, sourceCode, supplierName, supplierTaxCode, supplierPhone, supplierAddress, warehouseName, creatorName, receivedBy, totalItemsCount, totalQuantity, totalCostAmount, totalTaxAmount, grandTotal, paymentStatus, notes)
+      VALUES (${rcId2}, 'PNK-2026-0827-002', ${rcDate2}, 'inbound_invoice', 'inv-in-01', 'HD-PV-9921', N'Công Ty Cổ Phần Thương Mại - Dịch Vụ Phong Vũ', '0304998877', '1800 6867', N'Tầng 5, Số 117-119-121 Nguyễn Du, P. Bến Thành, Quận 1, TP.HCM', N'Kho Chính Gia Phúc Computer', N'Nguyễn Văn Minh (Thủ Kho)', N'Nguyễn Văn Minh (Thủ Kho)', 2, 7, 43300000, 3464000, 46764000, 'paid', N'Nhập Laptop Dell Vostro & Camera IP theo HĐĐT')
+    `;
+
+    const serialsDell = JSON.stringify(["SN-DELL-V3520-01", "SN-DELL-V3520-02"]);
+    await prisma.$executeRaw`
+      INSERT INTO [ChiTietPhieuNhapKho] (id, receiptId, productId, productName, sku, unit, quantity, oldStock, newStock, oldCostPrice, newCostPrice, unitCost, taxRate, totalAmount, storageLocation, warehouse, category, specifications, color, brand, warrantyMonths, accessories, serials, notes)
+      VALUES ('rc-item-827-5', ${rcId2}, 'prod-gp-dell-v3520', N'Laptop Dell Vostro 3520 (Core i5-1235U / 16GB RAM / 512GB SSD / 15.6" FHD 120Hz)', 'LAP-DELL-V3520', N'Máy', 2, 4, 6, 12800000, 12800000, 12800000, 8, 27648000, N'Kệ B1 - Tầng 1 (Switch & Thiết bị mạng)', N'Kho Chính Gia Phúc Computer', N'Linh kiện Máy tính & Laptop', N'i5-1235U / 16GB / 512GB NVMe / 15.6" 120Hz', N'Xám Đen Titan', 'Dell', 12, N'Củ sạc zin Dell 65W, Dây nguồn, Balo, Chuột', ${serialsDell}, N'Chính hãng Dell ProSupport')
+    `;
+
+    const serialsCam = JSON.stringify(["SN-CAM-HIK-401", "SN-CAM-HIK-402", "SN-CAM-HIK-403", "SN-CAM-HIK-404", "SN-CAM-HIK-405"]);
+    await prisma.$executeRaw`
+      INSERT INTO [ChiTietPhieuNhapKho] (id, receiptId, productId, productName, sku, unit, quantity, oldStock, newStock, oldCostPrice, newCostPrice, unitCost, taxRate, totalAmount, storageLocation, warehouse, category, specifications, color, brand, warrantyMonths, accessories, serials, notes)
+      VALUES ('rc-item-827-6', ${rcId2}, 'prod-gp-2', N'Camera IP DS-2CD1T41G2-LIU (Thân Trụ 4MP Cảnh Báo Âm Thanh Ánh Sáng)', 'CA41G2', 'PCS', 5, 40, 45, 980000, 980000, 980000, 8, 5292000, N'Kệ A1 - Tầng 1 (Đầu ghi & Camera)', N'Kho Chính Gia Phúc Computer', N'Điện tử & Cáp điện', N'4.0MP ColorVu ban đêm có màu, Micro thu âm', N'Trắng', 'Hikvision', 24, N'Chân đế, Bộ ốc vít, Đầu chụp mạng chống nước', ${serialsCam}, N'Bảo hành 24 tháng')
+    `;
+  }
+
+  // 26.3 Phiếu Xuất Kho Mẫu (XK-2026-9580)
+  const existingIssues = await prisma.stockGoodsIssue.findMany({ where: { code: "XK-2026-9580" } });
+  if (existingIssues.length === 0) {
+    const isId = "issue-2026-9580";
+    const isDate = new Date("2026-08-27T09:30:00");
+    await prisma.$executeRaw`
+      INSERT INTO [PhieuXuatKho] (id, code, orderId, orderCode, customerName, customerPhone, customerAddress, warehouseName, dispatchedBy, dispatchedAt, totalQuantity, totalItemsCount, status, notes, createdAt)
+      VALUES (${isId}, 'XK-2026-9580', 'ord-test-800', 'HD-20260827-800', N'Anh Trần Quốc Toản', '0933888999', N'Quận 10, TP.HCM', N'Kho Chính Gia Phúc Computer', N'Nguyễn Văn Minh (Thủ Kho)', ${isDate}, 2, 2, 'completed', N'Xuất kho hoàn tất bàn giao kèm kích hoạt bảo hành điện tử', ${isDate})
+    `;
+
+    const serialsIssued = JSON.stringify(["SN-SSD-KS-5001"]);
+    await prisma.$executeRaw`
+      INSERT INTO [ChiTietPhieuXuatKho] (id, issueId, productId, productName, sku, unit, quantity, serials, warrantyMonths, notes)
+      VALUES ('issue-item-800-1', ${isId}, 'prod-gp-ssd-500', N'Ổ Cứng SSD Kingston NV2 500GB PCIe 4.0 NVMe M.2 2280', 'SSD-KINGSTON-500G', N'Cái', 1, ${serialsIssued}, 36, N'Đã dán tem bảo hành Gia Phúc')
+    `;
+
+    const serialsIssuedMb = JSON.stringify(["SN-MB-GIGA-001"]);
+    await prisma.$executeRaw`
+      INSERT INTO [ChiTietPhieuXuatKho] (id, issueId, productId, productName, sku, unit, quantity, serials, warrantyMonths, notes)
+      VALUES ('issue-item-800-2', ${isId}, 'prod-gp-mb-b760', N'Mainboard Gigabyte B760M GAMING PLUS WIFI DDR4', 'MB-GIGA-B760M', N'Cái', 1, ${serialsIssuedMb}, 36, N'Đã kiểm tra bios mới nhất')
+    `;
+  }
+
+  // 26.4 Nạp Đơn Hàng Bán POS (Orders)
+  console.log(`26.4 Seeding ${INITIAL_ORDERS.length} POS Sales Orders...`);
+  for (const ord of INITIAL_ORDERS) {
+    const existingOrd = await prisma.order.findMany({ where: { code: ord.code } });
+    if (existingOrd.length === 0) {
+      const oDate = safeDate(ord.createdAt);
+      const cDate = safeDate(ord.completedAt);
+
+      let validCustId: string | null = null;
+      if (ord.customer?.id) {
+        const custs = await prisma.customer.findMany({ where: { id: ord.customer.id } });
+        if (custs.length > 0) {
+          validCustId = ord.customer.id;
+        } else if (ord.customer.phone) {
+          const byPhone = await prisma.customer.findMany({ where: { phone: ord.customer.phone } });
+          if (byPhone.length > 0) {
+            validCustId = byPhone[0].id;
+          }
+        }
+      }
+
+      await prisma.$executeRaw`
+        INSERT INTO [HoaDon] (id, code, channel, status, customerId, customerName, customerPhone, customerAddress, customerRank, subtotal, discountAmount, discountCode, taxRate, taxAmount, shippingFee, shippingPartner, trackingCode, total, totalCost, profit, paymentMethod, paymentStatus, paidAmount, changeAmount, note, shiftId, createdAt, completedAt)
+        VALUES (${ord.id}, ${ord.code}, ${ord.channel || "Tại quầy (POS)"}, ${ord.status || "completed"}, ${validCustId}, ${ord.customer?.name || null}, ${ord.customer?.phone || null}, ${ord.customer?.address || null}, ${ord.customer?.rank || null}, ${ord.subtotal}, ${ord.discountAmount || 0}, ${ord.discountCode || null}, ${ord.taxRate || 0}, ${ord.taxAmount || 0}, ${ord.shippingFee || 0}, ${ord.shippingPartner || null}, ${ord.trackingCode || null}, ${ord.total}, ${ord.totalCost || 0}, ${ord.profit || 0}, ${ord.paymentMethod || "cash"}, ${ord.paymentStatus || "paid"}, ${ord.paidAmount || ord.total}, ${ord.changeAmount || 0}, ${ord.note || null}, ${(ord as any).shiftId || null}, ${oDate}, ${cDate})
+      `;
+
+      if (ord.items && ord.items.length > 0) {
+        for (let idx = 0; idx < ord.items.length; idx++) {
+          const it = ord.items[idx];
+          const itemId = `oi-${ord.id}-${idx}`;
+          await prisma.$executeRaw`
+            INSERT INTO [ChiTietHoaDon] (id, orderId, productId, productName, sku, unit, ratioToBase, quantity, unitPrice, costPrice, discountPercent, total)
+            VALUES (${itemId}, ${ord.id}, ${it.productId}, ${it.productName}, ${it.sku}, ${it.unit || "Cái"}, ${it.ratioToBase || 1}, ${it.quantity}, ${it.unitPrice}, ${it.costPrice || 0}, ${it.discountPercent || 0}, ${it.total})
+          `;
+        }
+      }
+    }
+  }
+
+  // 27. Phân quyền vai trò hệ thống (RBAC Roles & Modules)
+  console.log("27. Seeding RBAC Roles & Modules...");
   const INITIAL_ROLES_SEED = [
     {
       roleKey: "admin",

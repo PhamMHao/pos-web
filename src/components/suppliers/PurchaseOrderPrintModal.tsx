@@ -252,28 +252,24 @@ export const PurchaseOrderPrintModal: React.FC<PurchaseOrderPrintModalProps> = (
                 </div>
               </div>
 
-              <p className="text-[11px] italic text-slate-700 mb-4">
-                Số tiền bằng chữ: <strong>{numberToVietnameseWords(order.totalAmount)}</strong>
-              </p>
-
-              {/* Barcode Code128 & ERP QR */}
-              {(codePlacement === 'footer' || codePlacement === 'both') && (
-                <div className="py-2 border-t border-dotted border-slate-300">
-                  <SlipBarcodeQR
-                    docCode={order.code}
-                    docType="sales_order"
-                    date={order.orderDate}
-                    customerName={order.supplierName}
-                    totalAmount={order.totalAmount}
-                    paperSize="A4"
-                    showBarcode={true}
-                    showQr={true}
-                    renderMode="both"
-                    align="between"
-                    layout="row"
-                  />
+              {/* Dòng Số tiền bằng chữ & Tài khoản Ngân Hàng (Ảnh 1) */}
+              <div className="border-t border-b border-dotted border-slate-300 py-1.5 my-2 flex items-center justify-between gap-2 text-slate-900">
+                <div className="flex-1 text-[11px] leading-snug space-y-0.5 text-left">
+                  <div>
+                    <span className="font-semibold">* Số tiền bằng chữ: </span>
+                    <span className="italic font-bold text-slate-900">{numberToVietnameseWords(order.totalAmount)}</span>
+                  </div>
+                  {settings?.bankAccount && (
+                    <div className="text-[10px] text-slate-700">
+                      <span>Ngân hàng: </span>
+                      <strong className="font-bold text-slate-900">{settings.bankName || 'Techcombank - Ngân hàng Kỹ Thương VN'}</strong>
+                      <span> | STK: </span>
+                      <strong className="font-mono font-bold text-slate-900">{settings.bankAccount}</strong>
+                      <span> ({settings.bankAccountName || settings.brandName || 'GIA PHUC COMPUTER'})</span>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
 
               {/* Terms */}
               <div className="p-3 bg-slate-50 rounded border border-slate-200 text-[10px] text-slate-600 space-y-1 mt-2">
@@ -307,6 +303,27 @@ export const PurchaseOrderPrintModal: React.FC<PurchaseOrderPrintModalProps> = (
                 </div>
               </div>
             </div>
+
+            {/* Barcode Code128 & ERP QR Chân Trang (Ảnh 2) */}
+            {(codePlacement === 'footer' || codePlacement === 'both') && (
+              <SlipBarcodeQR
+                docCode={order.code}
+                orderCode={order.code}
+                docType="purchase_order"
+                date={order.orderDate}
+                customerName={order.supplierName}
+                totalAmount={order.totalAmount}
+                paperSize="A4"
+                showBarcode={true}
+                showQr={true}
+                renderMode="both"
+                variant="warranty_footer"
+                brandName={settings?.brandName || 'GIA PHÚC'}
+                align="between"
+                layout="row"
+                className="mt-3"
+              />
+            )}
           </div>
         </div>
       </div>

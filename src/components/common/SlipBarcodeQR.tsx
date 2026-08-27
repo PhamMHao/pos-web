@@ -4,6 +4,7 @@ import { PaperSize } from '../../types';
 
 export interface SlipBarcodeQRProps {
   docCode: string;
+  orderCode?: string;
   docType?: string; // sales_invoice, stock_receipt, warranty, quote, po, einvoice, etc.
   date?: string;
   customerName?: string;
@@ -17,10 +18,16 @@ export interface SlipBarcodeQRProps {
   align?: 'center' | 'left' | 'right' | 'between';
   renderMode?: 'both' | 'barcode_only' | 'qr_only';
   layout?: 'row' | 'column';
+  variant?: 'standard' | 'warranty_footer';
+  brandName?: string;
+  customLookupTitle?: string;
+  customLookupDesc?: string;
+  qrLabel?: string;
 }
 
 export const SlipBarcodeQR: React.FC<SlipBarcodeQRProps> = ({
   docCode,
+  orderCode,
   docType = 'erp_doc',
   date = new Date().toISOString(),
   customerName = '',
@@ -34,17 +41,23 @@ export const SlipBarcodeQR: React.FC<SlipBarcodeQRProps> = ({
   align = 'center',
   renderMode = 'both',
   layout = 'row',
+  variant = 'standard',
+  brandName = 'GIA PHÚC',
+  customLookupTitle,
+  customLookupDesc,
+  qrLabel,
 }) => {
   const shouldShowBarcode = showBarcode && renderMode !== 'qr_only';
   const shouldShowQr = showQr && renderMode !== 'barcode_only';
+
   // Generate Pure Vector SVG Barcode
   const barcodeSvgHtml = useMemo(() => {
     if (!shouldShowBarcode || !docCode) return '';
     const isThermalSmall = paperSize === 'K58';
     const isThermalK80 = paperSize === 'K80';
-    const height = isThermalSmall ? 28 : isThermalK80 ? 32 : paperSize === 'A5' ? 34 : 40;
-    const fontSize = isThermalSmall ? 8 : isThermalK80 ? 9 : 10;
-    const barWidth = isThermalSmall ? 1.4 : isThermalK80 ? 1.6 : 2;
+    const height = isThermalSmall ? 28 : isThermalK80 ? 32 : paperSize === 'A5' ? 28 : 34;
+    const fontSize = isThermalSmall ? 8 : isThermalK80 ? 9 : 8.5;
+    const barWidth = isThermalSmall ? 1.4 : isThermalK80 ? 1.6 : 1.6;
 
     return generateBarcodeSVG(docCode, {
       height,
@@ -60,7 +73,7 @@ export const SlipBarcodeQR: React.FC<SlipBarcodeQRProps> = ({
     const payload = `GP-ERP://doc?type=${encodeURIComponent(docType)}&code=${encodeURIComponent(
       docCode
     )}&cust=${encodeURIComponent(customerName)}&total=${totalAmount || 0}&date=${encodeURIComponent(date)}`;
-    const size = paperSize === 'K58' ? 75 : paperSize === 'K80' ? 85 : paperSize === 'A5' ? 44 : 50;
+    const size = paperSize === 'K58' ? 75 : paperSize === 'K80' ? 85 : paperSize === 'A5' ? 42 : 48;
     return generateQRCodeSVG(payload, { size, margin: 1 });
   }, [shouldShowQr, docCode, docType, customerName, totalAmount, date, paperSize]);
 
@@ -92,7 +105,9 @@ export const SlipBarcodeQR: React.FC<SlipBarcodeQRProps> = ({
                 className={`${paperSize === 'K58' ? 'w-16 h-16' : 'w-20 h-20'} flex items-center justify-center`}
                 dangerouslySetInnerHTML={{ __html: erpQrSvgHtml }}
               />
-              <p className="text-[6.5pt] text-slate-800 font-sans mt-0.5 font-medium">Quét mã tra cứu</p>
+              <p className="text-[6.5pt] text-slate-800 font-sans mt-0.5 font-medium">
+                {qrLabel || 'Quét mã tra cứu'}
+              </p>
             </div>
           )}
 
@@ -113,7 +128,59 @@ export const SlipBarcodeQR: React.FC<SlipBarcodeQRProps> = ({
     );
   }
 
-  // A4 / A5 Office Layout
+  // Warranty Footer Variant (Khối Tra Cứu Chân Trang theo đúng Ảnh 2)
+  if (variant === 'warranty_footer') {
+    return (
+      <div className={`w-full pt-2 mt-1 border-t border-dashed border-gray-400 select-none ${className}`}>
+        <div className="flex items-center justify-between gap-3 w-full">
+          {/* Left Text Box */}
+          <div className="flex-1 pr-2 text-left">
+            <div className="text-[8pt] sm:text-[8.5pt] font-black uppercase text-gray-900 tracking-tight">
+              {customLookupTitle || `TRA CỨU & KÍCH HOẠT BẢO HÀNH ĐIỆN TỬ ${brandName}`}
+            </div>
+            <div className="text-[7pt] sm:text-[7.5pt] text-gray-600 leading-snug mt-0.5">
+              {customLookupDesc ||
+                'Quét mã QR bằng Camera Zalo/Điện thoại hoặc súng quét mã vạch để xem chi tiết lịch sử, tình trạng chứng từ & vòng đời sản phẩm.'}
+            </div>
+            <div className="text-[7pt] sm:text-[7.5pt] text-gray-800 font-medium mt-1">
+              <span>Mã tra cứu: </span>
+              <strong className="font-mono text-black font-bold">{docCode}</strong>
+              <span> | Đơn: </span>
+              <span className="font-mono">{orderCode || docCode}</span>
+            </div>
+          </div>
+
+          {/* Right: Barcode + QR Tra Cứu ERP */}
+          <div className="flex-shrink-0 flex items-center gap-2 sm:gap-3">
+            {/* Barcode 1D */}
+            {shouldShowBarcode && barcodeSvgHtml && (
+              <div className="flex flex-col items-center">
+                <div
+                  className="max-w-[180px] sm:max-w-[210px] max-h-[44px] overflow-hidden"
+                  dangerouslySetInnerHTML={{ __html: barcodeSvgHtml }}
+                />
+              </div>
+            )}
+
+            {/* QR Code 2D Tra Cứu ERP */}
+            {showDocQrCode && erpQrSvgHtml && (
+              <div className="flex flex-col items-center justify-center pl-1">
+                <div
+                  className="flex items-center justify-center p-0.5 bg-white border border-gray-300 rounded shadow-2xs"
+                  dangerouslySetInnerHTML={{ __html: erpQrSvgHtml }}
+                />
+                <span className="text-[6pt] sm:text-[6.5pt] text-gray-800 font-sans font-bold mt-0.5 whitespace-nowrap">
+                  {qrLabel || 'QR Tra Cứu ERP'}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Standard Header / Inline Office Layout (Giữ nguyên vị trí đầu trang)
   return (
     <div
       className={`flex ${layout === 'column' ? 'flex-col items-center' : 'items-center'} ${
@@ -146,7 +213,7 @@ export const SlipBarcodeQR: React.FC<SlipBarcodeQRProps> = ({
               dangerouslySetInnerHTML={{ __html: erpQrSvgHtml }}
             />
             <span className="text-[6.5pt] text-slate-800 font-sans mt-0.5 font-medium whitespace-nowrap">
-              Quét mã tra cứu
+              {qrLabel || 'Quét mã tra cứu'}
             </span>
           </div>
         )}
