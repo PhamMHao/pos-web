@@ -124,8 +124,8 @@ export const QuickAddMasterDataModal: React.FC<QuickAddMasterDataModalProps> = (
             code: genCode.toUpperCase(),
             name: name.trim(),
             symbol: extraField1.trim() || name.toLowerCase().trim(),
-            isBaseUnit: numericField1 === 1 || numericField1 === 0,
-            conversionRate: numericField1 > 0 ? numericField1 : 1,
+            isBaseUnit: true,
+            conversionRate: 1,
             description: description.trim() || undefined,
             status: 'active',
           });
@@ -398,29 +398,15 @@ export const QuickAddMasterDataModal: React.FC<QuickAddMasterDataModalProps> = (
 
           {/* Conditional Fields based on Type */}
           {(selectedType === 'uoms' || selectedType === 'uom') && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Ký hiệu viết tắt</label>
-                <input
-                  type="text"
-                  value={extraField1}
-                  onChange={(e) => setExtraField1(e.target.value)}
-                  placeholder="VD: thùng, hộp, cuộn, m"
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Hệ số quy đổi so với ĐVT cơ sở</label>
-                <input
-                  type="number"
-                  min="0.001"
-                  step="any"
-                  value={numericField1 || ''}
-                  onChange={(e) => setNumericField1(parseFloat(e.target.value) || 1)}
-                  placeholder="VD: 10 (1 Thùng = 10 Cái)"
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs"
-                />
-              </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">Ký hiệu viết tắt</label>
+              <input
+                type="text"
+                value={extraField1}
+                onChange={(e) => setExtraField1(e.target.value)}
+                placeholder="VD: cái, thùng, hộp, cuộn, m"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs"
+              />
             </div>
           )}
 

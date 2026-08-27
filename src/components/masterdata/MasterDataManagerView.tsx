@@ -1530,15 +1530,15 @@ export const MasterDataManagerView: React.FC = () => {
           </div>
         )}
 
-        {/* TAB 7: ĐƠN VỊ TÍNH (ĐVT) & QUY ĐỔI */}
+        {/* TAB 7: ĐƠN VỊ TÍNH (ĐVT) */}
         {activeTab === 'uoms' && (
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/80 p-4 rounded-2xl border border-slate-800">
               <div className="flex items-center space-x-2">
                 <Scale className="w-5 h-5 text-purple-400" />
                 <div>
-                  <h3 className="text-sm font-bold text-white">Đơn Vị Tính Chuẩn & Tỷ Lệ Quy Đổi Kho</h3>
-                  <p className="text-xs text-slate-400">Cấu hình ĐVT cơ sở và công thức quy đổi linh hoạt (1 Thùng = 10 Cái = 1000m...)</p>
+                  <h3 className="text-sm font-bold text-white">Danh Mục Đơn Vị Tính Chuẩn</h3>
+                  <p className="text-xs text-slate-400">Quản lý danh sách các đơn vị tính sản phẩm và dịch vụ trong hệ thống</p>
                 </div>
               </div>
               <button
@@ -1565,11 +1565,6 @@ export const MasterDataManagerView: React.FC = () => {
                         <span className="text-[10px] font-mono font-bold text-purple-400 px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/20">
                           {uom.code}
                         </span>
-                        {uom.isBaseUnit && (
-                          <span className="text-[9px] font-bold text-emerald-300 bg-emerald-500/20 px-1.5 py-0.2 rounded border border-emerald-500/30">
-                            CƠ SỞ
-                          </span>
-                        )}
                       </div>
                       <h4 className="text-base font-black text-white mt-1.5">{uom.name}</h4>
                     </div>
@@ -1604,12 +1599,6 @@ export const MasterDataManagerView: React.FC = () => {
                     <div className="flex justify-between">
                       <span className="text-slate-400">Ký hiệu hiển thị:</span>
                       <span className="font-bold text-white font-mono">{uom.symbol}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Tỷ lệ quy đổi:</span>
-                      <span className="font-bold text-cyan-400">
-                        {uom.isBaseUnit ? '1.0 (Đơn vị gốc)' : `x ${uom.conversionRate} ${uom.baseUnitName || 'gốc'}`}
-                      </span>
                     </div>
                   </div>
 

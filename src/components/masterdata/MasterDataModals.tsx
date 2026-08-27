@@ -651,9 +651,6 @@ export const UnitOfMeasureModal: React.FC<UnitOfMeasureModalProps> = ({
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [symbol, setSymbol] = useState('');
-  const [isBaseUnit, setIsBaseUnit] = useState(true);
-  const [baseUnitId, setBaseUnitId] = useState('');
-  const [conversionRate, setConversionRate] = useState<number>(1);
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<'active' | 'inactive'>('active');
 
@@ -662,18 +659,12 @@ export const UnitOfMeasureModal: React.FC<UnitOfMeasureModalProps> = ({
       setCode(initialData.code || '');
       setName(initialData.name || '');
       setSymbol(initialData.symbol || '');
-      setIsBaseUnit(initialData.isBaseUnit !== undefined ? initialData.isBaseUnit : true);
-      setBaseUnitId(initialData.baseUnitId || '');
-      setConversionRate(initialData.conversionRate || 1);
       setDescription(initialData.description || '');
       setStatus(initialData.status || 'active');
     } else {
       setCode('');
       setName('');
       setSymbol('');
-      setIsBaseUnit(true);
-      setBaseUnitId(unitsOfMeasure.find((u) => u.isBaseUnit)?.id || '');
-      setConversionRate(1);
       setDescription('');
       setStatus('active');
     }
@@ -683,15 +674,12 @@ export const UnitOfMeasureModal: React.FC<UnitOfMeasureModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const baseUom = unitsOfMeasure.find((u) => u.id === baseUnitId);
     onSave({
       code: code.trim().toUpperCase(),
       name: name.trim(),
       symbol: symbol.trim() || name.toLowerCase().trim(),
-      isBaseUnit,
-      baseUnitId: isBaseUnit ? undefined : baseUnitId,
-      baseUnitName: isBaseUnit ? undefined : baseUom?.name,
-      conversionRate: isBaseUnit ? 1 : conversionRate,
+      isBaseUnit: true,
+      conversionRate: 1,
       description: description.trim(),
       status,
     });
@@ -722,7 +710,7 @@ export const UnitOfMeasureModal: React.FC<UnitOfMeasureModalProps> = ({
                 required
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                placeholder="CAI, THUNG, HOP, CUON..."
+                placeholder="CAI, THUNG, HOP, CUON, MET..."
                 className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs uppercase font-mono"
               />
             </div>
@@ -745,54 +733,9 @@ export const UnitOfMeasureModal: React.FC<UnitOfMeasureModalProps> = ({
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="VD: Thùng (10 Cái / Hộp)"
+              placeholder="VD: Cái, Thùng, Hộp, Cuộn, Mét..."
               className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs"
             />
-          </div>
-
-          <div className="p-3.5 bg-slate-800/60 rounded-2xl border border-slate-700/60 space-y-3">
-            <label className="flex items-center space-x-2 text-xs font-bold text-white cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isBaseUnit}
-                onChange={(e) => setIsBaseUnit(e.target.checked)}
-                className="rounded bg-slate-900 border-slate-600 text-purple-600 focus:ring-0 w-4 h-4"
-              />
-              <span>Là Đơn Vị Tính Cơ Sở (Gốc)</span>
-            </label>
-
-            {!isBaseUnit && (
-              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-700/60">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-300 mb-1">Quy đổi theo ĐVT gốc:</label>
-                  <select
-                    value={baseUnitId}
-                    onChange={(e) => setBaseUnitId(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs"
-                  >
-                    {unitsOfMeasure
-                      .filter((u) => u.isBaseUnit && u.id !== initialData?.id)
-                      .map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {u.name} ({u.symbol})
-                        </option>
-                      ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-300 mb-1">Tỷ lệ quy đổi:</label>
-                  <input
-                    type="number"
-                    min="0.001"
-                    step="any"
-                    value={conversionRate}
-                    onChange={(e) => setConversionRate(parseFloat(e.target.value) || 1)}
-                    placeholder="VD: 10"
-                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs font-mono font-bold text-cyan-400"
-                  />
-                </div>
-              </div>
-            )}
           </div>
 
           <div>
@@ -801,7 +744,7 @@ export const UnitOfMeasureModal: React.FC<UnitOfMeasureModalProps> = ({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
-              placeholder="VD: 1 Thùng = 10 Cái linh kiện nguyên đai nguyên kiện..."
+              placeholder="VD: Đơn vị tính chuẩn dùng cho các linh kiện và thiết bị..."
               className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs"
             />
           </div>
