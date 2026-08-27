@@ -1393,13 +1393,42 @@ export interface UnitOfMeasure {
   code: string; // e.g., 'CAI', 'BO', 'THUNG', 'HOP', 'CUON', 'MET', 'KG'
   name: string; // e.g., 'Cái', 'Bộ', 'Thùng', 'Hộp', 'Cuộn'
   symbol: string;
-  isBaseUnit: boolean; // Có phải là ĐVT cơ sở chuẩn không
+  isBaseUnit?: boolean;
   baseUnitId?: string;
   baseUnitName?: string;
-  conversionRate: number; // 1 ĐVT này = bao nhiêu ĐVT cơ sở (e.g., 1 Thùng = 10 Cái)
+  conversionRate?: number;
   description?: string;
   status: 'active' | 'inactive';
-  createdAt: string;
+  createdAt?: string;
+}
+
+export interface UOMTierNode {
+  id: string;
+  tierLevel: number;
+  unitId?: string;
+  unitName: string; // e.g., 'Mét', 'Cuộn', 'Thùng', 'Pallet'
+  unitSymbol: string; // e.g., 'm', 'Cuộn', 'Thùng', 'Pallet'
+  isBase: boolean;
+  parentUnitName?: string | null; // e.g., 'Cuộn'
+  stepFactor: number; // e.g., 10 (1 Thùng = 10 Cuộn)
+  ratioToBase: number; // Hệ số lũy kế về ĐVT gốc nhỏ nhất (VD: 1000)
+  equivalentNote?: string; // e.g., '~ 10 Kg' hoặc 'Tương đương 100m'
+  formulaDisplay?: string; // e.g., '1 Thùng = 10 Cuộn = 1,000 Mét'
+}
+
+export interface UOMGroup {
+  id: string;
+  code: string; // e.g., 'GRP-DAYCAP', 'GRP-NUOCUONG', 'GRP-LINHKIEN'
+  name: string; // e.g., 'Nhóm Dây Cáp Mạng Cat6'
+  baseUnitId?: string;
+  baseUnitName: string; // e.g., 'Mét'
+  baseUnitSymbol?: string; // e.g., 'm'
+  tierCount: number;
+  conversions: UOMTierNode[];
+  status: 'active' | 'inactive';
+  description?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface MasterProductCategory {

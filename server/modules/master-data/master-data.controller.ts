@@ -169,6 +169,45 @@ export class MasterDataController {
     }
   }
 
+  // 5.1 Multi-Tier UOM Groups
+  static async getUOMGroups(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await MasterDataService.getUOMGroups();
+      return sendSuccess(res, data, "Lấy danh sách nhóm đơn vị tính thành công");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async createUOMGroup(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await MasterDataService.createUOMGroup(req.body);
+      return sendCreated(res, data, "Thêm mới nhóm đơn vị tính thành công");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async updateUOMGroup(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const data = await MasterDataService.updateUOMGroup(id, req.body);
+      return sendSuccess(res, data, "Cập nhật nhóm đơn vị tính thành công");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async deleteUOMGroup(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const data = await MasterDataService.deleteUOMGroup(id);
+      return sendSuccess(res, data, "Xóa nhóm đơn vị tính thành công");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
   // 6. Product Categories
   static async getProductCategories(req: Request, res: Response, next: NextFunction) {
     try {

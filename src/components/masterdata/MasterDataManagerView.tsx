@@ -45,6 +45,10 @@ import {
   Star,
   FolderKanban,
   Package,
+  Layers,
+  ArrowRight,
+  TrendingUp,
+  GitBranch,
 } from 'lucide-react';
 import {
   useMasterData,
@@ -66,11 +70,13 @@ import {
   SupplierCategoryModal,
   ProjectModal,
 } from './MasterDataModals';
+import { UOMGroupModal } from './UOMGroupModal';
 import {
   Department,
   JobPosition,
   WarehouseLocation,
   UnitOfMeasure,
+  UOMGroup,
   MasterProductCategory,
   CustomerGroup,
   MasterCustomerTier,
@@ -125,6 +131,11 @@ export const MasterDataManagerView: React.FC = () => {
     addUnitOfMeasure,
     updateUnitOfMeasure,
 
+    uomGroups,
+    deleteUOMGroup,
+    addUOMGroup,
+    updateUOMGroup,
+
     productCategories,
     deleteProductCategory,
     addProductCategory,
@@ -178,6 +189,8 @@ export const MasterDataManagerView: React.FC = () => {
   const [customerSubTab, setCustomerSubTab] = useState<'list' | 'tiers' | 'groups'>('list');
   // Sub-tabs for Suppliers
   const [supplierSubTab, setSupplierSubTab] = useState<'list' | 'categories'>('list');
+  // Sub-tabs for Units of Measure (ĐVT Cơ Bản vs Cấu Hình Nhóm ĐVT Đa Tầng)
+  const [uomSubTab, setUomSubTab] = useState<'list' | 'groups'>('list');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [tierFilter, setTierFilter] = useState<string>('all');
@@ -212,6 +225,9 @@ export const MasterDataManagerView: React.FC = () => {
 
   const [isUomModalOpen, setIsUomModalOpen] = useState(false);
   const [editingUom, setEditingUom] = useState<UnitOfMeasure | null>(null);
+
+  const [isUomGroupModalOpen, setIsUomGroupModalOpen] = useState(false);
+  const [editingUomGroup, setEditingUomGroup] = useState<UOMGroup | null>(null);
 
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [editingLocation, setEditingLocation] = useState<WarehouseLocation | null>(null);
@@ -1530,82 +1546,316 @@ export const MasterDataManagerView: React.FC = () => {
           </div>
         )}
 
-        {/* TAB 7: ĐƠN VỊ TÍNH (ĐVT) */}
+        {/* TAB 7: ĐƠN VỊ TÍNH (ĐVT) & NHÓM ĐVT QUY ĐỔI ĐA TẦNG */}
         {activeTab === 'uoms' && (
           <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/80 p-4 rounded-2xl border border-slate-800">
-              <div className="flex items-center space-x-2">
-                <Scale className="w-5 h-5 text-purple-400" />
-                <div>
-                  <h3 className="text-sm font-bold text-white">Danh Mục Đơn Vị Tính Chuẩn</h3>
-                  <p className="text-xs text-slate-400">Quản lý danh sách các đơn vị tính sản phẩm và dịch vụ trong hệ thống</p>
-                </div>
-              </div>
+            {/* Sub-Tabs Selector */}
+            <div className="flex items-center space-x-2 border-b border-slate-800 pb-3">
               <button
-                onClick={() => {
-                  setEditingUom(null);
-                  setIsUomModalOpen(true);
-                }}
-                className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl flex items-center space-x-1 cursor-pointer"
+                onClick={() => setUomSubTab('list')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer ${
+                  uomSubTab === 'list'
+                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
+                    : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
               >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Thêm ĐVT Mới</span>
+                <Scale className="w-4 h-4" />
+                <span>1. Danh Sách ĐVT Cơ Bản ({unitsOfMeasure.length})</span>
+              </button>
+
+              <button
+                onClick={() => setUomSubTab('groups')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer ${
+                  uomSubTab === 'groups'
+                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                    : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                <Layers className="w-4 h-4 text-cyan-300" />
+                <span>2. Cấu Hình Nhóm ĐVT & Quy Đổi Đa Tầng ({uomGroups.length})</span>
+                <span className="px-1.5 py-0.2 rounded-full bg-cyan-500/20 text-cyan-300 text-[10px] font-mono">
+                  Mới
+                </span>
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-              {unitsOfMeasure.map((uom) => (
-                <div
-                  key={uom.id}
-                  className="bg-slate-900 border border-slate-800 hover:border-slate-700 p-5 rounded-2xl space-y-3 transition-all group"
-                >
-                  <div className="flex items-start justify-between">
+            {/* SUB-TAB 1: DANH SÁCH ĐƠN VỊ TÍNH CƠ BẢN */}
+            {uomSubTab === 'list' && (
+              <div className="space-y-4 animate-in fade-in duration-200">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/80 p-4 rounded-2xl border border-slate-800">
+                  <div className="flex items-center space-x-2">
+                    <Scale className="w-5 h-5 text-purple-400" />
                     <div>
-                      <div className="flex items-center space-x-1.5">
-                        <span className="text-[10px] font-mono font-bold text-purple-400 px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/20">
-                          {uom.code}
-                        </span>
-                      </div>
-                      <h4 className="text-base font-black text-white mt-1.5">{uom.name}</h4>
-                    </div>
-
-                    <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => {
-                          setEditingUom(uom);
-                          setIsUomModalOpen(true);
-                        }}
-                        className="p-1 text-slate-400 hover:text-white rounded-lg cursor-pointer"
-                        title="Chỉnh sửa ĐVT"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (window.confirm(`Xóa ĐVT ${uom.name}?`)) {
-                            deleteUnitOfMeasure(uom.id);
-                            showToast('Đã xóa đơn vị tính');
-                          }
-                        }}
-                        className="p-1 text-slate-400 hover:text-rose-400 rounded-lg cursor-pointer"
-                        title="Xóa ĐVT"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <h3 className="text-sm font-bold text-white">Danh Mục Đơn Vị Tính Chuẩn (Master UOMs)</h3>
+                      <p className="text-xs text-slate-400">
+                        Danh sách các đơn vị tính cơ bản độc lập (Cái, Hộp, Thùng, Cuộn, Mét, Kg, Lon, Lốc, Pallet...)
+                      </p>
                     </div>
                   </div>
-
-                  <div className="space-y-1 text-xs text-slate-300">
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Ký hiệu hiển thị:</span>
-                      <span className="font-bold text-white font-mono">{uom.symbol}</span>
-                    </div>
-                  </div>
-
-                  {uom.description && <p className="text-[11px] text-slate-400 italic pt-1 border-t border-slate-800">{uom.description}</p>}
+                  <button
+                    onClick={() => {
+                      setEditingUom(null);
+                      setIsUomModalOpen(true);
+                    }}
+                    className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl flex items-center space-x-1 cursor-pointer shadow-md shadow-purple-600/20"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Thêm ĐVT Mới</span>
+                  </button>
                 </div>
-              ))}
-            </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                  {unitsOfMeasure.map((uom) => (
+                    <div
+                      key={uom.id}
+                      className="bg-slate-900 border border-slate-800 hover:border-slate-700 p-5 rounded-2xl space-y-3 transition-all group"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center space-x-1.5">
+                            <span className="text-[10px] font-mono font-bold text-purple-400 px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/20">
+                              {uom.code}
+                            </span>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                              uom.status === 'active' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-800 text-slate-400'
+                            }`}>
+                              {uom.status === 'active' ? 'Hoạt động' : 'Tạm ngưng'}
+                            </span>
+                          </div>
+                          <h4 className="text-base font-black text-white mt-1.5">{uom.name}</h4>
+                        </div>
+
+                        <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => {
+                              setEditingUom(uom);
+                              setIsUomModalOpen(true);
+                            }}
+                            className="p-1 text-slate-400 hover:text-white rounded-lg cursor-pointer transition-colors"
+                            title="Chỉnh sửa ĐVT"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`Xóa ĐVT ${uom.name}?`)) {
+                                deleteUnitOfMeasure(uom.id);
+                                showToast('Đã xóa đơn vị tính');
+                              }
+                            }}
+                            className="p-1 text-slate-400 hover:text-rose-400 rounded-lg cursor-pointer transition-colors"
+                            title="Xóa ĐVT"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1 text-xs text-slate-300">
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Ký hiệu viết tắt:</span>
+                          <span className="font-bold text-white font-mono bg-slate-800 px-2 py-0.5 rounded">{uom.symbol || uom.name}</span>
+                        </div>
+                      </div>
+
+                      {uom.description && <p className="text-[11px] text-slate-400 italic pt-1 border-t border-slate-800">{uom.description}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* SUB-TAB 2: CẤU HÌNH NHÓM ĐVT & CHUỖI QUY ĐỔI ĐA TẦNG */}
+            {uomSubTab === 'groups' && (
+              <div className="space-y-4 animate-in fade-in duration-200">
+                {/* Header Banner */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-slate-900 via-indigo-950/30 to-purple-950/30 p-5 rounded-2xl border border-indigo-500/30 shadow-lg">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center shadow-md">
+                      <Layers className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                        <span>Hệ Thống Nhóm Đơn Vị Tính & Chuỗi Quy Đổi Đa Tầng</span>
+                        <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-[10px] font-mono">
+                          {uomGroups.length} Nhóm Đang Thiết Lập
+                        </span>
+                      </h3>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Tự do thiết lập chuỗi quy đổi đa cấp tùy ý (Container ➔ Pallet ➔ Thùng ➔ Cuộn ➔ Mét / Kg / Cái)
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setEditingUomGroup(null);
+                      setIsUomGroupModalOpen(true);
+                    }}
+                    className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 cursor-pointer shadow-lg shadow-indigo-600/25 transition-all"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>+ Thiết Lập Nhóm ĐVT Mới</span>
+                  </button>
+                </div>
+
+                {/* Groups Grid */}
+                {uomGroups.length === 0 ? (
+                  <div className="py-12 text-center border-2 border-dashed border-slate-800 rounded-3xl space-y-3 bg-slate-900/40">
+                    <Layers className="w-10 h-10 mx-auto text-slate-600" />
+                    <h4 className="text-sm font-bold text-slate-300">Chưa có Nhóm ĐVT đa tầng nào</h4>
+                    <p className="text-xs text-slate-500 max-w-md mx-auto">
+                      Hãy bấm <strong>"+ Thiết Lập Nhóm ĐVT Mới"</strong> để tạo bộ quy đổi cho dây cáp, đồ uống, linh kiện, v.v.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                    {uomGroups.map((grp) => {
+                      const convList = Array.isArray(grp.conversions) ? grp.conversions : [];
+                      return (
+                        <div
+                          key={grp.id}
+                          className="bg-slate-900 border border-slate-800 hover:border-indigo-500/50 p-5 rounded-3xl space-y-4 transition-all group shadow-md"
+                        >
+                          {/* Card Header */}
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <div className="flex items-center space-x-2">
+                                <span className="text-[10px] font-mono font-bold text-indigo-400 px-2.5 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20">
+                                  {grp.code}
+                                </span>
+                                <span className="text-[10px] font-bold text-cyan-300 px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20">
+                                  {grp.tierCount || convList.length} Tầng quy đổi
+                                </span>
+                                <span
+                                  className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                                    grp.status === 'active'
+                                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                      : 'bg-slate-800 text-slate-400'
+                                  }`}
+                                >
+                                  {grp.status === 'active' ? 'Đang áp dụng' : 'Tạm ngưng'}
+                                </span>
+                              </div>
+                              <h4 className="text-base font-black text-white mt-2">{grp.name}</h4>
+                              {grp.description && (
+                                <p className="text-xs text-slate-400 mt-0.5">{grp.description}</p>
+                              )}
+                            </div>
+
+                            <div className="flex items-center space-x-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => {
+                                  setEditingUomGroup(grp);
+                                  setIsUomGroupModalOpen(true);
+                                }}
+                                className="p-1.5 text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700 rounded-lg cursor-pointer transition-colors"
+                                title="Chỉnh sửa cấu hình nhóm"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`Bạn có chắc muốn xóa Nhóm ĐVT "${grp.name}"?`)) {
+                                    deleteUOMGroup(grp.id);
+                                    showToast('Đã xóa nhóm đơn vị tính thành công');
+                                  }
+                                }}
+                                className="p-1.5 text-slate-400 hover:text-rose-400 bg-slate-800/80 hover:bg-rose-500/20 rounded-lg cursor-pointer transition-colors"
+                                title="Xóa nhóm ĐVT"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Interactive Flow Chain Breadcrumbs */}
+                          <div className="p-3 bg-slate-950/80 rounded-2xl border border-slate-800/80 space-y-2">
+                            <div className="flex items-center space-x-1.5 text-[10px] font-bold uppercase tracking-wider text-purple-400">
+                              <GitBranch className="w-3 h-3" />
+                              <span>Sơ đồ chuỗi quy đổi:</span>
+                            </div>
+
+                            <div className="flex items-center flex-wrap gap-1.5 text-xs">
+                              {[...convList].reverse().map((tier, tIdx) => (
+                                <React.Fragment key={tier.id || tIdx}>
+                                  <div
+                                    className={`px-2.5 py-1 rounded-xl border flex items-center space-x-1 text-xs ${
+                                      tier.isBase
+                                        ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300 font-bold'
+                                        : 'bg-indigo-500/15 border-indigo-500/30 text-white font-medium'
+                                    }`}
+                                  >
+                                    <span className="font-bold">{tier.unitSymbol || tier.unitName}</span>
+                                    <span className="text-[10px] font-mono text-slate-400">
+                                      (x{tier.ratioToBase?.toLocaleString('vi-VN')} {grp.baseUnitSymbol || grp.baseUnitName})
+                                    </span>
+                                  </div>
+                                  {tIdx < convList.length - 1 && (
+                                    <ArrowRight className="w-3 h-3 text-slate-600 flex-shrink-0" />
+                                  )}
+                                </React.Fragment>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Detailed Tiers Table */}
+                          <div className="overflow-hidden rounded-xl border border-slate-800">
+                            <table className="w-full text-left text-xs">
+                              <thead className="bg-slate-850 text-slate-400 text-[10px] uppercase font-bold tracking-wider">
+                                <tr>
+                                  <th className="py-2 px-3">Tầng</th>
+                                  <th className="py-2 px-3">Đơn vị</th>
+                                  <th className="py-2 px-3">Công thức bước</th>
+                                  <th className="py-2 px-3 text-right">Lũy kế so với gốc</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-800/60 bg-slate-900/60 text-slate-300 font-mono text-[11px]">
+                                {convList.map((tier) => (
+                                  <tr key={tier.id} className="hover:bg-slate-800/40">
+                                    <td className="py-2 px-3">
+                                      <span
+                                        className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                          tier.isBase
+                                            ? 'bg-emerald-500/20 text-emerald-300'
+                                            : 'bg-indigo-500/20 text-indigo-300'
+                                        }`}
+                                      >
+                                        T{tier.tierLevel}
+                                      </span>
+                                    </td>
+                                    <td className="py-2 px-3 font-bold font-sans text-white">
+                                      {tier.unitName}
+                                    </td>
+                                    <td className="py-2 px-3 text-slate-300">
+                                      {tier.isBase ? (
+                                        <span className="text-emerald-400 font-sans text-xs">Đơn vị gốc</span>
+                                      ) : (
+                                        <span>
+                                          1 {tier.unitSymbol || tier.unitName} = {tier.stepFactor} {tier.parentUnitName}
+                                        </span>
+                                      )}
+                                      {tier.equivalentNote && (
+                                        <span className="block text-[10px] text-amber-300/80 font-sans italic">
+                                          {tier.equivalentNote}
+                                        </span>
+                                      )}
+                                    </td>
+                                    <td className="py-2 px-3 text-right font-bold text-cyan-400">
+                                      x{tier.ratioToBase?.toLocaleString('vi-VN')} {grp.baseUnitSymbol || grp.baseUnitName}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -2151,6 +2401,26 @@ export const MasterDataManagerView: React.FC = () => {
           } else {
             addUnitOfMeasure(data);
             showToast('Đã thêm đơn vị tính mới');
+          }
+        }}
+      />
+
+      {/* Multi-Tier UOM Group Modal */}
+      <UOMGroupModal
+        isOpen={isUomGroupModalOpen}
+        onClose={() => {
+          setIsUomGroupModalOpen(false);
+          setEditingUomGroup(null);
+        }}
+        initialData={editingUomGroup}
+        unitsOfMeasure={unitsOfMeasure}
+        onSave={(data) => {
+          if (editingUomGroup) {
+            updateUOMGroup(editingUomGroup.id, data);
+            showToast('Đã cập nhật nhóm đơn vị tính thành công');
+          } else {
+            addUOMGroup(data);
+            showToast('Đã tạo nhóm đơn vị tính mới');
           }
         }}
       />

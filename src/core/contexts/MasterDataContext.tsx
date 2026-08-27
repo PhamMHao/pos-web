@@ -4,6 +4,7 @@ import {
   JobPosition,
   WarehouseLocation,
   UnitOfMeasure,
+  UOMGroup,
   MasterProductCategory,
   CustomerGroup,
   MasterSupplierCategory,
@@ -173,6 +174,12 @@ interface MasterDataContextType {
   updateUnitOfMeasure: (id: string, item: Partial<UnitOfMeasure>) => void;
   deleteUnitOfMeasure: (id: string) => void;
 
+  // Multi-Tier UOM Groups
+  uomGroups: UOMGroup[];
+  addUOMGroup: (item: Omit<UOMGroup, 'id' | 'createdAt' | 'updatedAt'>) => UOMGroup;
+  updateUOMGroup: (id: string, item: Partial<UOMGroup>) => void;
+  deleteUOMGroup: (id: string) => void;
+
   // Product Categories
   productCategories: MasterProductCategory[];
   addProductCategory: (item: Omit<MasterProductCategory, 'id' | 'createdAt'>) => MasterProductCategory;
@@ -234,6 +241,7 @@ export const MasterDataProvider: React.FC<{ children: ReactNode }> = ({ children
   const [jobPositions, setJobPositions] = useState<JobPosition[]>([]);
   const [warehouseLocations, setWarehouseLocations] = useState<WarehouseLocation[]>([]);
   const [unitsOfMeasure, setUnitsOfMeasure] = useState<UnitOfMeasure[]>([]);
+  const [uomGroups, setUOMGroups] = useState<UOMGroup[]>([]);
   const [productCategories, setProductCategories] = useState<MasterProductCategory[]>([]);
   const [customerGroups, setCustomerGroups] = useState<CustomerGroup[]>([]);
   const [customerTiers, setCustomerTiers] = useState<MasterCustomerTier[]>([]);
@@ -254,6 +262,7 @@ export const MasterDataProvider: React.FC<{ children: ReactNode }> = ({ children
         if (Array.isArray(data.jobPositions)) setJobPositions(data.jobPositions);
         if (Array.isArray(data.warehouseLocations)) setWarehouseLocations(data.warehouseLocations);
         if (Array.isArray(data.unitsOfMeasure)) setUnitsOfMeasure(data.unitsOfMeasure);
+        if (Array.isArray(data.uomGroups)) setUOMGroups(data.uomGroups);
         if (Array.isArray(data.productCategories)) setProductCategories(data.productCategories);
         if (Array.isArray(data.customerGroups)) setCustomerGroups(data.customerGroups);
         if (Array.isArray(data.customerTiers)) setCustomerTiers(data.customerTiers);
@@ -451,6 +460,36 @@ export const MasterDataProvider: React.FC<{ children: ReactNode }> = ({ children
   const deleteUnitOfMeasure = (id: string) => {
     setUnitsOfMeasure((prev) => prev.filter((u) => u.id !== id));
     masterDataApi.deleteUnitOfMeasure(id).catch((err) => console.warn('UnitOfMeasure DB delete error:', err));
+  };
+
+  // ==========================================
+  // CRUD Actions: Multi-Tier UOM Groups (Synced to SQL Server [DanhMucNhomDVT])
+  // ==========================================
+  const addUOMGroup = (item: Omit<UOMGroup, 'id' | 'createdAt' | 'updatedAt'>): UOMGroup => {
+    const newGrp: UOMGroup = {
+      ...item,
+      id: `grp-${Date.now()}`,
+      tierCount: item.conversions?.length || 1,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    setUOMGroups((prev) => [newGrp, ...prev]);
+    masterDataApi.createUOMGroup(newGrp).then((saved) => {
+      if (saved) setUOMGroups((prev) => prev.map((g) => (g.id === newGrp.id ? saved : g)));
+    }).catch((err) => console.warn('UOMGroup DB sync error:', err));
+    return newGrp;
+  };
+
+  const updateUOMGroup = (id: string, item: Partial<UOMGroup>) => {
+    setUOMGroups((prev) => prev.map((g) => (g.id === id ? { ...g, ...item, updatedAt: new Date().toISOString() } : g)));
+    masterDataApi.updateUOMGroup(id, item).then((saved) => {
+      if (saved) setUOMGroups((prev) => prev.map((g) => (g.id === id ? saved : g)));
+    }).catch((err) => console.warn('UOMGroup DB update error:', err));
+  };
+
+  const deleteUOMGroup = (id: string) => {
+    setUOMGroups((prev) => prev.filter((g) => g.id !== id));
+    masterDataApi.deleteUOMGroup(id).catch((err) => console.warn('UOMGroup DB delete error:', err));
   };
 
   // ==========================================
@@ -752,6 +791,11 @@ export const MasterDataProvider: React.FC<{ children: ReactNode }> = ({ children
         deleteUnitOfMeasure,
         addUnitOfMeasure,
         updateUnitOfMeasure,
+
+        uomGroups,
+        deleteUOMGroup,
+        addUOMGroup,
+        updateUOMGroup,
 
         productCategories,
         deleteProductCategory,

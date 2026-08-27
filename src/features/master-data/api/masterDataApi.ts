@@ -18,6 +18,7 @@ export interface AllMasterDataResponse {
   jobPositions: JobPosition[];
   warehouseLocations: WarehouseLocation[];
   unitsOfMeasure: UnitOfMeasure[];
+  uomGroups: UOMGroup[];
   productCategories: MasterProductCategory[];
   customerGroups: CustomerGroup[];
   customerTiers: MasterCustomerTier[];
@@ -103,6 +104,24 @@ export const masterDataApi = {
   },
   deleteUnitOfMeasure: async (id: string) => {
     const res = await apiClient.delete<ApiResponse<any>>(`/master-data/units-of-measure/${id}`);
+    return res.data.data;
+  },
+
+  // 5.1 Multi-Tier UOM Groups
+  getUOMGroups: async () => {
+    const res = await apiClient.get<ApiResponse<UOMGroup[]>>("/master-data/uom-groups");
+    return res.data.data;
+  },
+  createUOMGroup: async (data: Partial<UOMGroup>) => {
+    const res = await apiClient.post<ApiResponse<UOMGroup>>("/master-data/uom-groups", data);
+    return res.data.data;
+  },
+  updateUOMGroup: async (id: string, data: Partial<UOMGroup>) => {
+    const res = await apiClient.put<ApiResponse<UOMGroup>>(`/master-data/uom-groups/${id}`, data);
+    return res.data.data;
+  },
+  deleteUOMGroup: async (id: string) => {
+    const res = await apiClient.delete<ApiResponse<any>>(`/master-data/uom-groups/${id}`);
     return res.data.data;
   },
 

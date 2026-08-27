@@ -545,7 +545,13 @@ async function main() {
     { id: "uom-hop", code: "DVT-HOP", name: "Hộp (Box)", symbol: "Hộp", isBaseUnit: false, referenceUnit: "Cái", conversionFactor: 10, status: "active", description: "Quy cách đóng gói hộp phụ kiện, hạt mạng, keo tản nhiệt" },
     { id: "uom-thung", code: "DVT-THUNG", name: "Thùng (Carton)", symbol: "Thùng", isBaseUnit: false, referenceUnit: "Cái", conversionFactor: 20, status: "active", description: "Quy cách nhập khẩu nguyên đai nguyên kiện từ hãng" },
     { id: "uom-cuon", code: "DVT-CUON", name: "Cuộn (Thùng Cáp 305m)", symbol: "Cuộn", isBaseUnit: false, referenceUnit: "Mét", conversionFactor: 305, status: "active", description: "Thùng cáp mạng Cat6 UTP/FTP chính hãng 305 mét" },
-    { id: "uom-met", code: "DVT-MET", name: "Mét (Dây Cáp Cắt Lẻ)", symbol: "m", isBaseUnit: true, referenceUnit: null, conversionFactor: 1, status: "active", description: "Đơn vị đo chiều dài cáp mạng, cáp quang, dây nguồn thi công" }
+    { id: "uom-met", code: "DVT-MET", name: "Mét (Dây Cáp Cắt Lẻ)", symbol: "m", isBaseUnit: true, referenceUnit: null, conversionFactor: 1, status: "active", description: "Đơn vị đo chiều dài cáp mạng, cáp quang, dây nguồn thi công" },
+    { id: "uom-pallet", code: "DVT-PALLET", name: "Pallet (Kiện Lớn)", symbol: "Pallet", isBaseUnit: false, referenceUnit: null, conversionFactor: 1, status: "active", description: "Quy cách lưu kho và bốc dỡ theo pallet tiêu chuẩn" },
+    { id: "uom-kg", code: "DVT-KG", name: "Kilogram (Kg)", symbol: "kg", isBaseUnit: true, referenceUnit: null, conversionFactor: 1, status: "active", description: "Đơn vị đo khối lượng chuẩn" },
+    { id: "uom-gam", code: "DVT-GAM", name: "Gam (g)", symbol: "g", isBaseUnit: false, referenceUnit: null, conversionFactor: 0.001, status: "active", description: "Đơn vị đo khối lượng nhỏ (keo tản nhiệt, linh kiện chip)" },
+    { id: "uom-lon", code: "DVT-LON", name: "Lon (Can)", symbol: "Lon", isBaseUnit: true, referenceUnit: null, conversionFactor: 1, status: "active", description: "Đơn vị đóng gói lon nước ngọt, dung dịch vệ sinh mạch" },
+    { id: "uom-loc", code: "DVT-LOC", name: "Lốc (Vỉ 6)", symbol: "Lốc", isBaseUnit: false, referenceUnit: null, conversionFactor: 6, status: "active", description: "Lốc vỉ đóng gói 6 lon/chai" },
+    { id: "uom-goi", code: "DVT-GOI", name: "Gói (Túi)", symbol: "Gói", isBaseUnit: false, referenceUnit: null, conversionFactor: 1, status: "active", description: "Gói phụ kiện nhỏ, ốc vít máy tính, dây rút" }
   ];
   for (const item of INITIAL_UOMS) {
     const exists = await prisma.masterUnitOfMeasure.findMany({ where: { code: item.code } });
@@ -554,6 +560,205 @@ async function main() {
       await prisma.$executeRaw`
         INSERT INTO [DanhMucDonViTinh] (id, code, name, symbol, isBaseUnit, referenceUnit, conversionFactor, status, description, createdAt, updatedAt)
         VALUES (${item.id}, ${item.code}, ${item.name}, ${item.symbol}, ${item.isBaseUnit ? 1 : 0}, ${item.referenceUnit}, ${item.conversionFactor}, ${item.status}, ${item.description}, ${dt}, ${dt})
+      `;
+    }
+  }
+
+  // 20.1 Nhóm đơn vị tính quy đổi đa tầng (UOM Groups)
+  console.log("20.1 Seeding Multi-Tier UOM Groups...");
+  const INITIAL_UOM_GROUPS = [
+    {
+      id: "grp-uom-daycap",
+      code: "GRP-DAYCAP",
+      name: "Nhóm Dây Cáp Mạng & Thi Công Điện",
+      baseUnitId: "uom-met",
+      baseUnitName: "Mét (Dây Cáp Cắt Lẻ)",
+      baseUnitSymbol: "m",
+      tierCount: 4,
+      status: "active",
+      description: "Quy chuẩn quy đổi 4 tầng: Pallet ➔ Thùng ➔ Cuộn ➔ Mét (Tương đương Kg)",
+      conversions: JSON.stringify([
+        {
+          id: "tier-1",
+          tierLevel: 1,
+          unitName: "Mét (Dây Cáp Cắt Lẻ)",
+          unitSymbol: "m",
+          isBase: true,
+          parentUnitName: null,
+          stepFactor: 1,
+          ratioToBase: 1,
+          equivalentNote: "Đơn vị đo chiều dài cơ sở",
+          formulaDisplay: "1 m = 1 m"
+        },
+        {
+          id: "tier-2",
+          tierLevel: 2,
+          unitName: "Cuộn (Thùng Cáp 305m)",
+          unitSymbol: "Cuộn",
+          isBase: false,
+          parentUnitName: "Mét (Dây Cáp Cắt Lẻ)",
+          stepFactor: 100,
+          ratioToBase: 100,
+          equivalentNote: "1 Cuộn = 100 Mét (~ 10 Kg)",
+          formulaDisplay: "1 Cuộn = 100 Mét"
+        },
+        {
+          id: "tier-3",
+          tierLevel: 3,
+          unitName: "Thùng (Carton)",
+          unitSymbol: "Thùng",
+          isBase: false,
+          parentUnitName: "Cuộn (Thùng Cáp 305m)",
+          stepFactor: 10,
+          ratioToBase: 1000,
+          equivalentNote: "1 Thùng = 10 Cuộn = 1,000 Mét (~ 100 Kg)",
+          formulaDisplay: "1 Thùng = 10 Cuộn = 1,000 Mét"
+        },
+        {
+          id: "tier-4",
+          tierLevel: 4,
+          unitName: "Pallet (Kiện Lớn)",
+          unitSymbol: "Pallet",
+          isBase: false,
+          parentUnitName: "Thùng (Carton)",
+          stepFactor: 40,
+          ratioToBase: 40000,
+          equivalentNote: "1 Pallet = 40 Thùng = 40,000 Mét",
+          formulaDisplay: "1 Pallet = 40 Thùng = 40,000 Mét"
+        }
+      ])
+    },
+    {
+      id: "grp-uom-linhkien",
+      code: "GRP-LINHKIEN",
+      name: "Nhóm Linh Kiện Nhỏ & Ốc Vít Máy Tính",
+      baseUnitId: "uom-cai",
+      baseUnitName: "Cái (Chiếc)",
+      baseUnitSymbol: "Cái",
+      tierCount: 4,
+      status: "active",
+      description: "Quy chuẩn quy đổi 4 tầng: Pallet ➔ Thùng ➔ Hộp ➔ Cái",
+      conversions: JSON.stringify([
+        {
+          id: "tier-1",
+          tierLevel: 1,
+          unitName: "Cái (Chiếc)",
+          unitSymbol: "Cái",
+          isBase: true,
+          parentUnitName: null,
+          stepFactor: 1,
+          ratioToBase: 1,
+          equivalentNote: "Đơn vị tính cơ sở",
+          formulaDisplay: "1 Cái = 1 Cái"
+        },
+        {
+          id: "tier-2",
+          tierLevel: 2,
+          unitName: "Gói (Túi)",
+          unitSymbol: "Gói",
+          isBase: false,
+          parentUnitName: "Cái (Chiếc)",
+          stepFactor: 50,
+          ratioToBase: 50,
+          equivalentNote: "1 Gói = 50 Cái",
+          formulaDisplay: "1 Gói = 50 Cái"
+        },
+        {
+          id: "tier-3",
+          tierLevel: 3,
+          unitName: "Hộp (Box)",
+          unitSymbol: "Hộp",
+          isBase: false,
+          parentUnitName: "Gói (Túi)",
+          stepFactor: 10,
+          ratioToBase: 500,
+          equivalentNote: "1 Hộp = 10 Gói = 500 Cái",
+          formulaDisplay: "1 Hộp = 10 Gói = 500 Cái"
+        },
+        {
+          id: "tier-4",
+          tierLevel: 4,
+          unitName: "Thùng (Carton)",
+          unitSymbol: "Thùng",
+          isBase: false,
+          parentUnitName: "Hộp (Box)",
+          stepFactor: 20,
+          ratioToBase: 10000,
+          equivalentNote: "1 Thùng = 20 Hộp = 10,000 Cái",
+          formulaDisplay: "1 Thùng = 20 Hộp = 10,000 Cái"
+        }
+      ])
+    },
+    {
+      id: "grp-uom-nuocuong",
+      code: "GRP-NUOCUONG",
+      name: "Nhóm Nước Giải Khát & Dung Dịch Vệ Sinh",
+      baseUnitId: "uom-lon",
+      baseUnitName: "Lon (Can)",
+      baseUnitSymbol: "Lon",
+      tierCount: 4,
+      status: "active",
+      description: "Quy chuẩn quy đổi 4 tầng: Pallet ➔ Thùng ➔ Lốc ➔ Lon",
+      conversions: JSON.stringify([
+        {
+          id: "tier-1",
+          tierLevel: 1,
+          unitName: "Lon (Can)",
+          unitSymbol: "Lon",
+          isBase: true,
+          parentUnitName: null,
+          stepFactor: 1,
+          ratioToBase: 1,
+          equivalentNote: "Đơn vị lon chuẩn",
+          formulaDisplay: "1 Lon = 1 Lon"
+        },
+        {
+          id: "tier-2",
+          tierLevel: 2,
+          unitName: "Lốc (Vỉ 6)",
+          unitSymbol: "Lốc",
+          isBase: false,
+          parentUnitName: "Lon (Can)",
+          stepFactor: 6,
+          ratioToBase: 6,
+          equivalentNote: "1 Lốc = 6 Lon",
+          formulaDisplay: "1 Lốc = 6 Lon"
+        },
+        {
+          id: "tier-3",
+          tierLevel: 3,
+          unitName: "Thùng (Carton)",
+          unitSymbol: "Thùng",
+          isBase: false,
+          parentUnitName: "Lốc (Vỉ 6)",
+          stepFactor: 4,
+          ratioToBase: 24,
+          equivalentNote: "1 Thùng = 4 Lốc = 24 Lon",
+          formulaDisplay: "1 Thùng = 4 Lốc = 24 Lon"
+        },
+        {
+          id: "tier-4",
+          tierLevel: 4,
+          unitName: "Pallet (Kiện Lớn)",
+          unitSymbol: "Pallet",
+          isBase: false,
+          parentUnitName: "Thùng (Carton)",
+          stepFactor: 50,
+          ratioToBase: 1200,
+          equivalentNote: "1 Pallet = 50 Thùng = 1,200 Lon",
+          formulaDisplay: "1 Pallet = 50 Thùng = 1,200 Lon"
+        }
+      ])
+    }
+  ];
+
+  for (const grp of INITIAL_UOM_GROUPS) {
+    const exists = await prisma.masterUOMGroup.findMany({ where: { code: grp.code } });
+    if (exists.length === 0) {
+      const dt = new Date();
+      await prisma.$executeRaw`
+        INSERT INTO [DanhMucNhomDVT] (id, code, name, baseUnitId, baseUnitName, baseUnitSymbol, tierCount, conversions, status, description, createdAt, updatedAt)
+        VALUES (${grp.id}, ${grp.code}, ${grp.name}, ${grp.baseUnitId}, ${grp.baseUnitName}, ${grp.baseUnitSymbol}, ${grp.tierCount}, ${grp.conversions}, ${grp.status}, ${grp.description}, ${dt}, ${dt})
       `;
     }
   }

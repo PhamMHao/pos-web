@@ -970,6 +970,24 @@ model MasterUnitOfMeasure {
   @@map("DanhMucDonViTinh")
 }
 
+// 18.4.1 NHÓM ĐƠN VỊ TÍNH QUY ĐỔI ĐA TẦNG ĐỘNG
+model MasterUOMGroup {
+  id             String   @id @default(uuid())
+  code           String   @unique
+  name           String
+  baseUnitId     String?  // ID ĐVT cơ sở gốc
+  baseUnitName   String   // Tên ĐVT gốc (VD: 'Mét', 'Cái', 'Lon', 'Kg')
+  baseUnitSymbol String?  // Ký hiệu (VD: 'm', 'cái', 'kg')
+  tierCount      Int      @default(1) // Tổng số tầng quy đổi trong nhóm
+  conversions    String   @db.NVarChar(Max) // JSON Array lưu trữ toàn bộ các tầng quy đổi
+  status         String   @default("active") // 'active' | 'inactive'
+  description    String?  @db.NVarChar(Max)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("DanhMucNhomDVT")
+}
+
 // 18.5 DANH MỤC NGÀNH HÀNG MASTER
 model MasterProductCategory {
   id          String   @id @default(uuid())
