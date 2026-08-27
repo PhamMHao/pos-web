@@ -169,40 +169,40 @@ export class MasterDataController {
     }
   }
 
-  // 5.1 Multi-Tier UOM Groups
-  static async getUOMGroups(req: Request, res: Response, next: NextFunction) {
+  // 5.1 Master UOM Conversions (ĐVT A = Hệ Số x ĐVT B)
+  static async getUOMConversions(req: Request, res: Response, next: NextFunction) {
     try {
-      const data = await MasterDataService.getUOMGroups();
-      return sendSuccess(res, data, "Lấy danh sách nhóm đơn vị tính thành công");
+      const data = await MasterDataService.getUOMConversions();
+      return sendSuccess(res, data, "Lấy danh sách quy đổi đơn vị tính thành công");
     } catch (error) {
       return next(error);
     }
   }
 
-  static async createUOMGroup(req: Request, res: Response, next: NextFunction) {
+  static async createUOMConversion(req: Request, res: Response, next: NextFunction) {
     try {
-      const data = await MasterDataService.createUOMGroup(req.body);
-      return sendCreated(res, data, "Thêm mới nhóm đơn vị tính thành công");
+      const data = await MasterDataService.createUOMConversion(req.body);
+      return sendCreated(res, data, "Thêm mới quy đổi đơn vị tính thành công");
     } catch (error) {
       return next(error);
     }
   }
 
-  static async updateUOMGroup(req: Request, res: Response, next: NextFunction) {
+  static async updateUOMConversion(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const data = await MasterDataService.updateUOMGroup(id, req.body);
-      return sendSuccess(res, data, "Cập nhật nhóm đơn vị tính thành công");
+      const data = await MasterDataService.updateUOMConversion(id, req.body);
+      return sendSuccess(res, data, "Cập nhật quy đổi đơn vị tính thành công");
     } catch (error) {
       return next(error);
     }
   }
 
-  static async deleteUOMGroup(req: Request, res: Response, next: NextFunction) {
+  static async deleteUOMConversion(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const data = await MasterDataService.deleteUOMGroup(id);
-      return sendSuccess(res, data, "Xóa nhóm đơn vị tính thành công");
+      const data = await MasterDataService.deleteUOMConversion(id);
+      return sendSuccess(res, data, "Xóa quy đổi đơn vị tính thành công");
     } catch (error) {
       return next(error);
     }

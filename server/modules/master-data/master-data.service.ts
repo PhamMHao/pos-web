@@ -9,7 +9,7 @@ export class MasterDataService {
       jobPositions,
       warehouseLocations,
       unitsOfMeasure,
-      uomGroups,
+      uomConversions,
       productCategories,
       customerGroups,
       customerTiers,
@@ -22,7 +22,7 @@ export class MasterDataService {
       prisma.jobPosition.findMany({}),
       prisma.warehouseLocation.findMany({}),
       prisma.masterUnitOfMeasure.findMany({}),
-      prisma.masterUOMGroup.findMany({}),
+      prisma.masterUOMConversion.findMany({}),
       prisma.masterProductCategory.findMany({}),
       prisma.customerGroup.findMany({}),
       prisma.masterCustomerTier.findMany({}),
@@ -36,7 +36,6 @@ export class MasterDataService {
     jobPositions.sort((a, b) => a.code.localeCompare(b.code));
     warehouseLocations.sort((a, b) => a.code.localeCompare(b.code));
     unitsOfMeasure.sort((a, b) => a.code.localeCompare(b.code));
-    uomGroups.sort((a, b) => a.code.localeCompare(b.code));
     productCategories.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
     customerGroups.sort((a, b) => a.code.localeCompare(b.code));
     customerTiers.sort((a, b) => Number(a.minSpend || 0) - Number(b.minSpend || 0));
@@ -57,9 +56,9 @@ export class MasterDataService {
         ...u,
         conversionFactor: u.conversionFactor ? Number(u.conversionFactor) : null,
       })),
-      uomGroups: uomGroups.map((g) => ({
-        ...g,
-        conversions: typeof g.conversions === "string" ? JSON.parse(g.conversions || "[]") : g.conversions,
+      uomConversions: uomConversions.map((c) => ({
+        ...c,
+        factor: Number(c.factor),
       })),
       productCategories,
       customerGroups: customerGroups.map((g) => ({
@@ -256,62 +255,39 @@ export class MasterDataService {
     return { success: true };
   }
 
-  // 5.1 MULTI-TIER UOM GROUPS
-  static async getUOMGroups() {
-    const items = await prisma.masterUOMGroup.findMany({});
-    items.sort((a, b) => a.code.localeCompare(b.code));
-    return items.map((g) => ({
-      ...g,
-      conversions: typeof g.conversions === "string" ? JSON.parse(g.conversions || "[]") : g.conversions,
+  // 5.1 MASTER UOM CONVERSIONS (ĐVT A = Hệ Số x ĐVT B)
+  static async getUOMConversions() {
+    const items = await prisma.masterUOMConversion.findMany({});
+    return items.map((c) => ({
+      ...c,
+      factor: Number(c.factor),
     }));
   }
 
-  static async createUOMGroup(data: any) {
-    const existing = await prisma.masterUOMGroup.findMany({ where: { code: data.code } });
-    if (existing.length > 0) throw new ConflictError("Mã nhóm đơn vị tính đã tồn tại");
-    const id = data.id || `grp-${Date.now()}`;
-    const conversionsStr =
-      typeof data.conversions === "string" ? data.conversions : JSON.stringify(data.conversions || []);
-    const tierCount = Array.isArray(data.conversions) ? data.conversions.length : data.tierCount || 1;
-
+  static async createUOMConversion(data: any) {
+    const id = data.id || `conv-${Date.now()}`;
     const dt = new Date();
     await prisma.$executeRaw`
-      INSERT INTO [DanhMucNhomDVT] (id, code, name, baseUnitId, baseUnitName, baseUnitSymbol, tierCount, conversions, status, description, createdAt, updatedAt)
-      VALUES (${id}, ${data.code}, ${data.name}, ${data.baseUnitId || null}, ${data.baseUnitName}, ${data.baseUnitSymbol || null}, ${tierCount}, ${conversionsStr}, ${data.status || "active"}, ${data.description || null}, ${dt}, ${dt})
+      INSERT INTO [DanhMucQuyDoiDVT] (id, fromUnitName, fromUnitId, factor, toUnitName, toUnitId, note, status, createdAt, updatedAt)
+      VALUES (${id}, ${data.fromUnitName}, ${data.fromUnitId || null}, ${data.factor}, ${data.toUnitName}, ${data.toUnitId || null}, ${data.note || null}, ${data.status || "active"}, ${dt}, ${dt})
     `;
-    const created = await prisma.masterUOMGroup.findMany({ where: { id } });
-    return created[0]
-      ? {
-          ...created[0],
-          conversions: typeof created[0].conversions === "string" ? JSON.parse(created[0].conversions || "[]") : created[0].conversions,
-        }
-      : null;
+    const created = await prisma.masterUOMConversion.findMany({ where: { id } });
+    return created[0] ? { ...created[0], factor: Number(created[0].factor) } : null;
   }
 
-  static async updateUOMGroup(id: string, data: any) {
-    const existing = await prisma.masterUOMGroup.findMany({ where: { id } });
-    if (existing.length === 0) throw new NotFoundError("Không tìm thấy nhóm đơn vị tính");
+  static async updateUOMConversion(id: string, data: any) {
+    const existing = await prisma.masterUOMConversion.findMany({ where: { id } });
+    if (existing.length === 0) throw new NotFoundError("Không tìm thấy quy đổi đơn vị tính");
 
-    const payload: any = { ...data };
-    if (payload.conversions !== undefined && typeof payload.conversions !== "string") {
-      payload.tierCount = payload.conversions.length;
-      payload.conversions = JSON.stringify(payload.conversions);
-    }
-
-    await prisma.masterUOMGroup.updateMany({ where: { id }, data: payload });
-    const updated = await prisma.masterUOMGroup.findMany({ where: { id } });
-    return updated[0]
-      ? {
-          ...updated[0],
-          conversions: typeof updated[0].conversions === "string" ? JSON.parse(updated[0].conversions || "[]") : updated[0].conversions,
-        }
-      : null;
+    await prisma.masterUOMConversion.updateMany({ where: { id }, data });
+    const updated = await prisma.masterUOMConversion.findMany({ where: { id } });
+    return updated[0] ? { ...updated[0], factor: Number(updated[0].factor) } : null;
   }
 
-  static async deleteUOMGroup(id: string) {
-    const existing = await prisma.masterUOMGroup.findMany({ where: { id } });
-    if (existing.length === 0) throw new NotFoundError("Không tìm thấy nhóm đơn vị tính");
-    await prisma.masterUOMGroup.deleteMany({ where: { id } });
+  static async deleteUOMConversion(id: string) {
+    const existing = await prisma.masterUOMConversion.findMany({ where: { id } });
+    if (existing.length === 0) throw new NotFoundError("Không tìm thấy quy đổi đơn vị tính");
+    await prisma.masterUOMConversion.deleteMany({ where: { id } });
     return { success: true };
   }
 

@@ -564,201 +564,28 @@ async function main() {
     }
   }
 
-  // 20.1 Nhóm đơn vị tính quy đổi đa tầng (UOM Groups)
-  console.log("20.1 Seeding Multi-Tier UOM Groups...");
-  const INITIAL_UOM_GROUPS = [
-    {
-      id: "grp-uom-daycap",
-      code: "GRP-DAYCAP",
-      name: "Nhóm Dây Cáp Mạng & Thi Công Điện",
-      baseUnitId: "uom-met",
-      baseUnitName: "Mét (Dây Cáp Cắt Lẻ)",
-      baseUnitSymbol: "m",
-      tierCount: 4,
-      status: "active",
-      description: "Quy chuẩn quy đổi 4 tầng: Pallet ➔ Thùng ➔ Cuộn ➔ Mét (Tương đương Kg)",
-      conversions: JSON.stringify([
-        {
-          id: "tier-1",
-          tierLevel: 1,
-          unitName: "Mét (Dây Cáp Cắt Lẻ)",
-          unitSymbol: "m",
-          isBase: true,
-          parentUnitName: null,
-          stepFactor: 1,
-          ratioToBase: 1,
-          equivalentNote: "Đơn vị đo chiều dài cơ sở",
-          formulaDisplay: "1 m = 1 m"
-        },
-        {
-          id: "tier-2",
-          tierLevel: 2,
-          unitName: "Cuộn (Thùng Cáp 305m)",
-          unitSymbol: "Cuộn",
-          isBase: false,
-          parentUnitName: "Mét (Dây Cáp Cắt Lẻ)",
-          stepFactor: 100,
-          ratioToBase: 100,
-          equivalentNote: "1 Cuộn = 100 Mét (~ 10 Kg)",
-          formulaDisplay: "1 Cuộn = 100 Mét"
-        },
-        {
-          id: "tier-3",
-          tierLevel: 3,
-          unitName: "Thùng (Carton)",
-          unitSymbol: "Thùng",
-          isBase: false,
-          parentUnitName: "Cuộn (Thùng Cáp 305m)",
-          stepFactor: 10,
-          ratioToBase: 1000,
-          equivalentNote: "1 Thùng = 10 Cuộn = 1,000 Mét (~ 100 Kg)",
-          formulaDisplay: "1 Thùng = 10 Cuộn = 1,000 Mét"
-        },
-        {
-          id: "tier-4",
-          tierLevel: 4,
-          unitName: "Pallet (Kiện Lớn)",
-          unitSymbol: "Pallet",
-          isBase: false,
-          parentUnitName: "Thùng (Carton)",
-          stepFactor: 40,
-          ratioToBase: 40000,
-          equivalentNote: "1 Pallet = 40 Thùng = 40,000 Mét",
-          formulaDisplay: "1 Pallet = 40 Thùng = 40,000 Mét"
-        }
-      ])
-    },
-    {
-      id: "grp-uom-linhkien",
-      code: "GRP-LINHKIEN",
-      name: "Nhóm Linh Kiện Nhỏ & Ốc Vít Máy Tính",
-      baseUnitId: "uom-cai",
-      baseUnitName: "Cái (Chiếc)",
-      baseUnitSymbol: "Cái",
-      tierCount: 4,
-      status: "active",
-      description: "Quy chuẩn quy đổi 4 tầng: Pallet ➔ Thùng ➔ Hộp ➔ Cái",
-      conversions: JSON.stringify([
-        {
-          id: "tier-1",
-          tierLevel: 1,
-          unitName: "Cái (Chiếc)",
-          unitSymbol: "Cái",
-          isBase: true,
-          parentUnitName: null,
-          stepFactor: 1,
-          ratioToBase: 1,
-          equivalentNote: "Đơn vị tính cơ sở",
-          formulaDisplay: "1 Cái = 1 Cái"
-        },
-        {
-          id: "tier-2",
-          tierLevel: 2,
-          unitName: "Gói (Túi)",
-          unitSymbol: "Gói",
-          isBase: false,
-          parentUnitName: "Cái (Chiếc)",
-          stepFactor: 50,
-          ratioToBase: 50,
-          equivalentNote: "1 Gói = 50 Cái",
-          formulaDisplay: "1 Gói = 50 Cái"
-        },
-        {
-          id: "tier-3",
-          tierLevel: 3,
-          unitName: "Hộp (Box)",
-          unitSymbol: "Hộp",
-          isBase: false,
-          parentUnitName: "Gói (Túi)",
-          stepFactor: 10,
-          ratioToBase: 500,
-          equivalentNote: "1 Hộp = 10 Gói = 500 Cái",
-          formulaDisplay: "1 Hộp = 10 Gói = 500 Cái"
-        },
-        {
-          id: "tier-4",
-          tierLevel: 4,
-          unitName: "Thùng (Carton)",
-          unitSymbol: "Thùng",
-          isBase: false,
-          parentUnitName: "Hộp (Box)",
-          stepFactor: 20,
-          ratioToBase: 10000,
-          equivalentNote: "1 Thùng = 20 Hộp = 10,000 Cái",
-          formulaDisplay: "1 Thùng = 20 Hộp = 10,000 Cái"
-        }
-      ])
-    },
-    {
-      id: "grp-uom-nuocuong",
-      code: "GRP-NUOCUONG",
-      name: "Nhóm Nước Giải Khát & Dung Dịch Vệ Sinh",
-      baseUnitId: "uom-lon",
-      baseUnitName: "Lon (Can)",
-      baseUnitSymbol: "Lon",
-      tierCount: 4,
-      status: "active",
-      description: "Quy chuẩn quy đổi 4 tầng: Pallet ➔ Thùng ➔ Lốc ➔ Lon",
-      conversions: JSON.stringify([
-        {
-          id: "tier-1",
-          tierLevel: 1,
-          unitName: "Lon (Can)",
-          unitSymbol: "Lon",
-          isBase: true,
-          parentUnitName: null,
-          stepFactor: 1,
-          ratioToBase: 1,
-          equivalentNote: "Đơn vị lon chuẩn",
-          formulaDisplay: "1 Lon = 1 Lon"
-        },
-        {
-          id: "tier-2",
-          tierLevel: 2,
-          unitName: "Lốc (Vỉ 6)",
-          unitSymbol: "Lốc",
-          isBase: false,
-          parentUnitName: "Lon (Can)",
-          stepFactor: 6,
-          ratioToBase: 6,
-          equivalentNote: "1 Lốc = 6 Lon",
-          formulaDisplay: "1 Lốc = 6 Lon"
-        },
-        {
-          id: "tier-3",
-          tierLevel: 3,
-          unitName: "Thùng (Carton)",
-          unitSymbol: "Thùng",
-          isBase: false,
-          parentUnitName: "Lốc (Vỉ 6)",
-          stepFactor: 4,
-          ratioToBase: 24,
-          equivalentNote: "1 Thùng = 4 Lốc = 24 Lon",
-          formulaDisplay: "1 Thùng = 4 Lốc = 24 Lon"
-        },
-        {
-          id: "tier-4",
-          tierLevel: 4,
-          unitName: "Pallet (Kiện Lớn)",
-          unitSymbol: "Pallet",
-          isBase: false,
-          parentUnitName: "Thùng (Carton)",
-          stepFactor: 50,
-          ratioToBase: 1200,
-          equivalentNote: "1 Pallet = 50 Thùng = 1,200 Lon",
-          formulaDisplay: "1 Pallet = 50 Thùng = 1,200 Lon"
-        }
-      ])
-    }
+  // 20.1 Bảng quy đổi đơn vị tính (Master UOM Conversions: ĐVT A = Hệ số x ĐVT B)
+  console.log("20.1 Seeding Master UOM Conversions...");
+  const INITIAL_UOM_CONVERSIONS = [
+    { id: "conv-thung-cuon", fromUnitName: "Thùng", factor: 10, toUnitName: "Cuộn", note: "1 Thùng cáp = 10 Cuộn", status: "active" },
+    { id: "conv-cuon-met", fromUnitName: "Cuộn", factor: 100, toUnitName: "Mét", note: "1 Cuộn = 100 Mét", status: "active" },
+    { id: "conv-cuon-kg", fromUnitName: "Cuộn", factor: 10, toUnitName: "Kilogram (Kg)", note: "1 Cuộn = 10 Kg", status: "active" },
+    { id: "conv-thung-lon", fromUnitName: "Thùng", factor: 24, toUnitName: "Lon", note: "1 Thùng = 24 Lon", status: "active" },
+    { id: "conv-loc-lon", fromUnitName: "Lốc", factor: 6, toUnitName: "Lon", note: "1 Lốc = 6 Lon", status: "active" },
+    { id: "conv-thung-hop", fromUnitName: "Thùng", factor: 20, toUnitName: "Hộp", note: "1 Thùng = 20 Hộp", status: "active" },
+    { id: "conv-hop-cai", fromUnitName: "Hộp", factor: 50, toUnitName: "Cái (Chiếc)", note: "1 Hộp = 50 Cái", status: "active" },
+    { id: "conv-pallet-thung", fromUnitName: "Pallet", factor: 40, toUnitName: "Thùng", note: "1 Pallet = 40 Thùng", status: "active" },
   ];
 
-  for (const grp of INITIAL_UOM_GROUPS) {
-    const exists = await prisma.masterUOMGroup.findMany({ where: { code: grp.code } });
+  for (const conv of INITIAL_UOM_CONVERSIONS) {
+    const exists = await prisma.masterUOMConversion.findMany({
+      where: { fromUnitName: conv.fromUnitName, toUnitName: conv.toUnitName },
+    });
     if (exists.length === 0) {
       const dt = new Date();
       await prisma.$executeRaw`
-        INSERT INTO [DanhMucNhomDVT] (id, code, name, baseUnitId, baseUnitName, baseUnitSymbol, tierCount, conversions, status, description, createdAt, updatedAt)
-        VALUES (${grp.id}, ${grp.code}, ${grp.name}, ${grp.baseUnitId}, ${grp.baseUnitName}, ${grp.baseUnitSymbol}, ${grp.tierCount}, ${grp.conversions}, ${grp.status}, ${grp.description}, ${dt}, ${dt})
+        INSERT INTO [DanhMucQuyDoiDVT] (id, fromUnitName, factor, toUnitName, note, status, createdAt, updatedAt)
+        VALUES (${conv.id}, ${conv.fromUnitName}, ${conv.factor}, ${conv.toUnitName}, ${conv.note}, ${conv.status}, ${dt}, ${dt})
       `;
     }
   }

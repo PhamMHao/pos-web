@@ -4,6 +4,7 @@ import {
   JobPosition,
   WarehouseLocation,
   UnitOfMeasure,
+  MasterUOMConversion,
   MasterProductCategory,
   CustomerGroup,
   MasterCustomerTier,
@@ -18,7 +19,7 @@ export interface AllMasterDataResponse {
   jobPositions: JobPosition[];
   warehouseLocations: WarehouseLocation[];
   unitsOfMeasure: UnitOfMeasure[];
-  uomGroups: UOMGroup[];
+  uomConversions: MasterUOMConversion[];
   productCategories: MasterProductCategory[];
   customerGroups: CustomerGroup[];
   customerTiers: MasterCustomerTier[];
@@ -107,21 +108,21 @@ export const masterDataApi = {
     return res.data.data;
   },
 
-  // 5.1 Multi-Tier UOM Groups
-  getUOMGroups: async () => {
-    const res = await apiClient.get<ApiResponse<UOMGroup[]>>("/master-data/uom-groups");
+  // 5.1 Master UOM Conversions (ĐVT A = Hệ Số x ĐVT B)
+  getUOMConversions: async () => {
+    const res = await apiClient.get<ApiResponse<MasterUOMConversion[]>>("/master-data/uom-conversions");
     return res.data.data;
   },
-  createUOMGroup: async (data: Partial<UOMGroup>) => {
-    const res = await apiClient.post<ApiResponse<UOMGroup>>("/master-data/uom-groups", data);
+  createUOMConversion: async (data: Partial<MasterUOMConversion>) => {
+    const res = await apiClient.post<ApiResponse<MasterUOMConversion>>("/master-data/uom-conversions", data);
     return res.data.data;
   },
-  updateUOMGroup: async (id: string, data: Partial<UOMGroup>) => {
-    const res = await apiClient.put<ApiResponse<UOMGroup>>(`/master-data/uom-groups/${id}`, data);
+  updateUOMConversion: async (id: string, data: Partial<MasterUOMConversion>) => {
+    const res = await apiClient.put<ApiResponse<MasterUOMConversion>>(`/master-data/uom-conversions/${id}`, data);
     return res.data.data;
   },
-  deleteUOMGroup: async (id: string) => {
-    const res = await apiClient.delete<ApiResponse<any>>(`/master-data/uom-groups/${id}`);
+  deleteUOMConversion: async (id: string) => {
+    const res = await apiClient.delete<ApiResponse<any>>(`/master-data/uom-conversions/${id}`);
     return res.data.data;
   },
 

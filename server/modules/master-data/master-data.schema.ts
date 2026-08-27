@@ -54,19 +54,17 @@ export const createUnitOfMeasureSchema = z.object({
 
 export const updateUnitOfMeasureSchema = createUnitOfMeasureSchema.partial();
 
-export const createUOMGroupSchema = z.object({
-  code: z.string().min(1),
-  name: z.string().min(1),
-  baseUnitId: z.string().optional().nullable(),
-  baseUnitName: z.string().min(1),
-  baseUnitSymbol: z.string().optional().nullable(),
-  tierCount: z.number().optional().default(1),
-  conversions: z.union([z.string(), z.array(z.any())]),
+export const createUOMConversionSchema = z.object({
+  fromUnitName: z.string().min(1),
+  fromUnitId: z.string().optional().nullable(),
+  factor: z.number().positive(),
+  toUnitName: z.string().min(1),
+  toUnitId: z.string().optional().nullable(),
+  note: z.string().optional().nullable(),
   status: z.enum(["active", "inactive"]).optional().default("active"),
-  description: z.string().optional().nullable(),
 });
 
-export const updateUOMGroupSchema = createUOMGroupSchema.partial();
+export const updateUOMConversionSchema = createUOMConversionSchema.partial();
 
 export const createProductCategorySchema = z.object({
   code: z.string().min(1),
