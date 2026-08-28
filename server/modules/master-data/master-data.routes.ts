@@ -30,12 +30,6 @@ router.post("/units-of-measure", MasterDataController.createUnitOfMeasure);
 router.put("/units-of-measure/:id", MasterDataController.updateUnitOfMeasure);
 router.delete("/units-of-measure/:id", MasterDataController.deleteUnitOfMeasure);
 
-// 5.1 Master UOM Conversions (ĐVT A = Hệ Số x ĐVT B)
-router.get("/uom-conversions", MasterDataController.getUOMConversions);
-router.post("/uom-conversions", MasterDataController.createUOMConversion);
-router.put("/uom-conversions/:id", MasterDataController.updateUOMConversion);
-router.delete("/uom-conversions/:id", MasterDataController.deleteUOMConversion);
-
 // 6. Product Categories
 router.get("/product-categories", MasterDataController.getProductCategories);
 router.post("/product-categories", MasterDataController.createProductCategory);
@@ -66,4 +60,11 @@ router.post("/projects", MasterDataController.createProject);
 router.put("/projects/:id", MasterDataController.updateProject);
 router.delete("/projects/:id", MasterDataController.deleteProject);
 
+// 11. UOM Conversion Groups
+router.get("/uom-groups", MasterDataController.getUomGroups);
+router.post("/uom-groups", MasterDataController.createUomGroup);
+router.put("/uom-groups/:id", MasterDataController.updateUomGroup);
+router.delete("/uom-groups/:id", MasterDataController.deleteUomGroup);
+
 export default router;
+

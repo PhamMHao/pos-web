@@ -9,7 +9,8 @@ export class MasterDataService {
       jobPositions,
       warehouseLocations,
       unitsOfMeasure,
-      uomConversions,
+      uomGroups,
+      uomLines,
       productCategories,
       customerGroups,
       customerTiers,
@@ -22,7 +23,8 @@ export class MasterDataService {
       prisma.jobPosition.findMany({}),
       prisma.warehouseLocation.findMany({}),
       prisma.masterUnitOfMeasure.findMany({}),
-      prisma.masterUOMConversion.findMany({}),
+      prisma.masterUomGroup.findMany({}),
+      prisma.masterUomGroupLine.findMany({}),
       prisma.masterProductCategory.findMany({}),
       prisma.customerGroup.findMany({}),
       prisma.masterCustomerTier.findMany({}),
@@ -36,6 +38,7 @@ export class MasterDataService {
     jobPositions.sort((a, b) => a.code.localeCompare(b.code));
     warehouseLocations.sort((a, b) => a.code.localeCompare(b.code));
     unitsOfMeasure.sort((a, b) => a.code.localeCompare(b.code));
+    uomGroups.sort((a, b) => a.code.localeCompare(b.code));
     productCategories.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
     customerGroups.sort((a, b) => a.code.localeCompare(b.code));
     customerTiers.sort((a, b) => Number(a.minSpend || 0) - Number(b.minSpend || 0));
@@ -43,6 +46,19 @@ export class MasterDataService {
     projects.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     customers.sort((a, b) => a.name.localeCompare(b.name));
     suppliers.sort((a, b) => a.name.localeCompare(b.name));
+
+    const linesByGroup = new Map<string, any[]>();
+    for (const l of uomLines) {
+      if (!linesByGroup.has(l.groupId)) linesByGroup.set(l.groupId, []);
+      linesByGroup.get(l.groupId)!.push({
+        ...l,
+        conversionFactor: Number(l.conversionFactor),
+        ratioToBase: l.ratioToBase ? Number(l.ratioToBase) : null,
+      });
+    }
+    for (const [, list] of linesByGroup) {
+      list.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+    }
 
     return {
       departments: departments.map((d) => ({ ...d, budget: Number(d.budget) })),
@@ -56,9 +72,9 @@ export class MasterDataService {
         ...u,
         conversionFactor: u.conversionFactor ? Number(u.conversionFactor) : null,
       })),
-      uomConversions: uomConversions.map((c) => ({
-        ...c,
-        factor: Number(c.factor),
+      uomGroups: uomGroups.map((g) => ({
+        ...g,
+        lines: linesByGroup.get(g.id) || [],
       })),
       productCategories,
       customerGroups: customerGroups.map((g) => ({
@@ -252,42 +268,6 @@ export class MasterDataService {
     const existing = await prisma.masterUnitOfMeasure.findMany({ where: { id } });
     if (existing.length === 0) throw new NotFoundError("Không tìm thấy đơn vị tính");
     await prisma.masterUnitOfMeasure.deleteMany({ where: { id } });
-    return { success: true };
-  }
-
-  // 5.1 MASTER UOM CONVERSIONS (ĐVT A = Hệ Số x ĐVT B)
-  static async getUOMConversions() {
-    const items = await prisma.masterUOMConversion.findMany({});
-    return items.map((c) => ({
-      ...c,
-      factor: Number(c.factor),
-    }));
-  }
-
-  static async createUOMConversion(data: any) {
-    const id = data.id || `conv-${Date.now()}`;
-    const dt = new Date();
-    await prisma.$executeRaw`
-      INSERT INTO [DanhMucQuyDoiDVT] (id, fromUnitName, fromUnitId, factor, toUnitName, toUnitId, note, status, createdAt, updatedAt)
-      VALUES (${id}, ${data.fromUnitName}, ${data.fromUnitId || null}, ${data.factor}, ${data.toUnitName}, ${data.toUnitId || null}, ${data.note || null}, ${data.status || "active"}, ${dt}, ${dt})
-    `;
-    const created = await prisma.masterUOMConversion.findMany({ where: { id } });
-    return created[0] ? { ...created[0], factor: Number(created[0].factor) } : null;
-  }
-
-  static async updateUOMConversion(id: string, data: any) {
-    const existing = await prisma.masterUOMConversion.findMany({ where: { id } });
-    if (existing.length === 0) throw new NotFoundError("Không tìm thấy quy đổi đơn vị tính");
-
-    await prisma.masterUOMConversion.updateMany({ where: { id }, data });
-    const updated = await prisma.masterUOMConversion.findMany({ where: { id } });
-    return updated[0] ? { ...updated[0], factor: Number(updated[0].factor) } : null;
-  }
-
-  static async deleteUOMConversion(id: string) {
-    const existing = await prisma.masterUOMConversion.findMany({ where: { id } });
-    if (existing.length === 0) throw new NotFoundError("Không tìm thấy quy đổi đơn vị tính");
-    await prisma.masterUOMConversion.deleteMany({ where: { id } });
     return { success: true };
   }
 
@@ -492,4 +472,112 @@ export class MasterDataService {
     await prisma.enterpriseProject.deleteMany({ where: { id } });
     return { success: true };
   }
+
+  // 11. UOM CONVERSION GROUPS
+  static async getUomGroups() {
+    const [groups, lines] = await Promise.all([
+      prisma.masterUomGroup.findMany({}),
+      prisma.masterUomGroupLine.findMany({}),
+    ]);
+    const linesByGroup = new Map<string, any[]>();
+    for (const l of lines) {
+      if (!linesByGroup.has(l.groupId)) linesByGroup.set(l.groupId, []);
+      linesByGroup.get(l.groupId)!.push({
+        ...l,
+        conversionFactor: Number(l.conversionFactor),
+        ratioToBase: l.ratioToBase ? Number(l.ratioToBase) : null,
+      });
+    }
+    for (const [, list] of linesByGroup) {
+      list.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+    }
+    groups.sort((a, b) => a.code.localeCompare(b.code));
+    return groups.map((g) => ({
+      ...g,
+      lines: linesByGroup.get(g.id) || [],
+    }));
+  }
+
+  static async createUomGroup(data: any) {
+    const existing = await prisma.masterUomGroup.findMany({ where: { code: data.code } });
+    if (existing.length > 0) throw new ConflictError("Mã nhóm quy đổi đã tồn tại");
+    const id = data.id || `uom-grp-${Date.now()}`;
+    const now = new Date();
+    await prisma.$executeRaw`
+      INSERT INTO [NhomDonViTinh] (id, code, name, baseUnit, description, status, createdAt, updatedAt)
+      VALUES (${id}, ${data.code}, ${data.name}, ${data.baseUnit}, ${data.description || null}, ${data.status || 'active'}, ${now}, ${now})
+    `;
+
+    if (Array.isArray(data.lines) && data.lines.length > 0) {
+      for (let i = 0; i < data.lines.length; i++) {
+        const line = data.lines[i];
+        const lineId = line.id || `ugl-${Date.now()}-${i}`;
+        await prisma.$executeRaw`
+          INSERT INTO [ChiTietNhomDonViTinh] (id, groupId, unit, conversionFactor, referenceUnit, ratioToBase, note, sortOrder, createdAt, updatedAt)
+          VALUES (${lineId}, ${id}, ${line.unit}, ${Number(line.conversionFactor)}, ${line.referenceUnit}, ${line.ratioToBase ? Number(line.ratioToBase) : null}, ${line.note || null}, ${Number(line.sortOrder || i + 1)}, ${now}, ${now})
+        `;
+      }
+    }
+
+    const created = await prisma.masterUomGroup.findMany({ where: { id } });
+    const createdLines = await prisma.masterUomGroupLine.findMany({ where: { groupId: id } });
+    createdLines.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+    return created[0]
+      ? {
+          ...created[0],
+          lines: createdLines.map((l) => ({
+            ...l,
+            conversionFactor: Number(l.conversionFactor),
+            ratioToBase: l.ratioToBase ? Number(l.ratioToBase) : null,
+          })),
+        }
+      : null;
+  }
+
+  static async updateUomGroup(id: string, data: any) {
+    const existing = await prisma.masterUomGroup.findMany({ where: { id } });
+    if (existing.length === 0) throw new NotFoundError("Không tìm thấy bộ nhóm quy đổi");
+
+    const now = new Date();
+    const { lines, ...groupData } = data;
+    await prisma.masterUomGroup.updateMany({
+      where: { id },
+      data: { ...groupData, updatedAt: now },
+    });
+
+    if (Array.isArray(lines)) {
+      await prisma.masterUomGroupLine.deleteMany({ where: { groupId: id } });
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const lineId = line.id || `ugl-${Date.now()}-${i}`;
+        await prisma.$executeRaw`
+          INSERT INTO [ChiTietNhomDonViTinh] (id, groupId, unit, conversionFactor, referenceUnit, ratioToBase, note, sortOrder, createdAt, updatedAt)
+          VALUES (${lineId}, ${id}, ${line.unit}, ${Number(line.conversionFactor)}, ${line.referenceUnit}, ${line.ratioToBase ? Number(line.ratioToBase) : null}, ${line.note || null}, ${Number(line.sortOrder || i + 1)}, ${now}, ${now})
+        `;
+      }
+    }
+
+    const updated = await prisma.masterUomGroup.findMany({ where: { id } });
+    const updatedLines = await prisma.masterUomGroupLine.findMany({ where: { groupId: id } });
+    updatedLines.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+    return updated[0]
+      ? {
+          ...updated[0],
+          lines: updatedLines.map((l) => ({
+            ...l,
+            conversionFactor: Number(l.conversionFactor),
+            ratioToBase: l.ratioToBase ? Number(l.ratioToBase) : null,
+          })),
+        }
+      : null;
+  }
+
+  static async deleteUomGroup(id: string) {
+    const existing = await prisma.masterUomGroup.findMany({ where: { id } });
+    if (existing.length === 0) throw new NotFoundError("Không tìm thấy bộ nhóm quy đổi");
+    await prisma.masterUomGroupLine.deleteMany({ where: { groupId: id } });
+    await prisma.masterUomGroup.deleteMany({ where: { id } });
+    return { success: true };
+  }
 }
+

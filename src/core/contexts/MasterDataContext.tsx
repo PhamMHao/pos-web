@@ -4,7 +4,7 @@ import {
   JobPosition,
   WarehouseLocation,
   UnitOfMeasure,
-  MasterUOMConversion,
+  MasterUomGroup,
   MasterProductCategory,
   CustomerGroup,
   MasterSupplierCategory,
@@ -174,11 +174,11 @@ interface MasterDataContextType {
   updateUnitOfMeasure: (id: string, item: Partial<UnitOfMeasure>) => void;
   deleteUnitOfMeasure: (id: string) => void;
 
-  // Master UOM Conversions (1 ĐVT A = Hệ Số x ĐVT B)
-  uomConversions: MasterUOMConversion[];
-  addUOMConversion: (item: Omit<MasterUOMConversion, 'id' | 'createdAt' | 'updatedAt'>) => MasterUOMConversion;
-  updateUOMConversion: (id: string, item: Partial<MasterUOMConversion>) => void;
-  deleteUOMConversion: (id: string) => void;
+  // UOM Conversion Groups
+  uomGroups: MasterUomGroup[];
+  addUomGroup: (item: Omit<MasterUomGroup, 'id' | 'createdAt'>) => MasterUomGroup;
+  updateUomGroup: (id: string, item: Partial<MasterUomGroup>) => void;
+  deleteUomGroup: (id: string) => void;
 
   // Product Categories
   productCategories: MasterProductCategory[];
@@ -241,7 +241,7 @@ export const MasterDataProvider: React.FC<{ children: ReactNode }> = ({ children
   const [jobPositions, setJobPositions] = useState<JobPosition[]>([]);
   const [warehouseLocations, setWarehouseLocations] = useState<WarehouseLocation[]>([]);
   const [unitsOfMeasure, setUnitsOfMeasure] = useState<UnitOfMeasure[]>([]);
-  const [uomConversions, setUOMConversions] = useState<MasterUOMConversion[]>([]);
+  const [uomGroups, setUomGroups] = useState<MasterUomGroup[]>([]);
   const [productCategories, setProductCategories] = useState<MasterProductCategory[]>([]);
   const [customerGroups, setCustomerGroups] = useState<CustomerGroup[]>([]);
   const [customerTiers, setCustomerTiers] = useState<MasterCustomerTier[]>([]);
@@ -262,7 +262,7 @@ export const MasterDataProvider: React.FC<{ children: ReactNode }> = ({ children
         if (Array.isArray(data.jobPositions)) setJobPositions(data.jobPositions);
         if (Array.isArray(data.warehouseLocations)) setWarehouseLocations(data.warehouseLocations);
         if (Array.isArray(data.unitsOfMeasure)) setUnitsOfMeasure(data.unitsOfMeasure);
-        if (Array.isArray(data.uomConversions)) setUOMConversions(data.uomConversions);
+        if (Array.isArray(data.uomGroups)) setUomGroups(data.uomGroups);
         if (Array.isArray(data.productCategories)) setProductCategories(data.productCategories);
         if (Array.isArray(data.customerGroups)) setCustomerGroups(data.customerGroups);
         if (Array.isArray(data.customerTiers)) setCustomerTiers(data.customerTiers);
@@ -463,32 +463,32 @@ export const MasterDataProvider: React.FC<{ children: ReactNode }> = ({ children
   };
 
   // ==========================================
-  // CRUD Actions: Master UOM Conversions (Synced to SQL Server [DanhMucQuyDoiDVT])
+  // CRUD Actions: UOM Conversion Groups (Synced to SQL Server [NhomDonViTinh] & [ChiTietNhomDonViTinh])
   // ==========================================
-  const addUOMConversion = (item: Omit<MasterUOMConversion, 'id' | 'createdAt' | 'updatedAt'>): MasterUOMConversion => {
-    const newConv: MasterUOMConversion = {
+  const addUomGroup = (item: Omit<MasterUomGroup, 'id' | 'createdAt'>): MasterUomGroup => {
+    const newGrp: MasterUomGroup = {
       ...item,
-      id: `conv-${Date.now()}`,
+      id: `uom-grp-${Date.now()}`,
+      lines: item.lines || [],
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
     };
-    setUOMConversions((prev) => [newConv, ...prev]);
-    masterDataApi.createUOMConversion(newConv).then((saved) => {
-      if (saved) setUOMConversions((prev) => prev.map((c) => (c.id === newConv.id ? saved : c)));
-    }).catch((err) => console.warn('UOMConversion DB sync error:', err));
-    return newConv;
+    setUomGroups((prev) => [newGrp, ...prev]);
+    masterDataApi.createUomGroup(newGrp).then((saved) => {
+      if (saved) setUomGroups((prev) => prev.map((g) => (g.id === newGrp.id ? saved : g)));
+    }).catch((err) => console.warn('UomGroup DB sync error:', err));
+    return newGrp;
   };
 
-  const updateUOMConversion = (id: string, item: Partial<MasterUOMConversion>) => {
-    setUOMConversions((prev) => prev.map((c) => (c.id === id ? { ...c, ...item, updatedAt: new Date().toISOString() } : c)));
-    masterDataApi.updateUOMConversion(id, item).then((saved) => {
-      if (saved) setUOMConversions((prev) => prev.map((c) => (c.id === id ? saved : c)));
-    }).catch((err) => console.warn('UOMConversion DB update error:', err));
+  const updateUomGroup = (id: string, item: Partial<MasterUomGroup>) => {
+    setUomGroups((prev) => prev.map((g) => (g.id === id ? { ...g, ...item } : g)));
+    masterDataApi.updateUomGroup(id, item).then((saved) => {
+      if (saved) setUomGroups((prev) => prev.map((g) => (g.id === id ? saved : g)));
+    }).catch((err) => console.warn('UomGroup DB update error:', err));
   };
 
-  const deleteUOMConversion = (id: string) => {
-    setUOMConversions((prev) => prev.filter((c) => c.id !== id));
-    masterDataApi.deleteUOMConversion(id).catch((err) => console.warn('UOMConversion DB delete error:', err));
+  const deleteUomGroup = (id: string) => {
+    setUomGroups((prev) => prev.filter((g) => g.id !== id));
+    masterDataApi.deleteUomGroup(id).catch((err) => console.warn('UomGroup DB delete error:', err));
   };
 
   // ==========================================
@@ -791,10 +791,10 @@ export const MasterDataProvider: React.FC<{ children: ReactNode }> = ({ children
         addUnitOfMeasure,
         updateUnitOfMeasure,
 
-        uomConversions,
-        deleteUOMConversion,
-        addUOMConversion,
-        updateUOMConversion,
+        uomGroups,
+        deleteUomGroup,
+        addUomGroup,
+        updateUomGroup,
 
         productCategories,
         deleteProductCategory,

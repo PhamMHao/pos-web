@@ -169,45 +169,6 @@ export class MasterDataController {
     }
   }
 
-  // 5.1 Master UOM Conversions (ĐVT A = Hệ Số x ĐVT B)
-  static async getUOMConversions(req: Request, res: Response, next: NextFunction) {
-    try {
-      const data = await MasterDataService.getUOMConversions();
-      return sendSuccess(res, data, "Lấy danh sách quy đổi đơn vị tính thành công");
-    } catch (error) {
-      return next(error);
-    }
-  }
-
-  static async createUOMConversion(req: Request, res: Response, next: NextFunction) {
-    try {
-      const data = await MasterDataService.createUOMConversion(req.body);
-      return sendCreated(res, data, "Thêm mới quy đổi đơn vị tính thành công");
-    } catch (error) {
-      return next(error);
-    }
-  }
-
-  static async updateUOMConversion(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { id } = req.params;
-      const data = await MasterDataService.updateUOMConversion(id, req.body);
-      return sendSuccess(res, data, "Cập nhật quy đổi đơn vị tính thành công");
-    } catch (error) {
-      return next(error);
-    }
-  }
-
-  static async deleteUOMConversion(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { id } = req.params;
-      const data = await MasterDataService.deleteUOMConversion(id);
-      return sendSuccess(res, data, "Xóa quy đổi đơn vị tính thành công");
-    } catch (error) {
-      return next(error);
-    }
-  }
-
   // 6. Product Categories
   static async getProductCategories(req: Request, res: Response, next: NextFunction) {
     try {
@@ -398,6 +359,45 @@ export class MasterDataController {
       const { id } = req.params;
       const data = await MasterDataService.deleteProject(id);
       return sendSuccess(res, data, "Xóa dự án thành công");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  // 11. UOM Conversion Groups
+  static async getUomGroups(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await MasterDataService.getUomGroups();
+      return sendSuccess(res, data, "Lấy danh sách bộ nhóm quy đổi ĐVT thành công");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async createUomGroup(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await MasterDataService.createUomGroup(req.body);
+      return sendCreated(res, data, "Thêm mới bộ nhóm quy đổi ĐVT thành công");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async updateUomGroup(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const data = await MasterDataService.updateUomGroup(id, req.body);
+      return sendSuccess(res, data, "Cập nhật bộ nhóm quy đổi ĐVT thành công");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async deleteUomGroup(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const data = await MasterDataService.deleteUomGroup(id);
+      return sendSuccess(res, data, "Xóa bộ nhóm quy đổi ĐVT thành công");
     } catch (error) {
       return next(error);
     }

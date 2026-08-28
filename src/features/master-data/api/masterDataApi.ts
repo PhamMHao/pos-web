@@ -4,7 +4,7 @@ import {
   JobPosition,
   WarehouseLocation,
   UnitOfMeasure,
-  MasterUOMConversion,
+  MasterUomGroup,
   MasterProductCategory,
   CustomerGroup,
   MasterCustomerTier,
@@ -19,7 +19,7 @@ export interface AllMasterDataResponse {
   jobPositions: JobPosition[];
   warehouseLocations: WarehouseLocation[];
   unitsOfMeasure: UnitOfMeasure[];
-  uomConversions: MasterUOMConversion[];
+  uomGroups: MasterUomGroup[];
   productCategories: MasterProductCategory[];
   customerGroups: CustomerGroup[];
   customerTiers: MasterCustomerTier[];
@@ -105,24 +105,6 @@ export const masterDataApi = {
   },
   deleteUnitOfMeasure: async (id: string) => {
     const res = await apiClient.delete<ApiResponse<any>>(`/master-data/units-of-measure/${id}`);
-    return res.data.data;
-  },
-
-  // 5.1 Master UOM Conversions (ĐVT A = Hệ Số x ĐVT B)
-  getUOMConversions: async () => {
-    const res = await apiClient.get<ApiResponse<MasterUOMConversion[]>>("/master-data/uom-conversions");
-    return res.data.data;
-  },
-  createUOMConversion: async (data: Partial<MasterUOMConversion>) => {
-    const res = await apiClient.post<ApiResponse<MasterUOMConversion>>("/master-data/uom-conversions", data);
-    return res.data.data;
-  },
-  updateUOMConversion: async (id: string, data: Partial<MasterUOMConversion>) => {
-    const res = await apiClient.put<ApiResponse<MasterUOMConversion>>(`/master-data/uom-conversions/${id}`, data);
-    return res.data.data;
-  },
-  deleteUOMConversion: async (id: string) => {
-    const res = await apiClient.delete<ApiResponse<any>>(`/master-data/uom-conversions/${id}`);
     return res.data.data;
   },
 
@@ -213,6 +195,24 @@ export const masterDataApi = {
   },
   deleteProject: async (id: string) => {
     const res = await apiClient.delete<ApiResponse<any>>(`/master-data/projects/${id}`);
+    return res.data.data;
+  },
+
+  // 11. UOM Groups
+  getUomGroups: async () => {
+    const res = await apiClient.get<ApiResponse<MasterUomGroup[]>>("/master-data/uom-groups");
+    return res.data.data;
+  },
+  createUomGroup: async (data: Partial<MasterUomGroup>) => {
+    const res = await apiClient.post<ApiResponse<MasterUomGroup>>("/master-data/uom-groups", data);
+    return res.data.data;
+  },
+  updateUomGroup: async (id: string, data: Partial<MasterUomGroup>) => {
+    const res = await apiClient.put<ApiResponse<MasterUomGroup>>(`/master-data/uom-groups/${id}`, data);
+    return res.data.data;
+  },
+  deleteUomGroup: async (id: string) => {
+    const res = await apiClient.delete<ApiResponse<any>>(`/master-data/uom-groups/${id}`);
     return res.data.data;
   },
 };

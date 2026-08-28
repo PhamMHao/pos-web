@@ -545,13 +545,7 @@ async function main() {
     { id: "uom-hop", code: "DVT-HOP", name: "Hộp (Box)", symbol: "Hộp", isBaseUnit: false, referenceUnit: "Cái", conversionFactor: 10, status: "active", description: "Quy cách đóng gói hộp phụ kiện, hạt mạng, keo tản nhiệt" },
     { id: "uom-thung", code: "DVT-THUNG", name: "Thùng (Carton)", symbol: "Thùng", isBaseUnit: false, referenceUnit: "Cái", conversionFactor: 20, status: "active", description: "Quy cách nhập khẩu nguyên đai nguyên kiện từ hãng" },
     { id: "uom-cuon", code: "DVT-CUON", name: "Cuộn (Thùng Cáp 305m)", symbol: "Cuộn", isBaseUnit: false, referenceUnit: "Mét", conversionFactor: 305, status: "active", description: "Thùng cáp mạng Cat6 UTP/FTP chính hãng 305 mét" },
-    { id: "uom-met", code: "DVT-MET", name: "Mét (Dây Cáp Cắt Lẻ)", symbol: "m", isBaseUnit: true, referenceUnit: null, conversionFactor: 1, status: "active", description: "Đơn vị đo chiều dài cáp mạng, cáp quang, dây nguồn thi công" },
-    { id: "uom-pallet", code: "DVT-PALLET", name: "Pallet (Kiện Lớn)", symbol: "Pallet", isBaseUnit: false, referenceUnit: null, conversionFactor: 1, status: "active", description: "Quy cách lưu kho và bốc dỡ theo pallet tiêu chuẩn" },
-    { id: "uom-kg", code: "DVT-KG", name: "Kilogram (Kg)", symbol: "kg", isBaseUnit: true, referenceUnit: null, conversionFactor: 1, status: "active", description: "Đơn vị đo khối lượng chuẩn" },
-    { id: "uom-gam", code: "DVT-GAM", name: "Gam (g)", symbol: "g", isBaseUnit: false, referenceUnit: null, conversionFactor: 0.001, status: "active", description: "Đơn vị đo khối lượng nhỏ (keo tản nhiệt, linh kiện chip)" },
-    { id: "uom-lon", code: "DVT-LON", name: "Lon (Can)", symbol: "Lon", isBaseUnit: true, referenceUnit: null, conversionFactor: 1, status: "active", description: "Đơn vị đóng gói lon nước ngọt, dung dịch vệ sinh mạch" },
-    { id: "uom-loc", code: "DVT-LOC", name: "Lốc (Vỉ 6)", symbol: "Lốc", isBaseUnit: false, referenceUnit: null, conversionFactor: 6, status: "active", description: "Lốc vỉ đóng gói 6 lon/chai" },
-    { id: "uom-goi", code: "DVT-GOI", name: "Gói (Túi)", symbol: "Gói", isBaseUnit: false, referenceUnit: null, conversionFactor: 1, status: "active", description: "Gói phụ kiện nhỏ, ốc vít máy tính, dây rút" }
+    { id: "uom-met", code: "DVT-MET", name: "Mét (Dây Cáp Cắt Lẻ)", symbol: "m", isBaseUnit: true, referenceUnit: null, conversionFactor: 1, status: "active", description: "Đơn vị đo chiều dài cáp mạng, cáp quang, dây nguồn thi công" }
   ];
   for (const item of INITIAL_UOMS) {
     const exists = await prisma.masterUnitOfMeasure.findMany({ where: { code: item.code } });
@@ -564,29 +558,63 @@ async function main() {
     }
   }
 
-  // 20.1 Bảng quy đổi đơn vị tính (Master UOM Conversions: ĐVT A = Hệ số x ĐVT B)
-  console.log("20.1 Seeding Master UOM Conversions...");
-  const INITIAL_UOM_CONVERSIONS = [
-    { id: "conv-thung-cuon", fromUnitName: "Thùng", factor: 10, toUnitName: "Cuộn", note: "1 Thùng cáp = 10 Cuộn", status: "active" },
-    { id: "conv-cuon-met", fromUnitName: "Cuộn", factor: 100, toUnitName: "Mét", note: "1 Cuộn = 100 Mét", status: "active" },
-    { id: "conv-cuon-kg", fromUnitName: "Cuộn", factor: 10, toUnitName: "Kilogram (Kg)", note: "1 Cuộn = 10 Kg", status: "active" },
-    { id: "conv-thung-lon", fromUnitName: "Thùng", factor: 24, toUnitName: "Lon", note: "1 Thùng = 24 Lon", status: "active" },
-    { id: "conv-loc-lon", fromUnitName: "Lốc", factor: 6, toUnitName: "Lon", note: "1 Lốc = 6 Lon", status: "active" },
-    { id: "conv-thung-hop", fromUnitName: "Thùng", factor: 20, toUnitName: "Hộp", note: "1 Thùng = 20 Hộp", status: "active" },
-    { id: "conv-hop-cai", fromUnitName: "Hộp", factor: 50, toUnitName: "Cái (Chiếc)", note: "1 Hộp = 50 Cái", status: "active" },
-    { id: "conv-pallet-thung", fromUnitName: "Pallet", factor: 40, toUnitName: "Thùng", note: "1 Pallet = 40 Thùng", status: "active" },
+  // 20.1 Nhóm đơn vị tính & quy đổi (UOM Conversion Groups)
+  console.log("20.1 Seeding UOM Conversion Groups & Lines...");
+  const INITIAL_UOM_GROUPS = [
+    {
+      id: "uom-grp-cable",
+      code: "GRP-UOM-CABLE",
+      name: "Quy Chuẩn Cáp Mạng & Dây Điện",
+      baseUnit: "Mét",
+      description: "Quy đổi đo lường chiều dài cáp mạng LAN, cáp quang và dây điện dân dụng / công trình",
+      status: "active",
+      lines: [
+        { id: "ugl-cable-1", unit: "Cuộn", conversionFactor: 305, referenceUnit: "Mét", ratioToBase: 305, note: "Thùng cáp mạng Cat6 UTP chuẩn 305 mét", sortOrder: 1 },
+        { id: "ugl-cable-2", unit: "Bó", conversionFactor: 100, referenceUnit: "Mét", ratioToBase: 100, note: "Bó dây điện Cadivi 100 mét", sortOrder: 2 }
+      ]
+    },
+    {
+      id: "uom-grp-packaging",
+      code: "GRP-UOM-PACKAGING",
+      name: "Quy Cách Đóng Gói Thùng - Hộp - Cái IT",
+      baseUnit: "Cái",
+      description: "Quy chuẩn đóng gói linh kiện, phụ kiện máy tính, hạt mạng, thiết bị văn phòng",
+      status: "active",
+      lines: [
+        { id: "ugl-pack-1", unit: "Hộp", conversionFactor: 10, referenceUnit: "Cái", ratioToBase: 10, note: "Hộp phụ kiện / 10 cái", sortOrder: 1 },
+        { id: "ugl-pack-2", unit: "Thùng", conversionFactor: 20, referenceUnit: "Hộp", ratioToBase: 200, note: "Thùng carton lớn chứa 20 hộp (= 200 cái)", sortOrder: 2 },
+        { id: "ugl-pack-3", unit: "Kiện", conversionFactor: 50, referenceUnit: "Thùng", ratioToBase: 10000, note: "Kiện hàng pallet nhập khẩu 50 thùng", sortOrder: 3 }
+      ]
+    },
+    {
+      id: "uom-grp-weight",
+      code: "GRP-UOM-WEIGHT",
+      name: "Quy Chuẩn Khối Lượng & Trọng Lượng",
+      baseUnit: "Gram",
+      description: "Đo lường trọng lượng kim loại, keo tản nhiệt, linh kiện đúc nguyên khối",
+      status: "active",
+      lines: [
+        { id: "ugl-weight-1", unit: "Kg", conversionFactor: 1000, referenceUnit: "Gram", ratioToBase: 1000, note: "1 Kilogram = 1.000 Gram", sortOrder: 1 },
+        { id: "ugl-weight-2", unit: "Tạ", conversionFactor: 100, referenceUnit: "Kg", ratioToBase: 100000, note: "1 Tạ = 100 Kg", sortOrder: 2 }
+      ]
+    }
   ];
 
-  for (const conv of INITIAL_UOM_CONVERSIONS) {
-    const exists = await prisma.masterUOMConversion.findMany({
-      where: { fromUnitName: conv.fromUnitName, toUnitName: conv.toUnitName },
-    });
+  for (const group of INITIAL_UOM_GROUPS) {
+    const exists = await prisma.masterUomGroup.findMany({ where: { code: group.code } });
     if (exists.length === 0) {
       const dt = new Date();
       await prisma.$executeRaw`
-        INSERT INTO [DanhMucQuyDoiDVT] (id, fromUnitName, factor, toUnitName, note, status, createdAt, updatedAt)
-        VALUES (${conv.id}, ${conv.fromUnitName}, ${conv.factor}, ${conv.toUnitName}, ${conv.note}, ${conv.status}, ${dt}, ${dt})
+        INSERT INTO [NhomDonViTinh] (id, code, name, baseUnit, description, status, createdAt, updatedAt)
+        VALUES (${group.id}, ${group.code}, ${group.name}, ${group.baseUnit}, ${group.description}, ${group.status}, ${dt}, ${dt})
       `;
+
+      for (const line of group.lines) {
+        await prisma.$executeRaw`
+          INSERT INTO [ChiTietNhomDonViTinh] (id, groupId, unit, conversionFactor, referenceUnit, ratioToBase, note, sortOrder, createdAt, updatedAt)
+          VALUES (${line.id}, ${group.id}, ${line.unit}, ${line.conversionFactor}, ${line.referenceUnit}, ${line.ratioToBase}, ${line.note}, ${line.sortOrder}, ${dt}, ${dt})
+        `;
+      }
     }
   }
 

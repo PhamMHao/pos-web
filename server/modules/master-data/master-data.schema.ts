@@ -54,18 +54,6 @@ export const createUnitOfMeasureSchema = z.object({
 
 export const updateUnitOfMeasureSchema = createUnitOfMeasureSchema.partial();
 
-export const createUOMConversionSchema = z.object({
-  fromUnitName: z.string().min(1),
-  fromUnitId: z.string().optional().nullable(),
-  factor: z.number().positive(),
-  toUnitName: z.string().min(1),
-  toUnitId: z.string().optional().nullable(),
-  note: z.string().optional().nullable(),
-  status: z.enum(["active", "inactive"]).optional().default("active"),
-});
-
-export const updateUOMConversionSchema = createUOMConversionSchema.partial();
-
 export const createProductCategorySchema = z.object({
   code: z.string().min(1),
   name: z.string().min(1),
@@ -131,3 +119,24 @@ export const createProjectSchema = z.object({
 });
 
 export const updateProjectSchema = createProjectSchema.partial();
+
+export const uomGroupLineSchema = z.object({
+  id: z.string().optional(),
+  unit: z.string().min(1, "Thiếu đơn vị tính quy đổi"),
+  conversionFactor: z.number().min(0.0001, "Hệ số quy đổi phải lớn hơn 0"),
+  referenceUnit: z.string().min(1, "Thiếu đơn vị tham chiếu"),
+  ratioToBase: z.number().optional().nullable(),
+  note: z.string().optional().nullable(),
+  sortOrder: z.number().optional().default(0),
+});
+
+export const createUomGroupSchema = z.object({
+  code: z.string().min(1, "Mã nhóm quy đổi không được để trống"),
+  name: z.string().min(1, "Tên bộ nhóm quy đổi không được để trống"),
+  baseUnit: z.string().min(1, "Đơn vị tính cơ sở không được để trống"),
+  description: z.string().optional().nullable(),
+  status: z.enum(["active", "inactive"]).optional().default("active"),
+  lines: z.array(uomGroupLineSchema).optional().default([]),
+});
+
+export const updateUomGroupSchema = createUomGroupSchema.partial();

@@ -1393,25 +1393,37 @@ export interface UnitOfMeasure {
   code: string; // e.g., 'CAI', 'BO', 'THUNG', 'HOP', 'CUON', 'MET', 'KG'
   name: string; // e.g., 'Cái', 'Bộ', 'Thùng', 'Hộp', 'Cuộn'
   symbol: string;
-  isBaseUnit?: boolean;
+  isBaseUnit: boolean; // Có phải là ĐVT cơ sở chuẩn không
   baseUnitId?: string;
   baseUnitName?: string;
-  conversionRate?: number;
+  conversionRate: number; // 1 ĐVT này = bao nhiêu ĐVT cơ sở (e.g., 1 Thùng = 10 Cái)
   description?: string;
   status: 'active' | 'inactive';
-  createdAt?: string;
+  createdAt: string;
 }
 
-export interface MasterUOMConversion {
+export interface MasterUomGroupLine {
   id: string;
-  fromUnitName: string; // VD: 'Thùng', 'Cuộn', 'Hộp', 'Pallet'
-  fromUnitId?: string;
-  factor: number; // VD: 10, 100, 24
-  toUnitName: string; // VD: 'Cuộn', 'Mét', 'Kg', 'Lon', 'Cái'
-  toUnitId?: string;
-  note?: string; // VD: '1 Thùng = 10 Cuộn', '1 Cuộn = 100m (~10kg)'
-  status: 'active' | 'inactive';
+  groupId?: string;
+  unit: string; // Tên / Ký hiệu ĐVT quy đổi (VD: 'Cuộn', 'Thùng', 'Hộp', 'Kg'...)
+  conversionFactor: number; // Hệ số quy đổi (VD: 305, 20, 10...)
+  referenceUnit: string; // ĐVT tham chiếu/cơ sở (VD: 'Mét', 'Cái', 'Hộp'...)
+  ratioToBase?: number | null; // Tỷ lệ quy về ĐVT cơ sở tuyệt đối
+  note?: string | null;
+  sortOrder?: number;
   createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface MasterUomGroup {
+  id: string;
+  code: string; // Mã nhóm (VD: GRP-UOM-CABLE, GRP-UOM-PACKAGING...)
+  name: string; // Tên bộ nhóm quy đổi
+  baseUnit: string; // ĐVT cơ sở chuẩn (VD: 'Mét', 'Cái', 'Gram'...)
+  description?: string | null;
+  status: 'active' | 'inactive';
+  lines: MasterUomGroupLine[];
+  createdAt: string;
   updatedAt?: string;
 }
 

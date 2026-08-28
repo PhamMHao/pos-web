@@ -46,10 +46,7 @@ import {
   FolderKanban,
   Package,
   Layers,
-  ArrowRight,
   ArrowRightLeft,
-  TrendingUp,
-  GitBranch,
 } from 'lucide-react';
 import {
   useMasterData,
@@ -66,18 +63,18 @@ import {
   SupplierModal,
   CategoryModal,
   UnitOfMeasureModal,
+  UomGroupModal,
   WarehouseLocationModal,
   CustomerGroupModal,
   SupplierCategoryModal,
   ProjectModal,
 } from './MasterDataModals';
-import { UOMConversionModal } from './UOMConversionModal';
 import {
   Department,
   JobPosition,
   WarehouseLocation,
   UnitOfMeasure,
-  MasterUOMConversion,
+  MasterUomGroup,
   MasterProductCategory,
   CustomerGroup,
   MasterCustomerTier,
@@ -132,10 +129,10 @@ export const MasterDataManagerView: React.FC = () => {
     addUnitOfMeasure,
     updateUnitOfMeasure,
 
-    uomConversions,
-    deleteUOMConversion,
-    addUOMConversion,
-    updateUOMConversion,
+    uomGroups,
+    deleteUomGroup,
+    addUomGroup,
+    updateUomGroup,
 
     productCategories,
     deleteProductCategory,
@@ -190,8 +187,6 @@ export const MasterDataManagerView: React.FC = () => {
   const [customerSubTab, setCustomerSubTab] = useState<'list' | 'tiers' | 'groups'>('list');
   // Sub-tabs for Suppliers
   const [supplierSubTab, setSupplierSubTab] = useState<'list' | 'categories'>('list');
-  // Sub-tabs for Units of Measure (ĐVT Cơ Bản vs Cấu Hình Nhóm ĐVT Đa Tầng)
-  const [uomSubTab, setUomSubTab] = useState<'list' | 'groups'>('list');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [tierFilter, setTierFilter] = useState<string>('all');
@@ -227,8 +222,8 @@ export const MasterDataManagerView: React.FC = () => {
   const [isUomModalOpen, setIsUomModalOpen] = useState(false);
   const [editingUom, setEditingUom] = useState<UnitOfMeasure | null>(null);
 
-  const [isUomConvModalOpen, setIsUomConvModalOpen] = useState(false);
-  const [editingUomConv, setEditingUomConv] = useState<MasterUOMConversion | null>(null);
+  const [isUomGroupModalOpen, setIsUomGroupModalOpen] = useState(false);
+  const [editingUomGroup, setEditingUomGroup] = useState<MasterUomGroup | null>(null);
 
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [editingLocation, setEditingLocation] = useState<WarehouseLocation | null>(null);
@@ -1547,247 +1542,282 @@ export const MasterDataManagerView: React.FC = () => {
           </div>
         )}
 
-        {/* TAB 7: ĐƠN VỊ TÍNH (ĐVT) & QUY ĐỔI ĐƠN VỊ TÍNH */}
-        {activeTab === 'uoms' && (
-          <div className="space-y-6 animate-in fade-in duration-200">
-            {/* BẢNG 1: DANH MỤC ĐƠN VỊ TÍNH */}
-            <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-md">
-              {/* Header Bar */}
-              <div className="p-4 bg-slate-850/80 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center space-x-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
-                    <Scale className="w-4 h-4 text-purple-400" />
+        {/* TAB 7: ĐƠN VỊ TÍNH & QUY ĐỔI (UOM & CONVERSION GROUPS) */}
+        {activeTab === 'uoms' && (() => {
+          const safeUomGroups = Array.isArray(uomGroups) ? uomGroups : [];
+          const safeUnitsOfMeasure = Array.isArray(unitsOfMeasure) ? unitsOfMeasure : [];
+
+          return (
+            <div className="space-y-8">
+              {/* KHU VỰC 1: BỘ CẤU HÌNH NHÓM ĐƠN VỊ TÍNH & QUY ĐỔI */}
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-purple-950/40 via-slate-900 to-indigo-950/40 p-5 rounded-3xl border border-purple-800/30 shadow-lg">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2.5 bg-purple-600/20 border border-purple-500/30 rounded-2xl text-purple-400">
+                      <Layers className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <h3 className="text-base font-bold text-white">Bộ Cấu Hình Nhóm Đơn Vị Tính & Quy Đổi</h3>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                          {safeUomGroups.length} Bộ nhóm
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400">
+                        Thiết lập các bộ quy chuẩn quy đổi đa cấp (VD: Cáp mạng Cuộn ↔ Mét, Đóng gói Thùng ↔ Hộp ↔ Cái, Khối lượng Kg ↔ Gram)
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-white">Danh Mục Đơn Vị Tính Chuẩn</h3>
-                    <p className="text-xs text-slate-400">Danh sách các đơn vị tính cơ bản ({unitsOfMeasure.length} ĐVT)</p>
-                  </div>
+                  <button
+                    onClick={() => {
+                      setEditingUomGroup(null);
+                      setIsUomGroupModalOpen(true);
+                    }}
+                    className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 cursor-pointer shadow-lg shadow-purple-600/25 transition-all"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Thêm Bộ Nhóm ĐVT Mới</span>
+                  </button>
                 </div>
 
-                <div className="flex items-center space-x-2">
+                {/* Danh Sách Các Bộ Nhóm Quy Đổi (Master-Detail Table / Cards) */}
+                {safeUomGroups.length === 0 ? (
+                  <div className="text-center py-10 bg-slate-900/60 rounded-3xl border border-dashed border-slate-800 p-8 space-y-3">
+                    <Layers className="w-10 h-10 text-slate-600 mx-auto" />
+                    <p className="text-sm font-semibold text-slate-300">Chưa có bộ cấu hình nhóm quy đổi nào</p>
+                    <p className="text-xs text-slate-500 max-w-md mx-auto">
+                      Tạo bộ nhóm quy đổi giúp chuẩn hóa quy cách đóng gói và hệ số tính toán xuyên suốt từ POS, Kho hàng đến Báo giá & Hóa đơn.
+                    </p>
+                    <button
+                      onClick={() => {
+                        setEditingUomGroup(null);
+                        setIsUomGroupModalOpen(true);
+                      }}
+                      className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl inline-flex items-center space-x-1.5 cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Tạo Bộ Nhóm Đầu Tiên</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {safeUomGroups.map((group) => (
+                      <div
+                        key={group.id}
+                        className="bg-slate-900 border border-slate-800 hover:border-purple-500/30 rounded-3xl p-5 space-y-4 transition-all shadow-md"
+                      >
+                        {/* Phần Đầu (Header): Thông tin nhóm, mã lưu, ĐVT cơ sở */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
+                          <div className="space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-xs font-mono font-bold text-purple-300 px-2.5 py-0.5 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                                {group.code}
+                              </span>
+                              <h4 className="text-base font-bold text-white">{group.name}</h4>
+                              <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-semibold">
+                                <span>⭐ ĐVT Cơ sở:</span>
+                                <strong className="text-white">{group.baseUnit}</strong>
+                              </span>
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  group.status === 'active'
+                                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                    : 'bg-slate-700 text-slate-400'
+                                }`}
+                              >
+                                {group.status === 'active' ? '🟢 Hoạt động' : '⚪ Tạm ngưng'}
+                              </span>
+                            </div>
+                            {group.description && (
+                              <p className="text-xs text-slate-400 italic pt-0.5">{group.description}</p>
+                            )}
+                          </div>
+
+                          <div className="flex items-center space-x-2 shrink-0 self-end sm:self-center">
+                            <button
+                              onClick={() => {
+                                setEditingUomGroup(group);
+                                setIsUomGroupModalOpen(true);
+                              }}
+                              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white rounded-xl text-xs font-semibold flex items-center space-x-1 cursor-pointer transition-colors border border-slate-700"
+                              title="Chỉnh sửa bộ nhóm quy đổi"
+                            >
+                              <Edit2 className="w-3.5 h-3.5 text-purple-400" />
+                              <span>Sửa Nhóm</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm(`Xóa bộ nhóm quy đổi "${group.name}"? Thao tác này sẽ xóa tất cả các dòng quy đổi bên trong.`)) {
+                                  deleteUomGroup(group.id);
+                                  showToast('Đã xóa bộ nhóm quy đổi');
+                                }
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-rose-400 rounded-xl hover:bg-rose-500/10 transition-colors cursor-pointer border border-slate-800"
+                              title="Xóa bộ nhóm quy đổi"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Phần Dưới: Bảng các dòng quy đổi con (ĐVT = Hệ số x ĐVT) */}
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-1">
+                              <ArrowRightLeft className="w-3.5 h-3.5 text-emerald-400" />
+                              <span>Bảng Quy Đổi Chi Tiết ({group.lines?.length || 0} cấp quy đổi)</span>
+                            </span>
+                          </div>
+
+                          {(!group.lines || group.lines.length === 0) ? (
+                            <p className="text-xs text-slate-500 italic py-2">Chưa cấu hình dòng quy đổi con nào.</p>
+                          ) : (
+                            <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950/40">
+                              <table className="w-full text-left text-xs border-collapse">
+                                <thead>
+                                  <tr className="border-b border-slate-800 text-slate-400 text-[11px] font-semibold bg-slate-900/80">
+                                    <th className="py-2 px-3 w-10 text-center">#</th>
+                                    <th className="py-2 px-3">ĐVT Quy Đổi</th>
+                                    <th className="py-2 px-2 w-8 text-center">=</th>
+                                    <th className="py-2 px-3">Hệ Số</th>
+                                    <th className="py-2 px-3">ĐVT Tham Chiếu / Chuẩn</th>
+                                    <th className="py-2 px-3">Công Thức Trực Quan</th>
+                                    <th className="py-2 px-3">Ghi Chú Quy Cách</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-800/60">
+                                  {group.lines.map((line, idx) => {
+                                    const factor = Number(line.conversionFactor) || 1;
+                                    const ref = line.referenceUnit || group.baseUnit;
+                                    return (
+                                      <tr key={line.id || idx} className="hover:bg-slate-850/50 transition-colors">
+                                        <td className="py-2.5 px-3 text-center text-slate-500 font-mono text-[11px]">
+                                          {idx + 1}
+                                        </td>
+                                        <td className="py-2.5 px-3">
+                                          <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-purple-500/15 border border-purple-500/30 text-purple-300 font-bold">
+                                            {line.unit}
+                                          </span>
+                                        </td>
+                                        <td className="py-2.5 px-2 text-center font-bold text-slate-400">=</td>
+                                        <td className="py-2.5 px-3">
+                                          <span className="font-mono font-bold text-emerald-400 text-sm">
+                                            {factor.toLocaleString('vi-VN')}
+                                          </span>
+                                        </td>
+                                        <td className="py-2.5 px-3">
+                                          <span className="text-slate-300 font-medium">
+                                            {ref === group.baseUnit ? (
+                                              <span className="text-amber-300 font-semibold">{ref} (Cơ sở)</span>
+                                            ) : (
+                                              ref
+                                            )}
+                                          </span>
+                                        </td>
+                                        <td className="py-2.5 px-3">
+                                          <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-slate-900 border border-emerald-500/20 text-emerald-300 font-mono text-xs">
+                                            <span className="font-bold text-white">1 {line.unit}</span>
+                                            <span className="text-slate-400">=</span>
+                                            <span className="font-bold text-emerald-400">{factor}</span>
+                                            <span className="text-slate-300">{ref}</span>
+                                          </span>
+                                        </td>
+                                        <td className="py-2.5 px-3 text-slate-400 italic text-[11px]">
+                                          {line.note || '—'}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* KHU VỰC 2: DANH MỤC ĐƠN VỊ TÍNH CHUẨN */}
+              <div className="space-y-4 pt-4 border-t border-slate-800">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/80 p-4 rounded-2xl border border-slate-800">
+                  <div className="flex items-center space-x-2">
+                    <Scale className="w-5 h-5 text-purple-400" />
+                    <div>
+                      <h3 className="text-sm font-bold text-white">Danh Mục Đơn Vị Tính Đơn Lẻ (Từ Điển ĐVT Chuẩn)</h3>
+                      <p className="text-xs text-slate-400">Danh sách các đơn vị tính cơ sở và ký hiệu hiển thị dùng chung trên toàn hệ thống</p>
+                    </div>
+                  </div>
                   <button
                     onClick={() => {
                       setEditingUom(null);
                       setIsUomModalOpen(true);
                     }}
-                    className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 cursor-pointer shadow-md shadow-purple-600/20 transition-colors"
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-750 text-purple-300 hover:text-white text-xs font-bold rounded-xl flex items-center space-x-1 cursor-pointer border border-purple-500/30"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>+ Thêm ĐVT</span>
+                    <span>Thêm ĐVT Đơn Lẻ</span>
                   </button>
                 </div>
-              </div>
 
-              {/* Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-800/80 text-slate-400 text-[11px] uppercase font-bold tracking-wider border-b border-slate-800">
-                    <tr>
-                      <th className="py-3 px-4 w-12 text-center">STT</th>
-                      <th className="py-3 px-4 w-32">Mã ĐVT</th>
-                      <th className="py-3 px-4">Tên Đơn Vị Tính</th>
-                      <th className="py-3 px-4 w-28">Ký Hiệu</th>
-                      <th className="py-3 px-4">Mô Tả / Ghi Chú</th>
-                      <th className="py-3 px-4 w-28 text-center">Trạng Thái</th>
-                      <th className="py-3 px-4 w-24 text-right">Thao Tác</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/60 text-slate-300">
-                    {unitsOfMeasure.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="py-8 text-center text-slate-500">
-                          Chưa có đơn vị tính nào. Bấm nút "+ Thêm ĐVT" ở trên để tạo.
-                        </td>
-                      </tr>
-                    ) : (
-                      unitsOfMeasure.map((uom, idx) => (
-                        <tr key={uom.id} className="hover:bg-slate-800/40 transition-colors group">
-                          <td className="py-3 px-4 text-center text-slate-500 font-mono text-[11px]">
-                            {idx + 1}
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className="text-[11px] font-mono font-bold text-purple-400 px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/20">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                  {safeUnitsOfMeasure.map((uom) => (
+                    <div
+                      key={uom.id}
+                      className="bg-slate-900 border border-slate-800 hover:border-slate-700 p-5 rounded-2xl space-y-3 transition-all group"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center space-x-1.5">
+                            <span className="text-[10px] font-mono font-bold text-purple-400 px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/20">
                               {uom.code}
                             </span>
-                          </td>
-                          <td className="py-3 px-4 font-bold text-white text-sm">
-                            {uom.name}
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className="font-mono text-white font-semibold bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
-                              {uom.symbol || uom.name}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-slate-400 text-xs max-w-md">
-                            {uom.description || <span className="text-slate-600 italic">-</span>}
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            <span
-                              className={`text-[10px] px-2 py-0.5 rounded-full font-bold inline-block ${
-                                uom.status === 'active'
-                                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                  : 'bg-slate-800 text-slate-400 border border-slate-700'
-                              }`}
-                            >
-                              {uom.status === 'active' ? 'Hoạt động' : 'Tạm ngưng'}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-right">
-                            <div className="flex items-center justify-end space-x-1.5">
-                              <button
-                                onClick={() => {
-                                  setEditingUom(uom);
-                                  setIsUomModalOpen(true);
-                                }}
-                                className="p-1.5 text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700 rounded-lg cursor-pointer transition-colors"
-                                title="Chỉnh sửa ĐVT"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => {
-                                  if (window.confirm(`Xóa ĐVT "${uom.name}"?`)) {
-                                    deleteUnitOfMeasure(uom.id);
-                                    showToast('Đã xóa đơn vị tính');
-                                  }
-                                }}
-                                className="p-1.5 text-slate-400 hover:text-rose-400 bg-slate-800/80 hover:bg-rose-500/20 rounded-lg cursor-pointer transition-colors"
-                                title="Xóa ĐVT"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                          </div>
+                          <h4 className="text-base font-black text-white mt-1.5">{uom.name}</h4>
+                        </div>
 
-            {/* BẢNG 2: BẢNG THIẾT LẬP QUY ĐỔI ĐƠN VỊ TÍNH (1 ĐVT A = Hệ Số x ĐVT B) */}
-            <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-md">
-              {/* Header Bar */}
-              <div className="p-4 bg-slate-850/80 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center space-x-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
-                    <ArrowRightLeft className="w-4 h-4 text-indigo-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-white">Bảng Quy Đổi Đơn Vị Tính (1 ĐVT = Hệ Số x ĐVT)</h3>
-                    <p className="text-xs text-slate-400">Thiết lập quy tắc quy đổi giữa các đơn vị tính ({uomConversions.length} quy đổi)</p>
-                  </div>
-                </div>
+                        <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => {
+                              setEditingUom(uom);
+                              setIsUomModalOpen(true);
+                            }}
+                            className="p-1 text-slate-400 hover:text-white rounded-lg cursor-pointer"
+                            title="Chỉnh sửa ĐVT"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`Xóa ĐVT ${uom.name}?`)) {
+                                deleteUnitOfMeasure(uom.id);
+                                showToast('Đã xóa đơn vị tính');
+                              }
+                            }}
+                            className="p-1 text-slate-400 hover:text-rose-400 rounded-lg cursor-pointer"
+                            title="Xóa ĐVT"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
 
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => {
-                      setEditingUomConv(null);
-                      setIsUomConvModalOpen(true);
-                    }}
-                    className="px-3.5 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 cursor-pointer shadow-md shadow-indigo-600/25 transition-all"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>+ Thêm Quy Đổi</span>
-                  </button>
+                      <div className="space-y-1 text-xs text-slate-300">
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Ký hiệu hiển thị:</span>
+                          <span className="font-bold text-white font-mono">{uom.symbol}</span>
+                        </div>
+                      </div>
+
+                      {uom.description && <p className="text-[11px] text-slate-400 italic pt-1 border-t border-slate-800">{uom.description}</p>}
+                    </div>
+                  ))}
                 </div>
               </div>
-
-              {/* Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-800/80 text-slate-400 text-[11px] uppercase font-bold tracking-wider border-b border-slate-800">
-                    <tr>
-                      <th className="py-3 px-4 w-12 text-center">STT</th>
-                      <th className="py-3 px-4">Công Thức Quy Đổi</th>
-                      <th className="py-3 px-4 w-36">Đơn Vị Tính Gốc</th>
-                      <th className="py-3 px-4 w-28 text-center">Hệ Số</th>
-                      <th className="py-3 px-4 w-36">Đơn Vị Quy Đổi</th>
-                      <th className="py-3 px-4">Ghi Chú / Mô Tả</th>
-                      <th className="py-3 px-4 w-28 text-center">Trạng Thái</th>
-                      <th className="py-3 px-4 w-24 text-right">Thao Tác</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/60 text-slate-300">
-                    {uomConversions.length === 0 ? (
-                      <tr>
-                        <td colSpan={8} className="py-8 text-center text-slate-500">
-                          Chưa có quy tắc quy đổi nào. Bấm nút "+ Thêm Quy Đổi" ở góc phải để tạo.
-                        </td>
-                      </tr>
-                    ) : (
-                      uomConversions.map((conv, idx) => (
-                        <tr key={conv.id} className="hover:bg-slate-800/40 transition-colors group">
-                          <td className="py-3 px-4 text-center text-slate-500 font-mono text-[11px]">
-                            {idx + 1}
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className="inline-flex items-center space-x-1.5 px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-xl font-mono text-xs text-white font-bold">
-                              <span>1 {conv.fromUnitName}</span>
-                              <span className="text-slate-400">=</span>
-                              <span className="text-cyan-400">{Number(conv.factor).toLocaleString('vi-VN')}</span>
-                              <span className="text-purple-300">{conv.toUnitName}</span>
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 font-bold text-white">
-                            {conv.fromUnitName}
-                          </td>
-                          <td className="py-3 px-4 text-center font-mono font-bold text-cyan-400">
-                            {Number(conv.factor).toLocaleString('vi-VN')}
-                          </td>
-                          <td className="py-3 px-4 font-bold text-purple-300">
-                            {conv.toUnitName}
-                          </td>
-                          <td className="py-3 px-4 text-slate-400 text-xs max-w-md">
-                            {conv.note || <span className="text-slate-600 italic">-</span>}
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            <span
-                              className={`text-[10px] px-2 py-0.5 rounded-full font-bold inline-block ${
-                                conv.status === 'active'
-                                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                  : 'bg-slate-800 text-slate-400 border border-slate-700'
-                              }`}
-                            >
-                              {conv.status === 'active' ? 'Áp dụng' : 'Tạm ngưng'}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-right">
-                            <div className="flex items-center justify-end space-x-1.5">
-                              <button
-                                onClick={() => {
-                                  setEditingUomConv(conv);
-                                  setIsUomConvModalOpen(true);
-                                }}
-                                className="p-1.5 text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700 rounded-lg cursor-pointer transition-colors"
-                                title="Chỉnh sửa quy đổi"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => {
-                                  if (window.confirm(`Xóa quy đổi "1 ${conv.fromUnitName} = ${conv.factor} ${conv.toUnitName}"?`)) {
-                                    deleteUOMConversion(conv.id);
-                                    showToast('Đã xóa quy đổi đơn vị tính');
-                                  }
-                                }}
-                                className="p-1.5 text-slate-400 hover:text-rose-400 bg-slate-800/80 hover:bg-rose-500/20 rounded-lg cursor-pointer transition-colors"
-                                title="Xóa quy đổi"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* TAB 8: NHÓM HÀNG & THUẾ SUẤT VAT */}
         {activeTab === 'categories' && (
@@ -2335,22 +2365,22 @@ export const MasterDataManagerView: React.FC = () => {
         }}
       />
 
-      {/* Master UOM Conversion Modal */}
-      <UOMConversionModal
-        isOpen={isUomConvModalOpen}
+      {/* UOM Conversion Group Modal */}
+      <UomGroupModal
+        isOpen={isUomGroupModalOpen}
         onClose={() => {
-          setIsUomConvModalOpen(false);
-          setEditingUomConv(null);
+          setIsUomGroupModalOpen(false);
+          setEditingUomGroup(null);
         }}
-        initialData={editingUomConv}
+        initialData={editingUomGroup}
         unitsOfMeasure={unitsOfMeasure}
         onSave={(data) => {
-          if (editingUomConv) {
-            updateUOMConversion(editingUomConv.id, data);
-            showToast('Đã cập nhật quy đổi đơn vị tính thành công');
+          if (editingUomGroup) {
+            updateUomGroup(editingUomGroup.id, data);
+            showToast('Đã cập nhật bộ nhóm quy đổi ĐVT');
           } else {
-            addUOMConversion(data);
-            showToast('Đã tạo quy đổi đơn vị tính mới');
+            addUomGroup(data);
+            showToast('Đã thêm bộ nhóm quy đổi ĐVT mới');
           }
         }}
       />

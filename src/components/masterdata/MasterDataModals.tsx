@@ -22,12 +22,18 @@ import {
   Percent,
   Award,
   Crown,
+  Trash2,
+  Layers,
+  ArrowRightLeft,
+  Equal,
 } from 'lucide-react';
 import {
   Department,
   JobPosition,
   WarehouseLocation,
   UnitOfMeasure,
+  MasterUomGroup,
+  MasterUomGroupLine,
   MasterProductCategory,
   CustomerGroup,
   MasterCustomerTier,
@@ -770,6 +776,455 @@ export const UnitOfMeasureModal: React.FC<UnitOfMeasureModalProps> = ({
     </div>
   );
 };
+
+// ==========================================
+// 4.1 UOM Conversion Group Modal (Bộ Nhóm ĐVT & Quy Đổi)
+// ==========================================
+interface UomGroupModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  initialData?: MasterUomGroup | null;
+  unitsOfMeasure: UnitOfMeasure[];
+  onSave: (data: Omit<MasterUomGroup, 'id' | 'createdAt'>) => void;
+}
+
+export const UomGroupModal: React.FC<UomGroupModalProps> = ({
+  isOpen,
+  onClose,
+  initialData,
+  unitsOfMeasure,
+  onSave,
+}) => {
+  const [code, setCode] = useState('');
+  const [name, setName] = useState('');
+  const [baseUnit, setBaseUnit] = useState('Cái');
+  const [description, setDescription] = useState('');
+  const [status, setStatus] = useState<'active' | 'inactive'>('active');
+  const [lines, setLines] = useState<Array<{
+    id?: string;
+    unit: string;
+    conversionFactor: number;
+    referenceUnit: string;
+    ratioToBase?: number | null;
+    note?: string | null;
+    sortOrder?: number;
+  }>>([]);
+
+  useEffect(() => {
+    if (initialData) {
+      setCode(initialData.code || '');
+      setName(initialData.name || '');
+      setBaseUnit(initialData.baseUnit || (unitsOfMeasure[0]?.name || 'Cái'));
+      setDescription(initialData.description || '');
+      setStatus(initialData.status || 'active');
+      setLines(
+        (initialData.lines || []).map((l, idx) => ({
+          id: l.id,
+          unit: l.unit,
+          conversionFactor: Number(l.conversionFactor) || 1,
+          referenceUnit: l.referenceUnit || initialData.baseUnit || 'Cái',
+          ratioToBase: l.ratioToBase ? Number(l.ratioToBase) : null,
+          note: l.note || '',
+          sortOrder: l.sortOrder || idx + 1,
+        }))
+      );
+    } else {
+      setCode(`GRP-UOM-${Date.now().toString().slice(-4)}`);
+      setName('');
+      const defaultBase = unitsOfMeasure[0]?.name || 'Cái';
+      setBaseUnit(defaultBase);
+      setDescription('');
+      setStatus('active');
+      setLines([
+        {
+          unit: 'Hộp',
+          conversionFactor: 10,
+          referenceUnit: defaultBase,
+          ratioToBase: 10,
+          note: 'Quy cách đóng hộp',
+          sortOrder: 1,
+        },
+        {
+          unit: 'Thùng',
+          conversionFactor: 20,
+          referenceUnit: 'Hộp',
+          ratioToBase: 200,
+          note: 'Thùng lớn gồm nhiều hộp',
+          sortOrder: 2,
+        },
+      ]);
+    }
+  }, [initialData, unitsOfMeasure, isOpen]);
+
+  if (!isOpen) return null;
+
+  const handleAddLine = () => {
+    const availableUnit = unitsOfMeasure.find((u) => u.name !== baseUnit && !lines.some((l) => l.unit === u.name));
+    const nextUnitName = availableUnit ? availableUnit.name : 'Đơn vị mới';
+    setLines((prev) => [
+      ...prev,
+      {
+        unit: nextUnitName,
+        conversionFactor: 1,
+        referenceUnit: baseUnit,
+        ratioToBase: 1,
+        note: '',
+        sortOrder: prev.length + 1,
+      },
+    ]);
+  };
+
+  const handleUpdateLine = (index: number, field: string, value: any) => {
+    setLines((prev) =>
+      prev.map((line, idx) => {
+        if (idx !== index) return line;
+        const updated = { ...line, [field]: value };
+        return updated;
+      })
+    );
+  };
+
+  const handleRemoveLine = (index: number) => {
+    setLines((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) {
+      alert('Vui lòng nhập tên bộ nhóm quy đổi');
+      return;
+    }
+    if (!baseUnit.trim()) {
+      alert('Vui lòng chọn đơn vị tính cơ sở chuẩn');
+      return;
+    }
+
+    const cleanLines = lines.map((l, idx) => ({
+      id: l.id,
+      unit: l.unit.trim(),
+      conversionFactor: Number(l.conversionFactor) || 1,
+      referenceUnit: (l.referenceUnit || baseUnit).trim(),
+      ratioToBase: l.ratioToBase ? Number(l.ratioToBase) : Number(l.conversionFactor) || 1,
+      note: l.note?.trim() || null,
+      sortOrder: idx + 1,
+    }));
+
+    onSave({
+      code: code.trim().toUpperCase(),
+      name: name.trim(),
+      baseUnit: baseUnit.trim(),
+      description: description.trim() || null,
+      status,
+      lines: cleanLines as any,
+    });
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md overflow-y-auto">
+      <div className="bg-slate-900 border border-slate-700 w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden my-8 max-h-[90vh] flex flex-col">
+        {/* Header Modal */}
+        <div className="px-6 py-4 bg-slate-850 border-b border-slate-700/80 flex items-center justify-between shrink-0">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-gradient-to-tr from-purple-600 to-indigo-600 rounded-xl text-white shadow-md shadow-purple-500/20">
+              <Layers className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white">
+                {initialData ? 'Chỉnh Sửa Bộ Nhóm Quy Đổi ĐVT' : 'Thêm Mới Bộ Cấu Hình Nhóm ĐVT & Quy Đổi'}
+              </h3>
+              <p className="text-xs text-slate-400">Thiết lập nhóm đơn vị tính cơ sở và danh sách các cấp quy đổi tương ứng</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Modal Form Body */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto flex-1 custom-scrollbar">
+          {/* PHẦN 1: THÔNG TIN BỘ NHÓM QUY ĐỔI */}
+          <div className="bg-slate-850/70 border border-slate-800 rounded-2xl p-5 space-y-4">
+            <div className="flex items-center space-x-2 pb-2 border-b border-slate-800">
+              <Scale className="w-4 h-4 text-purple-400" />
+              <h4 className="text-xs font-bold uppercase tracking-wider text-purple-300">Phần 1: Thông Tin Bộ Nhóm ĐVT</h4>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">Mã nhóm quy đổi *</label>
+                <input
+                  type="text"
+                  required
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="VD: GRP-UOM-CABLE, GRP-UOM-PACK..."
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs uppercase font-mono focus:border-purple-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">Tên bộ nhóm quy đổi *</label>
+                <input
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="VD: Quy chuẩn Dây Cáp & Điện, Đóng gói Thùng-Hộp-Cái..."
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:border-purple-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                  ĐVT Cơ Sở Chuẩn (Base Unit) *
+                </label>
+                <div className="relative">
+                  <select
+                    value={baseUnit}
+                    onChange={(e) => setBaseUnit(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-800 border border-purple-500/50 rounded-xl text-purple-200 text-xs font-bold focus:border-purple-400 focus:outline-none cursor-pointer"
+                  >
+                    {unitsOfMeasure.map((u) => (
+                      <option key={u.id} value={u.name}>
+                        {u.name} {u.symbol ? `(${u.symbol})` : ''} - {u.code}
+                      </option>
+                    ))}
+                    {!unitsOfMeasure.some((u) => u.name === baseUnit) && baseUnit && (
+                      <option value={baseUnit}>{baseUnit} (Tùy chọn)</option>
+                    )}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+              <div className="sm:col-span-3">
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">Mô tả / Ghi chú nghiệp vụ</label>
+                <input
+                  type="text"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Mô tả phạm vi áp dụng, ví dụ: Áp dụng cho các sản phẩm cáp mạng, dây điện xuất lẻ..."
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:border-purple-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">Trạng thái</label>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as 'active' | 'inactive')}
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:border-purple-500 focus:outline-none cursor-pointer"
+                >
+                  <option value="active">🟢 Đang hoạt động</option>
+                  <option value="inactive">⚪ Tạm ngưng</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* PHẦN 2: BẢNG CẤU HÌNH CÔNG THỨC QUY ĐỔI ĐỘNG (ĐVT = HỆ SỐ x ĐVT) */}
+          <div className="bg-slate-850/70 border border-slate-800 rounded-2xl p-5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-800">
+              <div className="flex items-center space-x-2">
+                <ArrowRightLeft className="w-4 h-4 text-emerald-400" />
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-300">
+                    Phần 2: Bảng Cấu Hình Các Dòng Quy Đổi (ĐVT = Hệ số x ĐVT)
+                  </h4>
+                  <p className="text-[11px] text-slate-400">
+                    Quy tắc thiết lập: <span className="font-bold text-white">1 [ĐVT Quy Đổi] = [Hệ Số] x [ĐVT Tham Chiếu / Cơ Sở]</span>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleAddLine}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl flex items-center space-x-1.5 cursor-pointer shadow shadow-emerald-600/20 self-start sm:self-auto"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Thêm Dòng Quy Đổi</span>
+              </button>
+            </div>
+
+            {/* Dynamic Lines Table */}
+            {lines.length === 0 ? (
+              <div className="text-center py-8 bg-slate-900/50 rounded-2xl border border-dashed border-slate-750 p-6 space-y-2">
+                <p className="text-xs text-slate-400">Chưa có dòng quy đổi nào trong nhóm này.</p>
+                <button
+                  type="button"
+                  onClick={handleAddLine}
+                  className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl inline-flex items-center space-x-1 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ Thêm Dòng Quy Đổi Đầu Tiên</span>
+                </button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-700/80 text-slate-400 uppercase text-[10px] tracking-wider bg-slate-900/40">
+                      <th className="py-2.5 px-3 w-10 text-center">#</th>
+                      <th className="py-2.5 px-3 min-w-[140px]">ĐVT Quy Đổi (Chọn thoải mái)</th>
+                      <th className="py-2.5 px-2 w-8 text-center">=</th>
+                      <th className="py-2.5 px-3 w-28">Hệ Số Quy Đổi</th>
+                      <th className="py-2.5 px-3 min-w-[140px]">ĐVT Tham Chiếu / Chuẩn</th>
+                      <th className="py-2.5 px-3 min-w-[150px]">Công Thức Trực Quan</th>
+                      <th className="py-2.5 px-3 min-w-[140px]">Ghi Chú Quy Cách</th>
+                      <th className="py-2.5 px-2 w-12 text-center">Xóa</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800">
+                    {lines.map((line, idx) => {
+                      const factor = Number(line.conversionFactor) || 1;
+                      const ref = line.referenceUnit || baseUnit;
+                      return (
+                        <tr key={idx} className="hover:bg-slate-800/50 transition-colors group">
+                          <td className="py-2 px-3 text-center text-slate-500 font-mono">{idx + 1}</td>
+                          
+                          {/* Đơn vị quy đổi (Chọn thoải mái từ Master UOM hoặc nhập) */}
+                          <td className="py-2 px-3">
+                            <div className="flex items-center space-x-1">
+                              <select
+                                value={line.unit}
+                                onChange={(e) => handleUpdateLine(idx, 'unit', e.target.value)}
+                                className="w-full px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white font-bold text-xs focus:border-purple-500 focus:outline-none"
+                              >
+                                {unitsOfMeasure.map((u) => (
+                                  <option key={u.id} value={u.name}>
+                                    {u.name} {u.symbol ? `(${u.symbol})` : ''}
+                                  </option>
+                                ))}
+                                {!unitsOfMeasure.some((u) => u.name === line.unit) && line.unit && (
+                                  <option value={line.unit}>{line.unit}</option>
+                                )}
+                              </select>
+                            </div>
+                          </td>
+
+                          {/* Dấu = */}
+                          <td className="py-2 px-2 text-center font-bold text-slate-400">
+                            =
+                          </td>
+
+                          {/* Hệ số quy đổi */}
+                          <td className="py-2 px-3">
+                            <input
+                              type="number"
+                              min="0.0001"
+                              step="any"
+                              required
+                              value={line.conversionFactor}
+                              onChange={(e) => handleUpdateLine(idx, 'conversionFactor', parseFloat(e.target.value) || 0)}
+                              className="w-full px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-emerald-300 font-mono font-bold text-xs text-right focus:border-emerald-500 focus:outline-none"
+                              placeholder="VD: 305"
+                            />
+                          </td>
+
+                          {/* Đơn vị tham chiếu */}
+                          <td className="py-2 px-3">
+                            <select
+                              value={line.referenceUnit || baseUnit}
+                              onChange={(e) => handleUpdateLine(idx, 'referenceUnit', e.target.value)}
+                              className="w-full px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 text-xs focus:border-purple-500 focus:outline-none"
+                            >
+                              <option value={baseUnit}>⭐ {baseUnit} (Cơ sở chuẩn)</option>
+                              {unitsOfMeasure
+                                .filter((u) => u.name !== line.unit)
+                                .map((u) => (
+                                  <option key={u.id} value={u.name}>
+                                    {u.name} {u.symbol ? `(${u.symbol})` : ''}
+                                  </option>
+                                ))}
+                              {lines
+                                .filter((l, i) => i !== idx && l.unit && l.unit !== line.unit && l.unit !== baseUnit)
+                                .map((l, i) => (
+                                  <option key={i} value={l.unit}>
+                                    {l.unit} (ĐVT cùng nhóm)
+                                  </option>
+                                ))}
+                            </select>
+                          </td>
+
+                          {/* Preview công thức trực quan */}
+                          <td className="py-2 px-3">
+                            <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-emerald-950/60 border border-emerald-500/30 text-emerald-300 font-mono text-[11px] font-bold">
+                              <span>1 {line.unit || '?'}</span>
+                              <span className="text-slate-400">=</span>
+                              <span className="text-emerald-400">{factor}</span>
+                              <span className="text-slate-300">{ref}</span>
+                            </span>
+                          </td>
+
+                          {/* Ghi chú */}
+                          <td className="py-2 px-3">
+                            <input
+                              type="text"
+                              value={line.note || ''}
+                              onChange={(e) => handleUpdateLine(idx, 'note', e.target.value)}
+                              placeholder="VD: Cáp mạng 305m..."
+                              className="w-full px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-300 text-xs focus:border-purple-500 focus:outline-none"
+                            />
+                          </td>
+
+                          {/* Nút xóa dòng */}
+                          <td className="py-2 px-2 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveLine(idx)}
+                              className="p-1.5 text-slate-400 hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-colors cursor-pointer"
+                              title="Xóa dòng quy đổi"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {lines.length > 0 && (
+              <div className="pt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleAddLine}
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white font-semibold text-xs rounded-xl flex items-center space-x-1 cursor-pointer transition-colors border border-slate-700"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Thêm dòng quy đổi khác</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Footer Action Buttons */}
+          <div className="pt-4 border-t border-slate-800 flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-5 py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-300 font-semibold text-xs rounded-xl cursor-pointer transition-colors"
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl flex items-center space-x-2 cursor-pointer shadow-lg shadow-purple-600/25 transition-all"
+            >
+              <Save className="w-4 h-4" />
+              <span>{initialData ? 'Cập Nhật Bộ Nhóm Quy Đổi' : 'Lưu Bộ Cấu Hình Nhóm ĐVT'}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 
 // ==========================================
 // 5. Warehouse Location Modal (Vị Trí Ô Kệ)

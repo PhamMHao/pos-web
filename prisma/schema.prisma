@@ -970,20 +970,35 @@ model MasterUnitOfMeasure {
   @@map("DanhMucDonViTinh")
 }
 
-// 18.4.1 BẢNG QUY ĐỔI ĐƠN VỊ TÍNH (1 ĐVT A = Hệ Số x ĐVT B)
-model MasterUOMConversion {
-  id           String   @id @default(uuid())
-  fromUnitName String   // VD: 'Thùng', 'Cuộn', 'Hộp', 'Pallet'
-  fromUnitId   String?
-  factor       Decimal  @db.Decimal(18, 4) // VD: 10, 100, 24
-  toUnitName   String   // VD: 'Cuộn', 'Mét', 'Kg', 'Lon', 'Cái'
-  toUnitId     String?
-  note         String?  // VD: '1 Thùng = 10 Cuộn', '1 Cuộn = 100m (~10kg)'
-  status       String   @default("active") // 'active' | 'inactive'
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+// 18.4.1 BỘ NHÓM ĐƠN VỊ TÍNH & QUY ĐỔI
+model MasterUomGroup {
+  id          String               @id @default(uuid())
+  code        String               @unique
+  name        String
+  baseUnit    String               // Đơn vị tính cơ sở chuẩn của nhóm (VD: 'Mét', 'Cái', 'Gram'...)
+  description String?              @db.NVarChar(Max)
+  status      String               @default("active") // 'active' | 'inactive'
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  lines       MasterUomGroupLine[]
 
-  @@map("DanhMucQuyDoiDVT")
+  @@map("NhomDonViTinh")
+}
+
+model MasterUomGroupLine {
+  id               String         @id @default(uuid())
+  groupId          String
+  group            MasterUomGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  unit             String         // Tên / Ký hiệu ĐVT quy đổi (VD: 'Cuộn', 'Thùng', 'Hộp'...)
+  conversionFactor Decimal        @db.Decimal(18, 4) // Hệ số quy đổi (VD: 305, 20, 10...)
+  referenceUnit    String         // ĐVT tham chiếu/cơ sở (VD: 'Mét', 'Cái', 'Hộp'...)
+  ratioToBase      Decimal?       @db.Decimal(18, 4) // Tỷ lệ quy về base unit
+  note             String?        @db.NVarChar(Max)
+  sortOrder        Int            @default(0)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@map("ChiTietNhomDonViTinh")
 }
 
 // 18.5 DANH MỤC NGÀNH HÀNG MASTER
