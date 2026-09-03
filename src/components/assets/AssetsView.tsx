@@ -19,6 +19,7 @@ import { EnterpriseAsset, StoreSettings } from '../../types';
 import { NewAssetModal } from './NewAssetModal';
 import { AssetBarcodeLabelModal } from './AssetBarcodeLabelModal';
 import { Barcode, QrCode } from 'lucide-react';
+import { formatVND } from '../../utils/currency';
 
 interface AssetsViewProps {
   assets?: EnterpriseAsset[];
@@ -39,10 +40,6 @@ export const AssetsView: React.FC<AssetsViewProps> = ({
   const [editingAsset, setEditingAsset] = useState<EnterpriseAsset | null>(null);
   const [showLabelModal, setShowLabelModal] = useState(false);
   const [selectedAssetForLabel, setSelectedAssetForLabel] = useState<EnterpriseAsset | null>(null);
-
-  const formatVND = (amt: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amt);
-  };
 
   const filteredAssets = safeAssets.filter(
     (a) =>

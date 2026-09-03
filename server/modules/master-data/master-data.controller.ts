@@ -91,7 +91,46 @@ export class MasterDataController {
     }
   }
 
-  // 4. Warehouse Locations
+  // 4. Master Warehouses
+  static async getWarehouses(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await MasterDataService.getWarehouses();
+      return sendSuccess(res, data, "Lấy danh sách kho hàng thành công");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async createWarehouse(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await MasterDataService.createWarehouse(req.body);
+      return sendCreated(res, data, "Thêm mới kho hàng thành công");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async updateWarehouse(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const data = await MasterDataService.updateWarehouse(id, req.body);
+      return sendSuccess(res, data, "Cập nhật kho hàng thành công");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async deleteWarehouse(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const data = await MasterDataService.deleteWarehouse(id);
+      return sendSuccess(res, data, "Xóa kho hàng thành công");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  // 4.1 Warehouse Locations
   static async getWarehouseLocations(req: Request, res: Response, next: NextFunction) {
     try {
       const data = await MasterDataService.getWarehouseLocations();
@@ -398,6 +437,84 @@ export class MasterDataController {
       const { id } = req.params;
       const data = await MasterDataService.deleteUomGroup(id);
       return sendSuccess(res, data, "Xóa bộ nhóm quy đổi ĐVT thành công");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  // 12. Master Colors
+  static async getColors(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await MasterDataService.getColors();
+      return sendSuccess(res, data, "Lấy danh sách màu sắc thành công");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async createColor(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await MasterDataService.createColor(req.body);
+      return sendCreated(res, data, "Thêm mới màu sắc thành công");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async updateColor(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const data = await MasterDataService.updateColor(id, req.body);
+      return sendSuccess(res, data, "Cập nhật màu sắc thành công");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async deleteColor(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const data = await MasterDataService.deleteColor(id);
+      return sendSuccess(res, data, "Xóa màu sắc thành công");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  // 13. Master Specifications
+  static async getSpecifications(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await MasterDataService.getSpecifications();
+      return sendSuccess(res, data, "Lấy danh sách quy cách thành công");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async createSpecification(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await MasterDataService.createSpecification(req.body);
+      return sendCreated(res, data, "Thêm mới quy cách thành công");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async updateSpecification(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const data = await MasterDataService.updateSpecification(id, req.body);
+      return sendSuccess(res, data, "Cập nhật quy cách thành công");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  static async deleteSpecification(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const data = await MasterDataService.deleteSpecification(id);
+      return sendSuccess(res, data, "Xóa quy cách thành công");
     } catch (error) {
       return next(error);
     }

@@ -520,7 +520,8 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                 <option value="warranty_intake">5. Phiếu Nhận Hàng Bảo Hành (Ảnh 5)</option>
                 <option value="warranty_return">6. Phiếu Trả Hàng Bảo Hành (Ảnh 6)</option>
               </optgroup>
-              <optgroup label="📄 Mẫu Bổ Sung">
+              <optgroup label="📄 Mẫu Bổ Sung & Báo Giá B2B">
+                <option value="quote">📋 Bảng Báo Giá Thương Mại & Dự Án B2B</option>
                 <option value="delivery_note">7. Phiếu Xuất Kho Giao Khách</option>
                 <option value="warranty_receipt">8. Phiếu Bán Hàng & Bảo Hành</option>
                 <option value="payment_receipt">9. Phiếu Thu Tiền / Biên Nhận</option>
@@ -539,6 +540,12 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
               <optgroup label="📋 Biên Bản Giao Nhận & Hàng Bán Trả Lại">
                 <option value="goods_delivery_record">17. Biên Bản Giao Nhận Hàng Hóa (Ảnh 1)</option>
                 <option value="sales_return">18. Phiếu Hàng Bán Trả Lại (Mẫu 02-TT) (Ảnh 2)</option>
+              </optgroup>
+              <optgroup label="🏛️ Biên Bản & Nghiệm Thu Pháp Lý (4 Mẫu Thực Tế)">
+                <option value="goods_handover_exchange">20. Biên Bản Bàn Giao - Trao Đổi Hàng Hóa (Thu Cũ Đổi Mới - Ảnh 1)</option>
+                <option value="goods_return_invoice_recall">21. Biên Bản Trả Hàng & Thu Hồi Hoá Đơn NĐ 123 (Ảnh 2)</option>
+                <option value="work_completion_handover">22. Biên Bản Xác Nhận Hoàn Thành CV & Nghiệm Thu (Ảnh 3)</option>
+                <option value="goods_exchange_invoice_replace">23. Biên Bản Đổi Hàng & Thay Đổi Hoá Đơn (Ảnh 4)</option>
               </optgroup>
             </select>
 
@@ -1567,7 +1574,7 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                       {/* -------------------------------------------------------------
                           CASE 3: HÓA ĐƠN BÁN HÀNG (Ảnh 3)
                           ------------------------------------------------------------- */}
-                      {(docType === 'sales_invoice' || docType === 'delivery_note' || docType === 'warranty_receipt' || docType === 'payment_receipt' || docType === 'einvoice_vat') && (
+                      {(docType === 'sales_invoice' || docType === 'delivery_note' || docType === 'warranty_receipt' || docType === 'payment_receipt' || docType === 'einvoice_vat' || docType === 'quote') && (
                         <>
                           <thead>
                             <tr className="excel-header-blue text-black font-bold text-center border-b border-black">

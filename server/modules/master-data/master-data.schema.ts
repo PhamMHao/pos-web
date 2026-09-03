@@ -23,11 +23,28 @@ export const createJobPositionSchema = z.object({
   description: z.string().optional().nullable(),
 });
 
-export const updateJobPositionSchema = createJobPositionSchema.partial();
+export const createWarehouseSchema = z.object({
+  code: z.string().min(1, "Mã kho không được để trống"),
+  name: z.string().min(1, "Tên kho không được để trống"),
+  type: z.enum(["general", "showroom", "rma", "transit", "branch"]).optional().default("general"),
+  address: z.string().optional().nullable(),
+  managerName: z.string().optional().nullable(),
+  phone: z.string().optional().nullable(),
+  capacity: z.number().optional().default(1000),
+  status: z.enum(["active", "inactive", "maintenance"]).optional().default("active"),
+  isDefault: z.boolean().optional().default(false),
+  description: z.string().optional().nullable(),
+  sortOrder: z.number().optional().default(0),
+});
+
+export const updateWarehouseSchema = createWarehouseSchema.partial();
 
 export const createWarehouseLocationSchema = z.object({
   code: z.string().min(1),
   name: z.string().min(1),
+  barcode: z.string().optional().nullable(),
+  warehouseId: z.string().optional().nullable(),
+  warehouseCode: z.string().optional().nullable(),
   warehouseName: z.string().optional().default("Kho Tổng"),
   zone: z.string().optional().nullable(),
   shelf: z.string().optional().nullable(),
@@ -140,3 +157,30 @@ export const createUomGroupSchema = z.object({
 });
 
 export const updateUomGroupSchema = createUomGroupSchema.partial();
+
+// 12. Master Colors Schema
+export const createColorSchema = z.object({
+  code: z.string().min(1, "Mã màu không được để trống"),
+  name: z.string().min(1, "Tên màu không được để trống"),
+  hexCode: z.string().min(1, "Mã HEX màu không được để trống").default("#000000"),
+  description: z.string().optional().nullable(),
+  status: z.enum(["active", "inactive"]).optional().default("active"),
+  sortOrder: z.number().optional().default(0),
+});
+
+export const updateColorSchema = createColorSchema.partial();
+
+// 13. Master Specifications Schema
+export const createSpecSchema = z.object({
+  code: z.string().min(1, "Mã quy cách không được để trống"),
+  name: z.string().min(1, "Tên quy cách không được để trống"),
+  category: z.string().optional().nullable(),
+  standardValue: z.string().optional().nullable(),
+  description: z.string().optional().nullable(),
+  status: z.enum(["active", "inactive"]).optional().default("active"),
+  sortOrder: z.number().optional().default(0),
+});
+
+export const updateSpecSchema = createSpecSchema.partial();
+
+

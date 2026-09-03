@@ -23,6 +23,7 @@ import {
 import { LaborContract, Employee, StoreSettings } from '../../types';
 import { LaborContractPrintModal } from './LaborContractPrintModal';
 import { numberToVietnameseWords } from '../../utils/numberToWords';
+import { formatCurrency } from '../../utils/currency';
 import { hrApi } from '../../features/hr/api/hrApi';
 import { useMasterData } from '../../core/contexts/MasterDataContext';
 
@@ -73,10 +74,6 @@ export const LaborContractManagerView: React.FC<LaborContractManagerViewProps> =
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
-  };
-
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('vi-VN').format(val) + ' đ';
   };
 
   // KPIs

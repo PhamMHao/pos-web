@@ -26,6 +26,7 @@ import {
   Sparkles,
   RefreshCw,
   PackageCheck,
+  Palette,
 } from 'lucide-react';
 import {
   EInvoice,
@@ -42,7 +43,11 @@ import {
 import { EInvoicePrintModal } from './EInvoicePrintModal';
 import { InboundEInvoiceModal } from './InboundEInvoiceModal';
 import { StockReceiptPrintModal } from '../inventory/StockReceiptPrintModal';
+import { CreateEInvoiceModal } from './CreateEInvoiceModal';
+import { EInvoiceTemplateDesignerModal } from './EInvoiceTemplateDesignerModal';
+import { TaxRiskBadge } from './TaxRiskBadge';
 import { numberToVietnameseWords } from '../../utils/numberToWords';
+import { formatCurrency } from '../../utils/currency';
 import { einvoicesApi } from '../../features/einvoices/api/einvoicesApi';
 
 interface EInvoiceManagerViewProps {
@@ -51,6 +56,7 @@ interface EInvoiceManagerViewProps {
   orders: Order[];
   customers: Customer[];
   settings: StoreSettings;
+  onSaveSettings?: (settings: StoreSettings) => void;
   inboundInvoices?: InboundEInvoice[];
   setInboundInvoices?: (invoices: InboundEInvoice[] | ((prev: InboundEInvoice[]) => InboundEInvoice[])) => void;
   products?: Product[];
@@ -67,6 +73,7 @@ export const EInvoiceManagerView: React.FC<EInvoiceManagerViewProps> = ({
   orders,
   customers,
   settings,
+  onSaveSettings,
   inboundInvoices = [],
   setInboundInvoices = () => {},
   products = [],
@@ -80,31 +87,16 @@ export const EInvoiceManagerView: React.FC<EInvoiceManagerViewProps> = ({
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedInvoice, setSelectedInvoice] = useState<EInvoice | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showDesignerModal, setShowDesignerModal] = useState(false);
   const [showInboundModal, setShowInboundModal] = useState(false);
   const [selectedStockReceipt, setSelectedStockReceipt] = useState<StockGoodsReceipt | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const pendingInboundCount = (inboundInvoices || []).filter((i) => i.status === 'pending_review').length;
 
-  // Form State for new invoice
-  const [selectedOrderId, setSelectedOrderId] = useState<string>('');
-  const [buyerName, setBuyerName] = useState('');
-  const [buyerCompanyName, setBuyerCompanyName] = useState('');
-  const [buyerTaxCode, setBuyerTaxCode] = useState('');
-  const [buyerAddress, setBuyerAddress] = useState('');
-  const [buyerPhone, setBuyerPhone] = useState('');
-  const [buyerEmail, setBuyerEmail] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'TM' | 'CK' | 'TM/CK' | 'Đối trừ công nợ'>('CK');
-  const [taxRate, setTaxRate] = useState<number>(8);
-  const [invoiceNotes, setInvoiceNotes] = useState('');
-
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
-  };
-
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('vi-VN').format(val) + ' đ';
   };
 
   // Safe Array wrapper
@@ -242,157 +234,6 @@ export const EInvoiceManagerView: React.FC<EInvoiceManagerViewProps> = ({
     showToast(`Tổng Cục Thuế đã cấp mã xác thực: ${mockCqtCode}`);
   };
 
-  const handleCreateInvoiceFromOrder = () => {
-    if (!selectedOrderId && !buyerName) {
-      alert('Vui lòng chọn Đơn hàng hoặc nhập tên người mua hàng!');
-      return;
-    }
-
-    const nextInvoiceNum = (eInvoices.length + 89).toString().padStart(8, '0');
-    const lookupHex = Math.random().toString(36).substring(2, 7).toUpperCase();
-    const lookupCode = `GP-INV-2026-${lookupHex}`;
-    const invoiceSymbol = '1C26TGP';
-
-    let items: EInvoiceItem[] = [];
-    let subtotal = 0;
-    let orderRefCode = '';
-
-    if (selectedOrderId) {
-      const ord = orders.find((o) => o.id === selectedOrderId);
-      if (ord) {
-        orderRefCode = ord.code;
-        items = ord.items.map((item, idx) => {
-          const unitPrice = item.unitPrice || 0;
-          const lineSub = unitPrice * item.quantity;
-          const lineDisc = 0;
-          const lineTax = Math.round(((lineSub - lineDisc) * taxRate) / 100);
-          return {
-            id: `item-${idx}-${Date.now()}`,
-            sku: item.productId,
-            productName: item.productName,
-            unit: item.unit || 'Cái',
-            quantity: item.quantity,
-            unitPrice: unitPrice,
-            subtotal: lineSub,
-            discountPercent: 0,
-            discountAmount: 0,
-            taxRate: taxRate,
-            taxAmount: lineTax,
-            total: lineSub - lineDisc + lineTax,
-          };
-        });
-        subtotal = ord.items.reduce((acc, it) => acc + (it.unitPrice || 0) * it.quantity, 0);
-      }
-    } else {
-      // Standalone sample item
-      items = [
-        {
-          id: `item-${Date.now()}`,
-          sku: 'DICH-VU-GP-01',
-          productName: 'Cung cấp Thiết bị Quản trị Doanh nghiệp & Dịch vụ Phần mềm',
-          unit: 'Gói',
-          quantity: 1,
-          unitPrice: 1500000,
-          subtotal: 1500000,
-          discountPercent: 0,
-          discountAmount: 0,
-          taxRate: taxRate,
-          taxAmount: Math.round((1500000 * taxRate) / 100),
-          total: 1500000 + Math.round((1500000 * taxRate) / 100),
-        },
-      ];
-      subtotal = 1500000;
-    }
-
-    const discountAmount = 0;
-    const taxAmount = Math.round(((subtotal - discountAmount) * taxRate) / 100);
-    const totalAmount = subtotal - discountAmount + taxAmount;
-    const amountInWords = numberToVietnameseWords(totalAmount);
-
-    const newInvoice: EInvoice = {
-      id: `inv-${Date.now()}`,
-      invoiceCode: `${invoiceSymbol}-${nextInvoiceNum}`,
-      invoiceNumber: nextInvoiceNum,
-      invoiceSymbol: invoiceSymbol,
-      invoiceTemplate: '1/001',
-      invoiceType: 'vat',
-      lookupCode: lookupCode,
-      lookupUrl: 'https://hoadondientu.gdt.gov.vn',
-      issueDate: new Date().toISOString(),
-      signDate: new Date().toISOString(),
-      status: 'cqt_approved',
-      cqtCode: `TCT-0318928172-${Math.floor(10000000000000 + Math.random() * 90000000000000)}`,
-      orderId: selectedOrderId || undefined,
-      orderCode: orderRefCode || undefined,
-      seller: {
-        name: settings.storeName || 'CÔNG TY CỔ PHẦN GP-ERP VIỆT NAM',
-        taxCode: settings.taxCode || '0318928172',
-        address: settings.address || 'Tòa nhà GP-Tower, 180 Nguyễn Thị Minh Khai, Quận 3, TP. Hồ Chí Minh',
-        phone: settings.phone || '0988 888 999',
-        email: settings.email || 'admin@gperp.vn',
-        bankAccount: settings.bankAccount || '0988888999',
-        bankName: settings.bankName || 'Ngân hàng Quân Đội (MB Bank)',
-        representative: 'Phạm Đức Dũng - Giám Đốc',
-      },
-      buyer: {
-        companyName: buyerCompanyName || undefined,
-        buyerName: buyerName || 'Khách hàng cá nhân',
-        taxCode: buyerTaxCode || undefined,
-        address: buyerAddress || 'TP. Hồ Chí Minh',
-        phone: buyerPhone || undefined,
-        email: buyerEmail || undefined,
-      },
-      items,
-      subtotal,
-      discountAmount,
-      taxRate,
-      taxAmount,
-      totalAmount,
-      amountInWords,
-      paymentMethod,
-      notes: invoiceNotes || `Hóa đơn GTGT phát hành theo quy định Thông tư 78/2021/TT-BTC.`,
-      digitalSignature: {
-        signedBy: settings.storeName || 'CÔNG TY CỔ PHẦN GP-ERP VIỆT NAM',
-        serialNumber: '54:01:01:82:91:02:93:84:71:0A:99:BC:12',
-        signTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
-        certProvider: 'VIETTEL-CA (Bộ Thông Tin & Truyền Thông cấp phép)',
-        isVerified: true,
-      },
-      cqtStatusMessage: 'Cơ quan Thuế chấp nhận hóa đơn hợp lệ và đã cấp mã xác thực.',
-    };
-
-    setEInvoices((prev) => [newInvoice, ...prev]);
-    setShowCreateModal(false);
-    showToast(`Đã lập thành công Hóa đơn điện tử số #${nextInvoiceNum}!`);
-    setSelectedInvoice(newInvoice);
-
-    try {
-      einvoicesApi.createInvoice(newInvoice).catch((e) => console.warn('Sync invoice error:', e.message));
-    } catch (e: any) {
-      console.warn('API sync warning:', e.message);
-    }
-
-    // Reset fields
-    setSelectedOrderId('');
-    setBuyerName('');
-    setBuyerCompanyName('');
-    setBuyerTaxCode('');
-    setBuyerAddress('');
-    setBuyerPhone('');
-    setBuyerEmail('');
-    setInvoiceNotes('');
-  };
-
-  const handlePopulateFromCustomer = (custName: string) => {
-    const cust = customers.find((c) => c.name === custName);
-    if (cust) {
-      setBuyerName(cust.name);
-      setBuyerPhone(cust.phone || '');
-      setBuyerAddress(cust.address || '');
-      setBuyerEmail(cust.email || '');
-    }
-  };
-
   const handleExportTaxReport = () => {
     showToast('Đã xuất Bảng Kê Hóa Đơn GTGT Bán Ra (Mẫu 01-1/GTGT) file CSV thành công!');
   };
@@ -449,11 +290,19 @@ export const EInvoiceManagerView: React.FC<EInvoiceManagerViewProps> = ({
           </button>
 
           <button
+            onClick={() => setShowDesignerModal(true)}
+            className="px-3.5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl shadow-md shadow-purple-500/20 border border-purple-400/30 flex items-center gap-1.5 transition hover:scale-[1.02] active:scale-98 cursor-pointer"
+          >
+            <Palette className="w-4 h-4 text-purple-200" />
+            <span>Thiết Kế Mẫu HĐĐT</span>
+          </button>
+
+          <button
             onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md shadow-emerald-500/20 flex items-center gap-1.5 transition"
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md shadow-emerald-500/20 flex items-center gap-1.5 transition hover:scale-[1.02] active:scale-98 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            Lập HĐĐT Mới
+            <span>Lập HĐĐT Mới</span>
           </button>
         </div>
       </div>
@@ -577,7 +426,12 @@ export const EInvoiceManagerView: React.FC<EInvoiceManagerViewProps> = ({
                         {inv.buyer?.companyName || inv.buyer?.buyerName || 'Khách lẻ'}
                       </div>
                       {inv.buyer?.taxCode ? (
-                        <span className="text-[11px] text-slate-500 font-mono">MST: {inv.buyer?.taxCode}</span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-[11px] text-slate-600 font-mono font-medium">MST: {inv.buyer?.taxCode}</span>
+                          <span className="px-1.5 py-0.2 rounded-full text-[9.5px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            ✓ Khớp CSDL Thuế
+                          </span>
+                        </div>
                       ) : (
                         <span className="text-[11px] text-slate-400 italic">Khách cá nhân</span>
                       )}
@@ -665,196 +519,35 @@ export const EInvoiceManagerView: React.FC<EInvoiceManagerViewProps> = ({
         </div>
       </div>
 
-      {/* Modal Lập Hóa Đơn Điện Tử Mới */}
+      {/* Create E-Invoice Modal (Manual & Order-based) */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 overflow-y-auto backdrop-blur-sm">
-          <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200 my-auto animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between px-6 py-4 bg-slate-900 text-white border-b border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center border border-blue-500/30">
-                  <Plus className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold">Lập Hóa Đơn Điện Tử Mới (TT78)</h3>
-                  <p className="text-xs text-slate-400">Khởi tạo hóa đơn GTGT điện tử có mã của Cơ quan Thuế</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowCreateModal(false)}
-                className="p-1 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+        <CreateEInvoiceModal
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          orders={orders}
+          customers={customers}
+          products={products}
+          settings={settings}
+          onInvoiceCreated={(newInvoice) => {
+            setEInvoices((prev) => [newInvoice, ...prev]);
+            showToast(`Đã phát hành thành công Hóa đơn điện tử #${newInvoice.invoiceNumber} (${newInvoice.invoiceSymbol})!`);
+          }}
+        />
+      )}
 
-            <div className="p-6 space-y-4 max-h-[calc(85vh-120px)] overflow-y-auto text-xs text-slate-700">
-              {/* Option 1: Select Existing Order */}
-              <div>
-                <label className="block text-xs font-bold text-slate-800 mb-1">
-                  Chọn Đơn Hàng Đã Bán (Tự động nạp danh sách sản phẩm)
-                </label>
-                <select
-                  value={selectedOrderId}
-                  onChange={(e) => {
-                    setSelectedOrderId(e.target.value);
-                    const ord = orders.find((o) => o.id === e.target.value);
-                    if (ord) {
-                      const cName = ord.customer?.name || '';
-                      setBuyerName(cName);
-                      handlePopulateFromCustomer(cName);
-                    }
-                  }}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs focus:bg-white focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">-- Xuất hóa đơn dịch vụ lẻ / Tự nhập thông tin --</option>
-                  {orders.map((o) => {
-                    const custName = o.customer?.name || 'Khách lẻ';
-                    return (
-                      <option key={o.id} value={o.id}>
-                        {o.code} - {custName} - {formatCurrency(o.total)} ({new Date(o.createdAt).toLocaleDateString('vi-VN')})
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-
-              {/* Buyer Information Form */}
-              <div className="border border-slate-200 p-4 rounded-xl bg-slate-50/60 space-y-3">
-                <h4 className="font-bold text-slate-900 flex items-center gap-1.5">
-                  <Building2 className="w-4 h-4 text-blue-600" />
-                  Thông Tin Người Mua Hàng & Đơn Vị Nhận Hóa Đơn
-                </h4>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-slate-600 font-medium mb-1">Tên Người Mua / Đại Diện *</label>
-                    <input
-                      type="text"
-                      placeholder="VD: Nguyễn Văn Hùng"
-                      value={buyerName}
-                      onChange={(e) => setBuyerName(e.target.value)}
-                      className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-600 font-medium mb-1">Mã Số Thuế (Nếu là Doanh nghiệp)</label>
-                    <input
-                      type="text"
-                      placeholder="VD: 0312345678"
-                      value={buyerTaxCode}
-                      onChange={(e) => setBuyerTaxCode(e.target.value)}
-                      className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-mono"
-                    />
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <label className="block text-slate-600 font-medium mb-1">Tên Đơn Vị / Công Ty</label>
-                    <input
-                      type="text"
-                      placeholder="VD: CÔNG TY TNHH XÂY DỰNG & CÔNG NGHỆ BẮC NAM"
-                      value={buyerCompanyName}
-                      onChange={(e) => setBuyerCompanyName(e.target.value)}
-                      className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs uppercase"
-                    />
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <label className="block text-slate-600 font-medium mb-1">Địa Chỉ Nhận Hóa Đơn</label>
-                    <input
-                      type="text"
-                      placeholder="VD: Tòa nhà Bitexco, Số 2 Hải Triều, P. Bến Nghé, Quận 1, TP.HCM"
-                      value={buyerAddress}
-                      onChange={(e) => setBuyerAddress(e.target.value)}
-                      className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-600 font-medium mb-1">Số Điện Thoại</label>
-                    <input
-                      type="text"
-                      placeholder="VD: 0912 345 678"
-                      value={buyerPhone}
-                      onChange={(e) => setBuyerPhone(e.target.value)}
-                      className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-600 font-medium mb-1">Email Nhận HĐĐT</label>
-                    <input
-                      type="email"
-                      placeholder="VD: ketoan@bacnam-corp.vn"
-                      value={buyerEmail}
-                      onChange={(e) => setBuyerEmail(e.target.value)}
-                      className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Tax & Payment Method */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-600 font-medium mb-1">Thuế Suất VAT (%)</label>
-                  <select
-                    value={taxRate}
-                    onChange={(e) => setTaxRate(Number(e.target.value))}
-                    className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold"
-                  >
-                    <option value={8}>8% (Thuế suất ưu đãi theo Nghị định)</option>
-                    <option value={10}>10% (Thuế suất thông thường)</option>
-                    <option value={5}>5% (Nông sản, y tế, giáo dục)</option>
-                    <option value={0}>0% (Xuất khẩu / Khu phi thuế quan)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-slate-600 font-medium mb-1">Hình Thức Thanh Toán</label>
-                  <select
-                    value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value as any)}
-                    className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold"
-                  >
-                    <option value="CK">CK (Chuyển khoản Ngân hàng)</option>
-                    <option value="TM">TM (Tiền mặt)</option>
-                    <option value="TM/CK">TM/CK (Tiền mặt / Chuyển khoản)</option>
-                    <option value="Đối trừ công nợ">Đối trừ công nợ B2B</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Notes */}
-              <div>
-                <label className="block text-slate-600 font-medium mb-1">Ghi Chú Trên Hóa Đơn</label>
-                <input
-                  type="text"
-                  placeholder="Ghi chú đính kèm hợp đồng số, phụ lục, điều khoản giao hàng..."
-                  value={invoiceNotes}
-                  onChange={(e) => setInvoiceNotes(e.target.value)}
-                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2.5 px-6 py-4 bg-slate-50 border-t border-slate-200">
-              <button
-                onClick={() => setShowCreateModal(false)}
-                className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 font-medium rounded-xl border border-slate-300 text-xs transition"
-              >
-                Hủy Bỏ
-              </button>
-              <button
-                onClick={handleCreateInvoiceFromOrder}
-                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md text-xs flex items-center gap-1.5 transition"
-              >
-                <ShieldCheck className="w-4 h-4" />
-                Phát Hành & Ký Số HĐĐT
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* E-Invoice Template Designer Modal (WYSIWYG) */}
+      {showDesignerModal && (
+        <EInvoiceTemplateDesignerModal
+          isOpen={showDesignerModal}
+          onClose={() => setShowDesignerModal(false)}
+          settings={settings}
+          onSaveSettings={(newSettings) => {
+            if (onSaveSettings) {
+              onSaveSettings(newSettings);
+            }
+            showToast('Đã lưu cấu hình mẫu Hóa đơn điện tử thành công!');
+          }}
+        />
       )}
 
       {/* Print & View Modal */}

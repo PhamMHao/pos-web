@@ -518,21 +518,122 @@ async function main() {
     }
   }
 
-  // 19. Vị trí lưu kho (Warehouse Locations)
-  console.log("19. Seeding Warehouse Locations...");
+  // 19.1 Danh mục kho hàng (Master Warehouses)
+  console.log("19.1 Seeding Master Warehouses...");
+  const INITIAL_WAREHOUSES = [
+    {
+      id: "wh-main",
+      code: "KHO-CHINH",
+      name: "Kho Chính Gia Phúc Computer",
+      type: "general",
+      address: "Số 123 Đường Cộng Hòa, Phường 12, Quận Tân Bình, TP.HCM",
+      managerName: "Nguyễn Văn Khoa",
+      phone: "0903112233",
+      capacity: 15000,
+      status: "active",
+      isDefault: true,
+      description: "Kho tổng trung tâm lưu trữ, đóng gói và điều phối toàn bộ linh kiện PC, Laptop và Thiết bị mạng",
+      sortOrder: 1
+    },
+    {
+      id: "wh-showroom",
+      code: "KHO-SHOWROOM",
+      name: "Kho Kỹ Thuật & Showroom Trưng Bày",
+      type: "showroom",
+      address: "456 Đường Lê Văn Sỹ, Phường 14, Quận 3, TP.HCM",
+      managerName: "Trần Văn Kỹ",
+      phone: "0903223344",
+      capacity: 3500,
+      status: "active",
+      isDefault: false,
+      description: "Kho phụ vụ trưng bày bán lẻ, trải nghiệm gaming gear và lắp ráp ráp máy tại chỗ cho khách hàng",
+      sortOrder: 2
+    },
+    {
+      id: "wh-hcm",
+      code: "KHO-HCM",
+      name: "Kho Chi Nhánh TP.HCM (Thủ Đức)",
+      type: "branch",
+      address: "Số 78 Võ Văn Ngân, Phường Linh Chiểu, TP.Thủ Đức, TP.HCM",
+      managerName: "Lê Hoàng Nam",
+      phone: "0903334455",
+      capacity: 8000,
+      status: "active",
+      isDefault: false,
+      description: "Kho trung chuyển khu vực phía Đông và phục vụ giao nhanh nội thành 2h",
+      sortOrder: 3
+    },
+    {
+      id: "wh-binhduong",
+      code: "KHO-BINHDUONG",
+      name: "Kho Chi Nhánh Bình Dương",
+      type: "branch",
+      address: "Số 99 Đại Lộ Bình Dương, Phường Phú Hòa, TP.Thủ Dầu Một, Bình Dương",
+      managerName: "Phạm Minh Tân",
+      phone: "0903445566",
+      capacity: 6000,
+      status: "active",
+      isDefault: false,
+      description: "Kho cung ứng dự án phòng Net Cyber Game và doanh nghiệp khu công nghiệp Bình Dương",
+      sortOrder: 4
+    },
+    {
+      id: "wh-rma",
+      code: "KHO-BAOHANH",
+      name: "Kho Bảo Hành, RMA & Linh Kiện Sửa Chữa",
+      type: "rma",
+      address: "123/2 Đường Cộng Hòa, Phường 12, Quận Tân Bình, TP.HCM",
+      managerName: "Vũ Văn Bảo",
+      phone: "0903556677",
+      capacity: 2000,
+      status: "active",
+      isDefault: false,
+      description: "Kho lưu trữ thiết bị chờ gửi hãng bảo hành, hàng đổi trả 1-1 và linh kiện bóc máy sửa chữa",
+      sortOrder: 5
+    }
+  ];
+  for (const item of INITIAL_WAREHOUSES) {
+    const exists = await prisma.masterWarehouse.findMany({ where: { code: item.code } });
+    if (exists.length === 0) {
+      const dt = new Date();
+      await prisma.$executeRaw`
+        INSERT INTO [DanhMucKhoHang] (id, code, name, type, address, managerName, phone, capacity, status, isDefault, description, sortOrder, createdAt, updatedAt)
+        VALUES (${item.id}, ${item.code}, ${item.name}, ${item.type}, ${item.address}, ${item.managerName}, ${item.phone}, ${item.capacity}, ${item.status}, ${item.isDefault ? 1 : 0}, ${item.description}, ${item.sortOrder}, ${dt}, ${dt})
+      `;
+    }
+  }
+
+  // 19.2 Vị trí lưu kho & ô kệ theo từng kho (Warehouse Locations)
+  console.log("19.2 Seeding Warehouse Locations per Warehouse...");
   const INITIAL_LOCATIONS = [
-    { id: "loc-a1-01", code: "VT-A1-01", name: "Kệ A1 - Tầng 1 (CPU & Vi Xử Lý)", warehouseName: "Kho Tổng Gia Phúc TP.HCM", zone: "Khu A - Linh Kiện Nhỏ Giá Trị Cao", shelf: "Kệ A1", tier: "Tầng 1 (Tầm Mắt)", bin: "Ngăn 01", capacity: 200, currentUsage: 85, status: "active", notes: "Có khóa an ninh, nhiệt độ phòng 22-25 độ C" },
-    { id: "loc-a2-01", code: "VT-A2-01", name: "Kệ A2 - Tầng 2 (VGA & Card Màn Hình)", warehouseName: "Kho Tổng Gia Phúc TP.HCM", zone: "Khu A - Linh Kiện Nhỏ Giá Trị Cao", shelf: "Kệ A2", tier: "Tầng 2", bin: "Ngăn 01-04", capacity: 120, currentUsage: 42, status: "active", notes: "Khu vực trang bị camera giám sát 24/7 chống thất thoát" },
-    { id: "loc-b1-01", code: "VT-B1-01", name: "Kệ B1 - Tầng 1 (RAM & Ổ Cứng SSD)", warehouseName: "Kho Tổng Gia Phúc TP.HCM", zone: "Khu B - Thiết Bị Lưu Trữ & Bộ Nhớ", shelf: "Kệ B1", tier: "Tầng 1", bin: "Ngăn 01-08", capacity: 350, currentUsage: 190, status: "active", notes: "Khu vực khô ráo, đóng gói chống ẩm" },
-    { id: "loc-c1-01", code: "VT-C1-01", name: "Khu Pallet C1 (Màn Hình & Vỏ Case)", warehouseName: "Kho Tổng Gia Phúc TP.HCM", zone: "Khu C - Hàng Cồng Kềnh", shelf: "Pallet C1-C4", tier: "Mặt sàn", bin: "Khu mở", capacity: 60, currentUsage: 28, status: "active", notes: "Xếp tối đa 3 thùng chồng lên nhau theo khuyến cáo nhà sản xuất" }
+    // 1. Kho Chính
+    { id: "loc-main-a1", code: "VT-MAIN-A1", barcode: "LOC-MAIN-A1", name: "Kệ A1 - Tầng 1 (CPU & Vi Xử Lý)", warehouseId: "wh-main", warehouseCode: "KHO-CHINH", warehouseName: "Kho Chính Gia Phúc Computer", zone: "Khu A - Linh Kiện Cao Cấp", shelf: "Kệ A1", tier: "Tầng 1", bin: "Ngăn 01", capacity: 200, currentUsage: 85, status: "active", notes: "Có khóa an ninh, nhiệt độ phòng 22-25 độ C" },
+    { id: "loc-main-a2", code: "VT-MAIN-A2", barcode: "LOC-MAIN-A2", name: "Kệ A2 - Tầng 2 (VGA & Card Màn Hình)", warehouseId: "wh-main", warehouseCode: "KHO-CHINH", warehouseName: "Kho Chính Gia Phúc Computer", zone: "Khu A - Linh Kiện Cao Cấp", shelf: "Kệ A2", tier: "Tầng 2", bin: "Ngăn 01-04", capacity: 120, currentUsage: 42, status: "active", notes: "Khu vực trang bị camera giám sát 24/7 chống thất thoát" },
+    { id: "loc-main-b1", code: "VT-MAIN-B1", barcode: "LOC-MAIN-B1", name: "Kệ B1 - Tầng 1 (RAM & Ổ Cứng SSD)", warehouseId: "wh-main", warehouseCode: "KHO-CHINH", warehouseName: "Kho Chính Gia Phúc Computer", zone: "Khu B - Thiết Bị Lưu Trữ", shelf: "Kệ B1", tier: "Tầng 1", bin: "Ngăn 01-08", capacity: 350, currentUsage: 190, status: "active", notes: "Khu vực khô ráo, đóng gói chống ẩm" },
+    { id: "loc-main-c1", code: "VT-MAIN-C1", barcode: "LOC-MAIN-C1", name: "Khu Pallet C1 (Màn Hình & Vỏ Case)", warehouseId: "wh-main", warehouseCode: "KHO-CHINH", warehouseName: "Kho Chính Gia Phúc Computer", zone: "Khu C - Hàng Cồng Kềnh", shelf: "Pallet C1-C4", tier: "Mặt sàn", bin: "Khu mở", capacity: 60, currentUsage: 28, status: "active", notes: "Xếp tối đa 3 thùng chồng lên nhau theo khuyến cáo nhà sản xuất" },
+    
+    // 2. Kho Showroom
+    { id: "loc-sr-t1", code: "VT-SR-T1", barcode: "LOC-SR-T1", name: "Tủ Kính Trưng Bày T1 (Laptop & Gaming Gear)", warehouseId: "wh-showroom", warehouseCode: "KHO-SHOWROOM", warehouseName: "Kho Kỹ Thuật & Showroom Trưng Bày", zone: "Khu Showroom Tầng 1", shelf: "Tủ Kính T1", tier: "Tầng 2", bin: "Ngăn VIP", capacity: 50, currentUsage: 22, status: "active", notes: "Khu trưng bày mẫu cho khách test phím cơ, chuột và tai nghe" },
+    { id: "loc-sr-kt1", code: "VT-SR-KT1", barcode: "LOC-SR-KT1", name: "Bàn Kỹ Thuật K1 (Linh Kiện Lắp Ráp & Test)", warehouseId: "wh-showroom", warehouseCode: "KHO-SHOWROOM", warehouseName: "Kho Kỹ Thuật & Showroom Trưng Bày", zone: "Khu Kỹ Thuật", shelf: "Bàn K1", tier: "Kệ Treo", bin: "Hộp 1-6", capacity: 80, currentUsage: 35, status: "active", notes: "Linh kiện phục vụ kỹ thuật viên dựng case theo yêu cầu" },
+
+    // 3. Kho Thủ Đức
+    { id: "loc-hcm-k1", code: "VT-HCM-K1", barcode: "LOC-HCM-K1", name: "Kệ Đa Năng K1 (Phụ Kiện & Cáp Chuyển)", warehouseId: "wh-hcm", warehouseCode: "KHO-HCM", warehouseName: "Kho Chi Nhánh TP.HCM (Thủ Đức)", zone: "Khu Lưu Trữ Phụ Kiện", shelf: "Kệ K1", tier: "Tầng 1-3", bin: "Khay chia", capacity: 400, currentUsage: 160, status: "active", notes: "Phục vụ đơn ship hỏa tốc khu vực Thủ Đức & Q.9" },
+    { id: "loc-hcm-k2", code: "VT-HCM-K2", barcode: "LOC-HCM-K2", name: "Kệ K2 (Màn Hình & Máy Bộ Sẵn)", warehouseId: "wh-hcm", warehouseCode: "KHO-HCM", warehouseName: "Kho Chi Nhánh TP.HCM (Thủ Đức)", zone: "Khu Máy Bộ", shelf: "Kệ K2", tier: "Tầng 1", bin: "Khu mở", capacity: 50, currentUsage: 18, status: "active", notes: "PC văn phòng lắp sẵn cấu hình" },
+
+    // 4. Kho Bình Dương
+    { id: "loc-bd-a1", code: "VT-BD-A1", barcode: "LOC-BD-A1", name: "Kệ A1 Bình Dương (Thiết Bị Mạng & Cáp)", warehouseId: "wh-binhduong", warehouseCode: "KHO-BINHDUONG", warehouseName: "Kho Chi Nhánh Bình Dương", zone: "Khu Dự Án", shelf: "Kệ A1", tier: "Tầng 1-2", bin: "Ngăn 01-10", capacity: 250, currentUsage: 90, status: "active", notes: "Switch Cisco, DrayTek, Ruijie và cuộn cáp Cat6" },
+
+    // 5. Kho Bảo Hành RMA
+    { id: "loc-rma-cho", code: "VT-RMA-CHO", barcode: "LOC-RMA-CHO", name: "Kệ R1 - Hàng Chờ Gửi Hãng Bảo Hành", warehouseId: "wh-rma", warehouseCode: "KHO-BAOHANH", warehouseName: "Kho Bảo Hành, RMA & Linh Kiện Sửa Chữa", zone: "Khu Chờ Xử Lý", shelf: "Kệ R1", tier: "Tầng 1", bin: "Hộp tem vàng", capacity: 100, currentUsage: 25, status: "active", notes: "Thiết bị lỗi đã nhận từ khách, chờ chuyển hãng phân phối" },
+    { id: "loc-rma-xong", code: "VT-RMA-XONG", barcode: "LOC-RMA-XONG", name: "Kệ R2 - Hàng Đã Xong Chờ Trả Khách", warehouseId: "wh-rma", warehouseCode: "KHO-BAOHANH", warehouseName: "Kho Bảo Hành, RMA & Linh Kiện Sửa Chữa", zone: "Khu Trả Khách", shelf: "Kệ R2", tier: "Tầng 2", bin: "Hộp tem xanh", capacity: 80, currentUsage: 15, status: "active", notes: "Hàng đổi trả / bảo hành xong đã test đạt chuẩn" }
   ];
   for (const item of INITIAL_LOCATIONS) {
     const exists = await prisma.warehouseLocation.findMany({ where: { code: item.code } });
     if (exists.length === 0) {
       const dt = new Date();
       await prisma.$executeRaw`
-        INSERT INTO [ViTriLuuKho] (id, code, name, warehouseName, zone, shelf, tier, bin, capacity, currentUsage, status, notes, createdAt, updatedAt)
-        VALUES (${item.id}, ${item.code}, ${item.name}, ${item.warehouseName}, ${item.zone}, ${item.shelf}, ${item.tier}, ${item.bin}, ${item.capacity}, ${item.currentUsage}, ${item.status}, ${item.notes}, ${dt}, ${dt})
+        INSERT INTO [ViTriLuuKho] (id, code, name, barcode, warehouseId, warehouseCode, warehouseName, zone, shelf, tier, bin, capacity, currentUsage, status, notes, createdAt, updatedAt)
+        VALUES (${item.id}, ${item.code}, ${item.name}, ${item.barcode}, ${item.warehouseId}, ${item.warehouseCode}, ${item.warehouseName}, ${item.zone}, ${item.shelf}, ${item.tier}, ${item.bin}, ${item.capacity}, ${item.currentUsage}, ${item.status}, ${item.notes}, ${dt}, ${dt})
       `;
     }
   }
@@ -635,6 +736,49 @@ async function main() {
       await prisma.$executeRaw`
         INSERT INTO [DanhMucNganhHang] (id, code, name, slug, icon, sortOrder, status, description, createdAt, updatedAt)
         VALUES (${item.id}, ${item.code}, ${item.name}, ${item.slug}, ${item.icon}, ${item.sortOrder}, ${item.status}, ${item.description}, ${dt}, ${dt})
+      `;
+    }
+  }
+
+  // 21.1 Danh mục màu sắc sản phẩm (Master Colors)
+  console.log("21.1 Seeding Master Colors...");
+  const INITIAL_COLORS = [
+    { id: "clr-black", code: "CLR-BLACK", name: "Đen Nhám (Matte Black)", hexCode: "#1e293b", sortOrder: 1, status: "active", description: "Màu đen mờ tiêu chuẩn cho vỏ case, bàn phím, màn hình" },
+    { id: "clr-silver", code: "CLR-SILVER", name: "Bạc Titan (Titanium Silver)", hexCode: "#cbd5e1", sortOrder: 2, status: "active", description: "Màu bạc kim loại ánh kim cho laptop, vỏ nhôm nguyên khối" },
+    { id: "clr-spacegray", code: "CLR-SPACEGRAY", name: "Xám Không Gian (Space Gray)", hexCode: "#64748b", sortOrder: 3, status: "active", description: "Màu xám cao cấp cho phụ kiện công nghệ và ultrabook" },
+    { id: "clr-white", code: "CLR-WHITE", name: "Trắng Ngọc Trai (Pearl White)", hexCode: "#f8fafc", sortOrder: 4, status: "active", description: "Màu trắng tinh khiết cho dàn PC Gaming White Edition" },
+    { id: "clr-red", code: "CLR-RED", name: "Đỏ Gaming (Flame Red)", hexCode: "#ef4444", sortOrder: 5, status: "active", description: "Màu đỏ thể thao gaming, tai nghe và quạt tản nhiệt LED" },
+    { id: "clr-blue", code: "CLR-BLUE", name: "Xanh Dương (Sapphire Blue)", hexCode: "#3b82f6", sortOrder: 6, status: "active", description: "Màu xanh công nghệ hiện đại" },
+    { id: "clr-gold", code: "CLR-GOLD", name: "Vàng Champagne (Gold Edition)", hexCode: "#f59e0b", sortOrder: 7, status: "active", description: "Màu vàng hoàng gia cho dòng sản phẩm giới hạn" }
+  ];
+  for (const item of INITIAL_COLORS) {
+    const exists = await prisma.masterColor.findMany({ where: { code: item.code } });
+    if (exists.length === 0) {
+      const dt = new Date();
+      await prisma.$executeRaw`
+        INSERT INTO [DanhMucMauSac] (id, code, name, hexCode, description, status, sortOrder, createdAt, updatedAt)
+        VALUES (${item.id}, ${item.code}, ${item.name}, ${item.hexCode}, ${item.description}, ${item.status}, ${item.sortOrder}, ${dt}, ${dt})
+      `;
+    }
+  }
+
+  // 21.2 Danh mục quy cách sản phẩm (Master Specifications)
+  console.log("21.2 Seeding Master Specifications...");
+  const INITIAL_SPECS = [
+    { id: "spec-box10", code: "SPEC-BOX10", name: "Quy cách Hộp 10 Cái tiêu chuẩn", category: "Đóng gói & Hộp", standardValue: "10 Cái/Hộp", sortOrder: 1, status: "active", description: "Quy chuẩn đóng gói phụ kiện chuột, cáp sạc 10 sản phẩm mỗi hộp" },
+    { id: "spec-roll305m", code: "SPEC-ROLL305M", name: "Cuộn Cáp Mạng 305 Mét", category: "Chiều dài & Cuộn", standardValue: "305 Mét/Cuộn", sortOrder: 2, status: "active", description: "Quy chuẩn thùng cáp mạng Cat5e / Cat6 UTP 305m chuẩn quốc tế" },
+    { id: "spec-tray50", code: "SPEC-TRAY50", name: "Khay / Vỉ Chống Tĩnh Điện 50 Con", category: "Khay & Vỉ linh kiện", standardValue: "50 Con/Khay", sortOrder: 3, status: "active", description: "Khay tray chống tĩnh điện ESD đóng gói 50 chip" },
+    { id: "spec-pack100", code: "SPEC-PACK100", name: "Túi Chống Ẩm 100 Cái", category: "Đóng gói Túi", standardValue: "100 Cái/Túi", sortOrder: 4, status: "active", description: "Túi zip chống ẩm đóng gói 100 hạt mạng RJ45 mạ vàng" },
+    { id: "spec-reel1000", code: "SPEC-REEL1000", name: "Cuộn Rulo Cáp Quang 1000 Mét", category: "Chiều dài & Cuộn", standardValue: "1000 Mét/Cuộn", sortOrder: 5, status: "active", description: "Rulo gỗ cuốn cáp quang 1km dùng cho dự án thi công" },
+    { id: "spec-tube10g", code: "SPEC-TUBE10G", name: "Tuýp Keo Tản Nhiệt 10 Gram", category: "Khối lượng & Tuýp", standardValue: "10 Gram/Tuýp", sortOrder: 6, status: "active", description: "Quy cách đóng tuýp bơm keo tản nhiệt kim loại lỏng / gốm 10g" }
+  ];
+  for (const item of INITIAL_SPECS) {
+    const exists = await prisma.masterSpecification.findMany({ where: { code: item.code } });
+    if (exists.length === 0) {
+      const dt = new Date();
+      await prisma.$executeRaw`
+        INSERT INTO [DanhMucQuyCach] (id, code, name, category, standardValue, description, status, sortOrder, createdAt, updatedAt)
+        VALUES (${item.id}, ${item.code}, ${item.name}, ${item.category}, ${item.standardValue}, ${item.description}, ${item.status}, ${item.sortOrder}, ${dt}, ${dt})
       `;
     }
   }
@@ -975,7 +1119,211 @@ async function main() {
     }
   }
 
-  console.log("🎉 SEED THÀNH CÔNG: Toàn bộ 26 danh mục dữ liệu mẫu & Phân quyền RBAC đã được nạp vĩnh viễn vào SQL Server!");
+  // 27. Cấu hình chính sách đổi trả & Dữ liệu mẫu Đổi/Trả hàng
+  console.log("27. Seeding Return Policy, Returns & Exchanges...");
+  const existingPolicies = await prisma.returnPolicyConfig.findMany({ where: { id: "default_policy" } });
+  if (existingPolicies.length === 0) {
+    const dt = new Date();
+    await prisma.$executeRaw`
+      INSERT INTO [CauHinhChinhSachDoiTra] (id, returnPeriodDays, exchangePeriodDays, approvalThresholdAmount, restockingFeeDamagedBox, restockingFeeUsed, allowNoReceiptReturn, updatedAt)
+      VALUES ('default_policy', 15, 30, 10000000, 10, 20, 0, ${dt})
+    `;
+  }
+
+  // 27.1 Seed Phiếu Trả Hàng Mẫu (Return Order)
+  const existingReturns = await prisma.returnOrder.findMany({ where: { code: "TH-2026-0815-001" } });
+  if (existingReturns.length === 0) {
+    const retId = "ret-sample-01";
+    const retCode = "TH-2026-0815-001";
+    const pcCode = "PC-TH-2026-0001";
+    const pktCode = "PKT-TH-2026-0001";
+    const now = new Date();
+
+    const custs: any = await prisma.$queryRawUnsafe(`SELECT TOP 1 id, name, phone FROM [KhachHang]`);
+    const prods: any = await prisma.$queryRawUnsafe(`SELECT TOP 1 id, sku, name, unit FROM [SanPham]`);
+    const orders: any = await prisma.$queryRawUnsafe(`SELECT TOP 1 id, code FROM [HoaDon]`);
+    const orderItems: any = await prisma.$queryRawUnsafe(`SELECT TOP 1 id FROM [ChiTietHoaDon]`);
+
+    if (custs.length > 0 && prods.length > 0) {
+      const cust = custs[0];
+      const prod = prods[0];
+      const order = orders[0];
+      const orderItem = orderItems[0];
+
+      await prisma.$executeRaw`
+        INSERT INTO [PhieuTraHang] (id, code, type, originalOrderId, originalOrderCode, customerId, customerName, customerPhone, warehouse, subtotal, taxAmount, restockingFee, giftDeductionAmount, refundAmount, totalReturnQuantity, refundMethod, accountingCode, stockReceiptCode, reason, status, idempotencyKey, createdBy, notes, createdAt, updatedAt)
+        VALUES (${retId}, ${retCode}, 'customer_return', ${order ? order.id : null}, ${order ? order.code : "DH-10029"}, ${cust.id}, ${cust.name}, ${cust.phone}, 'Kho Chính Gia Phúc Computer', 1250000, 0, 0, 0, 1250000, 1, 'cash', ${pcCode}, 'PNK-TH-2026-0001', 'customer_mind_change', 'completed', ${`legacy-${retId}`}, 'usr-admin-01', 'Khách trả lại sản phẩm còn nguyên hộp trong hạn 7 ngày', ${now}, ${now})
+      `;
+
+      await prisma.$executeRaw`
+        INSERT INTO [ChiTietPhieuTraHang] (id, returnOrderId, originalOrderItemId, productId, productName, sku, unit, ratioToBase, quantity, costPrice, unitPrice, refundUnitPrice, taxRate, taxAmount, subtotal, totalRefund, condition, destinationType, warehouseName, notes)
+        VALUES ('ret-item-01', ${retId}, ${orderItem ? orderItem.id : null}, ${prod.id}, ${prod.name}, ${prod.sku}, ${prod.unit || "Cái"}, 1, 1, 800000, 1250000, 1250000, 0, 0, 1250000, 1250000, 'unopened', 'restock', 'Kho Chính Gia Phúc Computer', 'Hàng nguyên seal')
+      `;
+
+      await prisma.$executeRaw`
+        INSERT INTO [ChiTietSerialTraHang] (id, returnItemId, serialNumber)
+        VALUES ('ret-serial-01', 'ret-item-01', 'SN-RET-AKKO-8899')
+      `;
+
+      // Phiếu Chi Quỹ
+      const existingAcc = await prisma.accountingRecord.findMany({ where: { code: pcCode } });
+      if (existingAcc.length === 0) {
+        await prisma.$executeRaw`
+          INSERT INTO [SoThuChiKeToan] (id, code, type, category, amount, date, party, paymentMethod, status, note, receiptNumber)
+          VALUES (${`acc-${pcCode}`}, ${pcCode}, 'expense', 'Hoàn tiền trả hàng', 1250000, ${now}, ${cust.name}, 'cash', 'completed', ${`Chi tiền hoàn trả khách hàng theo phiếu trả hàng ${retCode}`}, ${retCode})
+        `;
+      }
+
+      // Bút toán Sổ Nhật Ký Chung (Lớp 1 Kế Toán)
+      const existingPkt = await prisma.accountingJournalEntry.findMany({ where: { entryCode: pktCode } });
+      if (existingPkt.length === 0) {
+        await prisma.$executeRaw`
+          INSERT INTO [SoNhatKyChung] (id, entryCode, entryDate, docType, docId, docCode, description, totalDebit, totalCredit, postedBy, createdAt)
+          VALUES (${`pkt-${retCode}`}, ${pktCode}, ${now}, 'sales_return', ${retId}, ${retCode}, ${`Bút toán giảm trừ doanh thu và nhập kho giá vốn theo phiếu trả hàng ${retCode}`}, 2050000, 2050000, 'Kế toán tổng hợp', ${now})
+        `;
+
+        await prisma.$executeRaw`
+          INSERT INTO [ChiTietSoNhatKy] (id, entryId, accountCode, accountName, debitAmount, creditAmount, description, partyId, partyName, productId)
+          VALUES (${`line-${pktCode}-1`}, ${`pkt-${retCode}`}, '5212', 'Hàng bán bị trả lại', 1250000, 0, ${`Giảm trừ doanh thu trả hàng ${prod.name}`}, ${cust.id}, ${cust.name}, ${prod.id})
+        `;
+        await prisma.$executeRaw`
+          INSERT INTO [ChiTietSoNhatKy] (id, entryId, accountCode, accountName, debitAmount, creditAmount, description, partyId, partyName)
+          VALUES (${`line-${pktCode}-2`}, ${`pkt-${retCode}`}, '111', 'Tiền mặt tại quỹ', 0, 1250000, ${`Hoàn tiền mặt cho khách ${cust.name}`}, ${cust.id}, ${cust.name})
+        `;
+        await prisma.$executeRaw`
+          INSERT INTO [ChiTietSoNhatKy] (id, entryId, accountCode, accountName, debitAmount, creditAmount, description, productId)
+          VALUES (${`line-${pktCode}-3`}, ${`pkt-${retCode}`}, '156', 'Hàng hóa nhập kho', 800000, 0, 'Nhập lại kho theo giá vốn gốc', ${prod.id})
+        `;
+        await prisma.$executeRaw`
+          INSERT INTO [ChiTietSoNhatKy] (id, entryId, accountCode, accountName, debitAmount, creditAmount, description, productId)
+          VALUES (${`line-${pktCode}-4`}, ${`pkt-${retCode}`}, '632', 'Giá vốn hàng bán', 0, 800000, 'Giảm giá vốn hàng bán trả lại', ${prod.id})
+        `;
+      }
+
+      // Log Serial
+      const existingSh = await prisma.serialHistory.findMany({ where: { docCode: retCode } });
+      if (existingSh.length === 0) {
+        await prisma.$executeRaw`
+          INSERT INTO [NhatKySerialThietBi] (id, serialNumber, productId, productName, sku, action, fromStatus, toStatus, docType, docCode, customerName, customerPhone, warehouseName, notes, performedBy, timestamp)
+          VALUES ('sh-ret-01', 'SN-RET-AKKO-8899', ${prod.id}, ${prod.name}, ${prod.sku}, 'returned', 'sold', 'in_stock', 'TH', ${retCode}, ${cust.name}, ${cust.phone}, 'Kho Chính Gia Phúc Computer', 'Nhập hoàn kho nguyên seal theo phiếu trả hàng', 'Nguyễn Văn Minh (Thủ Kho)', ${now})
+        `;
+      }
+    }
+  }
+
+  // 27.2 Seed Phiếu Đổi Hàng Mẫu (Product Exchange)
+  const existingExchanges = await prisma.productExchange.findMany({ where: { code: "DH-2026-0820-001" } });
+  if (existingExchanges.length === 0) {
+    const exId = "ex-sample-01";
+    const exCode = "DH-2026-0820-001";
+    const ptCode = "PT-DH-2026-0001";
+    const pktCode = "PKT-DH-2026-0001";
+    const now = new Date();
+
+    const custs: any = await prisma.$queryRawUnsafe(`SELECT TOP 1 id, name, phone FROM [KhachHang]`);
+    const products: any = await prisma.$queryRawUnsafe(`SELECT TOP 2 id, sku, name, unit FROM [SanPham]`);
+    const orders: any = await prisma.$queryRawUnsafe(`SELECT TOP 1 id, code FROM [HoaDon]`);
+    const orderItems: any = await prisma.$queryRawUnsafe(`SELECT TOP 1 id FROM [ChiTietHoaDon]`);
+
+    if (custs.length > 0 && products.length >= 2) {
+      const cust = custs[0];
+      const prodIn = products[0];
+      const prodOut = products[1];
+      const order = orders[0];
+      const orderItem = orderItems[0];
+
+      await prisma.$executeRaw`
+        INSERT INTO [PhieuDoiHang] (id, code, originalOrderId, originalOrderCode, customerId, customerName, customerPhone, warehouseName, inboundSubtotal, inboundTaxAmount, inboundTotalAmount, outboundSubtotal, outboundTaxAmount, outboundTotalAmount, restockingFee, giftDeductionAmount, differenceAmount, paymentAction, paymentMethod, accountingCode, inboundReceiptCode, outboundIssueCode, status, idempotencyKey, createdBy, reason, notes, createdAt, updatedAt)
+        VALUES (${exId}, ${exCode}, ${order ? order.id : null}, ${order ? order.code : "DH-10029"}, ${cust.id}, ${cust.name}, ${cust.phone}, 'Kho Chính Gia Phúc Computer', 2500000, 0, 2500000, 4800000, 0, 4800000, 0, 0, 2300000, 'collect_difference', 'cash', ${ptCode}, 'PNK-DH-2026-0001', 'PXK-DH-2026-0001', 'completed', ${`legacy-${exId}`}, 'usr-admin-01', 'upgrade_model', 'Khách đổi nâng cấp model cao hơn, bù thêm 2.300.000 đ tiền mặt', ${now}, ${now})
+      `;
+
+      await prisma.$executeRaw`
+        INSERT INTO [ChiTietDoiHangNhan] (id, exchangeId, originalOrderItemId, productId, productName, sku, unit, ratioToBase, quantity, costPrice, returnUnitPrice, taxRate, taxAmount, subtotal, totalAmount, condition, destinationType, warehouseName, notes)
+        VALUES ('ex-in-item-01', ${exId}, ${orderItem ? orderItem.id : null}, ${prodIn.id}, ${prodIn.name}, ${prodIn.sku}, ${prodIn.unit || "Cái"}, 1, 1, 1800000, 2500000, 0, 0, 2500000, 2500000, 'normal', 'restock', 'Kho Chính Gia Phúc Computer', 'Hàng cũ hoạt động tốt')
+      `;
+
+      await prisma.$executeRaw`
+        INSERT INTO [ChiTietSerialDoiHangNhan] (id, inItemId, serialNumber)
+        VALUES ('ex-in-serial-01', 'ex-in-item-01', 'SN-EX-IN-77665')
+      `;
+
+      await prisma.$executeRaw`
+        INSERT INTO [ChiTietDoiHangXuat] (id, exchangeId, productId, productName, sku, unit, ratioToBase, quantity, costPrice, exchangeUnitPrice, taxRate, taxAmount, subtotal, totalAmount, warehouseName, warrantyMonths, notes)
+        VALUES ('ex-out-item-01', ${exId}, ${prodOut.id}, ${prodOut.name}, ${prodOut.sku}, ${prodOut.unit || "Cái"}, 1, 1, 3800000, 4800000, 0, 0, 4800000, 4800000, 'Kho Chính Gia Phúc Computer', 24, 'Hàng mới fullbox bảo hành 24 tháng')
+      `;
+
+      await prisma.$executeRaw`
+        INSERT INTO [ChiTietSerialDoiHangXuat] (id, outItemId, serialNumber)
+        VALUES ('ex-out-serial-01', 'ex-out-item-01', 'SN-EX-OUT-99112')
+      `;
+
+      // Phiếu Thu Quỹ chênh lệch
+      const existingPt = await prisma.accountingRecord.findMany({ where: { code: ptCode } });
+      if (existingPt.length === 0) {
+        await prisma.$executeRaw`
+          INSERT INTO [SoThuChiKeToan] (id, code, type, category, amount, date, party, paymentMethod, status, note, receiptNumber)
+          VALUES (${`acc-${ptCode}`}, ${ptCode}, 'income', 'Thu chênh lệch đổi hàng', 2300000, ${now}, ${cust.name}, 'cash', 'completed', ${`Thu tiền bù chênh lệch đổi nâng cấp sản phẩm theo phiếu đổi hàng ${exCode}`}, ${exCode})
+        `;
+      }
+
+      // Bút toán Kép Đổi Hàng Sổ Nhật Ký Chung
+      const existingPktEx = await prisma.accountingJournalEntry.findMany({ where: { entryCode: pktCode } });
+      if (existingPktEx.length === 0) {
+        await prisma.$executeRaw`
+          INSERT INTO [SoNhatKyChung] (id, entryCode, entryDate, docType, docId, docCode, description, totalDebit, totalCredit, postedBy, createdAt)
+          VALUES (${`pkt-${exCode}`}, ${pktCode}, ${now}, 'product_exchange', ${exId}, ${exCode}, ${`Bút toán hạch toán 2 chiều đổi hàng và thu chênh lệch theo phiếu ${exCode}`}, 10400000, 10400000, 'Kế toán tổng hợp', ${now})
+        `;
+
+        await prisma.$executeRaw`
+          INSERT INTO [ChiTietSoNhatKy] (id, entryId, accountCode, accountName, debitAmount, creditAmount, description, partyId, partyName, productId)
+          VALUES (${`line-${pktCode}-1`}, ${`pkt-${exCode}`}, '5212', 'Hàng bán bị trả lại (Hàng cũ)', 2500000, 0, ${`Giảm doanh thu hàng nhận lại ${prodIn.name}`}, ${cust.id}, ${cust.name}, ${prodIn.id})
+        `;
+        await prisma.$executeRaw`
+          INSERT INTO [ChiTietSoNhatKy] (id, entryId, accountCode, accountName, debitAmount, creditAmount, description, productId)
+          VALUES (${`line-${pktCode}-2`}, ${`pkt-${exCode}`}, '156', 'Hàng hóa nhập kho (Hàng cũ)', 1800000, 0, 'Nhập lại kho hàng cũ theo giá vốn gốc', ${prodIn.id})
+        `;
+        await prisma.$executeRaw`
+          INSERT INTO [ChiTietSoNhatKy] (id, entryId, accountCode, accountName, debitAmount, creditAmount, description, productId)
+          VALUES (${`line-${pktCode}-3`}, ${`pkt-${exCode}`}, '632', 'Giá vốn hàng bán (Giảm giá vốn hàng cũ)', 0, 1800000, 'Giảm giá vốn hàng cũ nhận lại', ${prodIn.id})
+        `;
+        await prisma.$executeRaw`
+          INSERT INTO [ChiTietSoNhatKy] (id, entryId, accountCode, accountName, debitAmount, creditAmount, description, partyId, partyName)
+          VALUES (${`line-${pktCode}-4`}, ${`pkt-${exCode}`}, '111', 'Tiền mặt tại quỹ (Thu chênh lệch)', 2300000, 0, 'Khách thanh toán bù tiền chênh lệch đổi hàng', ${cust.id}, ${cust.name})
+        `;
+        await prisma.$executeRaw`
+          INSERT INTO [ChiTietSoNhatKy] (id, entryId, accountCode, accountName, debitAmount, creditAmount, description, partyId, partyName, productId)
+          VALUES (${`line-${pktCode}-5`}, ${`pkt-${exCode}`}, '511', 'Doanh thu bán hàng mới', 0, 4800000, ${`Doanh thu xuất bán hàng mới ${prodOut.name}`}, ${cust.id}, ${cust.name}, ${prodOut.id})
+        `;
+        await prisma.$executeRaw`
+          INSERT INTO [ChiTietSoNhatKy] (id, entryId, accountCode, accountName, debitAmount, creditAmount, description, productId)
+          VALUES (${`line-${pktCode}-6`}, ${`pkt-${exCode}`}, '632', 'Giá vốn hàng bán (Hàng mới)', 3800000, 0, ${`Ghi nhận giá vốn xuất hàng mới ${prodOut.name}`}, ${prodOut.id})
+        `;
+        await prisma.$executeRaw`
+          INSERT INTO [ChiTietSoNhatKy] (id, entryId, accountCode, accountName, debitAmount, creditAmount, description, productId)
+          VALUES (${`line-${pktCode}-7`}, ${`pkt-${exCode}`}, '156', 'Hàng hóa xuất kho (Hàng mới)', 0, 3800000, 'Xuất kho hàng mới cho khách', ${prodOut.id})
+        `;
+      }
+
+      // Log Serial Đổi Hàng
+      const existingShIn = await prisma.serialHistory.findMany({ where: { docCode: exCode, action: "exchanged_in" } });
+      if (existingShIn.length === 0) {
+        await prisma.$executeRaw`
+          INSERT INTO [NhatKySerialThietBi] (id, serialNumber, productId, productName, sku, action, fromStatus, toStatus, docType, docCode, customerName, customerPhone, warehouseName, notes, performedBy, timestamp)
+          VALUES ('sh-ex-in-01', 'SN-EX-IN-77665', ${prodIn.id}, ${prodIn.name}, ${prodIn.sku}, 'exchanged_in', 'sold', 'returned', 'DH', ${exCode}, ${cust.name}, ${cust.phone}, 'Kho Chính Gia Phúc Computer', 'Nhập lại thiết bị theo phiếu đổi hàng', 'Nguyễn Văn Minh (Thủ Kho)', ${now})
+        `;
+      }
+
+      const existingShOut = await prisma.serialHistory.findMany({ where: { docCode: exCode, action: "exchanged_out" } });
+      if (existingShOut.length === 0) {
+        await prisma.$executeRaw`
+          INSERT INTO [NhatKySerialThietBi] (id, serialNumber, productId, productName, sku, action, fromStatus, toStatus, docType, docCode, customerName, customerPhone, warehouseName, notes, performedBy, timestamp)
+          VALUES ('sh-ex-out-01', 'SN-EX-OUT-99112', ${prodOut.id}, ${prodOut.name}, ${prodOut.sku}, 'exchanged_out', 'in_stock', 'sold', 'DH', ${exCode}, ${cust.name}, ${cust.phone}, 'Kho Chính Gia Phúc Computer', 'Xuất bàn giao thiết bị mới theo phiếu đổi hàng', 'Nguyễn Văn Minh (Thủ Kho)', ${now})
+        `;
+      }
+    }
+  }
+
+  console.log("🎉 SEED THÀNH CÔNG: Toàn bộ 27 danh mục dữ liệu mẫu & Phân quyền RBAC đã được nạp vĩnh viễn vào SQL Server!");
 }
 
 main()

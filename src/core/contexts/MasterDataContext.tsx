@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import {
   Department,
   JobPosition,
+  MasterWarehouse,
   WarehouseLocation,
   UnitOfMeasure,
   MasterUomGroup,
@@ -17,6 +18,8 @@ import {
   Supplier,
   MasterCustomerTier,
   EnterpriseProject,
+  MasterColor,
+  MasterSpecification,
 } from '../../types';
 import { masterDataApi } from '../../features/master-data/api/masterDataApi';
 import { customersApi } from '../../features/customers/api/customersApi';
@@ -118,9 +121,13 @@ export type MasterDataType =
   | 'projects'
   | 'departments'
   | 'positions'
+  | 'warehouses'
+  | 'warehouse'
   | 'locations'
   | 'uoms'
   | 'categories'
+  | 'colors'
+  | 'specifications'
   | 'customerGroups'
   | 'customerTiers'
   | 'supplierCategories';
@@ -162,7 +169,13 @@ interface MasterDataContextType {
   updateJobPosition: (id: string, item: Partial<JobPosition>) => void;
   deleteJobPosition: (id: string) => void;
 
-  // Warehouse Locations
+  // Master Warehouses (Danh Mục Kho Hàng)
+  warehouses: MasterWarehouse[];
+  addWarehouse: (item: Omit<MasterWarehouse, 'id' | 'createdAt'>) => MasterWarehouse;
+  updateWarehouse: (id: string, item: Partial<MasterWarehouse>) => void;
+  deleteWarehouse: (id: string) => void;
+
+  // Warehouse Locations (Vị Trí Ô Kệ Theo Kho)
   warehouseLocations: WarehouseLocation[];
   addWarehouseLocation: (item: Omit<WarehouseLocation, 'id' | 'createdAt'>) => WarehouseLocation;
   updateWarehouseLocation: (id: string, item: Partial<WarehouseLocation>) => void;
@@ -185,6 +198,18 @@ interface MasterDataContextType {
   addProductCategory: (item: Omit<MasterProductCategory, 'id' | 'createdAt'>) => MasterProductCategory;
   updateProductCategory: (id: string, item: Partial<MasterProductCategory>) => void;
   deleteProductCategory: (id: string) => void;
+
+  // Colors
+  colors: MasterColor[];
+  addColor: (item: Omit<MasterColor, 'id' | 'createdAt'>) => MasterColor;
+  updateColor: (id: string, item: Partial<MasterColor>) => void;
+  deleteColor: (id: string) => void;
+
+  // Specifications
+  specifications: MasterSpecification[];
+  addSpecification: (item: Omit<MasterSpecification, 'id' | 'createdAt'>) => MasterSpecification;
+  updateSpecification: (id: string, item: Partial<MasterSpecification>) => void;
+  deleteSpecification: (id: string) => void;
 
   // Customer Groups
   customerGroups: CustomerGroup[];
@@ -239,10 +264,13 @@ export const MasterDataProvider: React.FC<{ children: ReactNode }> = ({ children
   const [projects, setProjects] = useState<EnterpriseProject[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [jobPositions, setJobPositions] = useState<JobPosition[]>([]);
+  const [warehouses, setWarehouses] = useState<MasterWarehouse[]>([]);
   const [warehouseLocations, setWarehouseLocations] = useState<WarehouseLocation[]>([]);
   const [unitsOfMeasure, setUnitsOfMeasure] = useState<UnitOfMeasure[]>([]);
   const [uomGroups, setUomGroups] = useState<MasterUomGroup[]>([]);
   const [productCategories, setProductCategories] = useState<MasterProductCategory[]>([]);
+  const [colors, setColors] = useState<MasterColor[]>([]);
+  const [specifications, setSpecifications] = useState<MasterSpecification[]>([]);
   const [customerGroups, setCustomerGroups] = useState<CustomerGroup[]>([]);
   const [customerTiers, setCustomerTiers] = useState<MasterCustomerTier[]>([]);
   const [supplierCategories, setSupplierCategories] = useState<MasterSupplierCategory[]>([]);
@@ -260,10 +288,13 @@ export const MasterDataProvider: React.FC<{ children: ReactNode }> = ({ children
       if (data) {
         if (Array.isArray(data.departments)) setDepartments(data.departments);
         if (Array.isArray(data.jobPositions)) setJobPositions(data.jobPositions);
+        if (Array.isArray(data.warehouses)) setWarehouses(data.warehouses);
         if (Array.isArray(data.warehouseLocations)) setWarehouseLocations(data.warehouseLocations);
         if (Array.isArray(data.unitsOfMeasure)) setUnitsOfMeasure(data.unitsOfMeasure);
         if (Array.isArray(data.uomGroups)) setUomGroups(data.uomGroups);
         if (Array.isArray(data.productCategories)) setProductCategories(data.productCategories);
+        if (Array.isArray(data.colors)) setColors(data.colors);
+        if (Array.isArray(data.specifications)) setSpecifications(data.specifications);
         if (Array.isArray(data.customerGroups)) setCustomerGroups(data.customerGroups);
         if (Array.isArray(data.customerTiers)) setCustomerTiers(data.customerTiers);
         if (Array.isArray(data.supplierCategories)) setSupplierCategories(data.supplierCategories);
@@ -407,6 +438,34 @@ export const MasterDataProvider: React.FC<{ children: ReactNode }> = ({ children
   };
 
   // ==========================================
+  // CRUD Actions: Master Warehouses (Synced to SQL Server [DanhMucKhoHang])
+  // ==========================================
+  const addWarehouse = (item: Omit<MasterWarehouse, 'id' | 'createdAt'>): MasterWarehouse => {
+    const newWh: MasterWarehouse = {
+      ...item,
+      id: `wh-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+    };
+    setWarehouses((prev) => [newWh, ...prev]);
+    masterDataApi.createWarehouse(newWh).then((saved) => {
+      if (saved) setWarehouses((prev) => prev.map((w) => (w.id === newWh.id ? saved : w)));
+    }).catch((err) => console.warn('Warehouse DB sync error:', err));
+    return newWh;
+  };
+
+  const updateWarehouse = (id: string, item: Partial<MasterWarehouse>) => {
+    setWarehouses((prev) => prev.map((w) => (w.id === id ? { ...w, ...item } : w)));
+    masterDataApi.updateWarehouse(id, item).then((saved) => {
+      if (saved) setWarehouses((prev) => prev.map((w) => (w.id === id ? saved : w)));
+    }).catch((err) => console.warn('Warehouse DB update error:', err));
+  };
+
+  const deleteWarehouse = (id: string) => {
+    setWarehouses((prev) => prev.filter((w) => w.id !== id));
+    masterDataApi.deleteWarehouse(id).catch((err) => console.warn('Warehouse DB delete error:', err));
+  };
+
+  // ==========================================
   // CRUD Actions: Warehouse Locations (Synced to SQL Server [ViTriLuuKho])
   // ==========================================
   const addWarehouseLocation = (item: Omit<WarehouseLocation, 'id' | 'createdAt'>): WarehouseLocation => {
@@ -517,6 +576,62 @@ export const MasterDataProvider: React.FC<{ children: ReactNode }> = ({ children
   const deleteProductCategory = (id: string) => {
     setProductCategories((prev) => prev.filter((c) => c.id !== id));
     masterDataApi.deleteProductCategory(id).catch((err) => console.warn('ProductCategory DB delete error:', err));
+  };
+
+  // ==========================================
+  // CRUD Actions: Colors (Synced to SQL Server [DanhMucMauSac])
+  // ==========================================
+  const addColor = (item: Omit<MasterColor, 'id' | 'createdAt'>): MasterColor => {
+    const newColor: MasterColor = {
+      ...item,
+      id: `clr-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+    };
+    setColors((prev) => [newColor, ...prev]);
+    masterDataApi.createColor(newColor).then((saved) => {
+      if (saved) setColors((prev) => prev.map((c) => (c.id === newColor.id ? saved : c)));
+    }).catch((err) => console.warn('Color DB sync error:', err));
+    return newColor;
+  };
+
+  const updateColor = (id: string, item: Partial<MasterColor>) => {
+    setColors((prev) => prev.map((c) => (c.id === id ? { ...c, ...item } : c)));
+    masterDataApi.updateColor(id, item).then((saved) => {
+      if (saved) setColors((prev) => prev.map((c) => (c.id === id ? saved : c)));
+    }).catch((err) => console.warn('Color DB update error:', err));
+  };
+
+  const deleteColor = (id: string) => {
+    setColors((prev) => prev.filter((c) => c.id !== id));
+    masterDataApi.deleteColor(id).catch((err) => console.warn('Color DB delete error:', err));
+  };
+
+  // ==========================================
+  // CRUD Actions: Specifications (Synced to SQL Server [DanhMucQuyCach])
+  // ==========================================
+  const addSpecification = (item: Omit<MasterSpecification, 'id' | 'createdAt'>): MasterSpecification => {
+    const newSpec: MasterSpecification = {
+      ...item,
+      id: `spec-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+    };
+    setSpecifications((prev) => [newSpec, ...prev]);
+    masterDataApi.createSpecification(newSpec).then((saved) => {
+      if (saved) setSpecifications((prev) => prev.map((s) => (s.id === newSpec.id ? saved : s)));
+    }).catch((err) => console.warn('Specification DB sync error:', err));
+    return newSpec;
+  };
+
+  const updateSpecification = (id: string, item: Partial<MasterSpecification>) => {
+    setSpecifications((prev) => prev.map((s) => (s.id === id ? { ...s, ...item } : s)));
+    masterDataApi.updateSpecification(id, item).then((saved) => {
+      if (saved) setSpecifications((prev) => prev.map((s) => (s.id === id ? saved : s)));
+    }).catch((err) => console.warn('Specification DB update error:', err));
+  };
+
+  const deleteSpecification = (id: string) => {
+    setSpecifications((prev) => prev.filter((s) => s.id !== id));
+    masterDataApi.deleteSpecification(id).catch((err) => console.warn('Specification DB delete error:', err));
   };
 
   // ==========================================
@@ -727,12 +842,19 @@ export const MasterDataProvider: React.FC<{ children: ReactNode }> = ({ children
         return addDepartment(data);
       case 'positions':
         return addJobPosition(data);
+      case 'warehouses':
+      case 'warehouse':
+        return addWarehouse(data);
       case 'locations':
         return addWarehouseLocation(data);
       case 'uoms':
         return addUnitOfMeasure(data);
       case 'categories':
         return addProductCategory(data);
+      case 'colors':
+        return addColor(data);
+      case 'specifications':
+        return addSpecification(data);
       case 'customerGroups':
         return addCustomerGroup(data);
       case 'customerTiers':
@@ -781,6 +903,11 @@ export const MasterDataProvider: React.FC<{ children: ReactNode }> = ({ children
         addJobPosition,
         updateJobPosition,
 
+        warehouses,
+        deleteWarehouse,
+        addWarehouse,
+        updateWarehouse,
+
         warehouseLocations,
         deleteWarehouseLocation,
         addWarehouseLocation,
@@ -800,6 +927,16 @@ export const MasterDataProvider: React.FC<{ children: ReactNode }> = ({ children
         deleteProductCategory,
         addProductCategory,
         updateProductCategory,
+
+        colors,
+        deleteColor,
+        addColor,
+        updateColor,
+
+        specifications,
+        deleteSpecification,
+        addSpecification,
+        updateSpecification,
 
         customerGroups,
         deleteCustomerGroup,

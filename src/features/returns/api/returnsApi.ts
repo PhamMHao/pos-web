@@ -5,6 +5,9 @@ export interface ReturnOrderQueryParams {
   search?: string;
   type?: string;
   status?: string;
+  warehouse?: string;
+  startDate?: string;
+  endDate?: string;
   page?: number;
   limit?: number;
   sortBy?: string;
@@ -24,8 +27,18 @@ export const returnsApi = {
     return response.data.data;
   },
 
-  createReturnOrder: async (returnOrder: Partial<ReturnOrder>) => {
+  createReturnOrder: async (returnOrder: any) => {
     const response = await apiClient.post<ApiResponse<ReturnOrder>>("/returns", returnOrder);
+    return response.data.data;
+  },
+
+  commitReturnOrder: async (id: string, userId?: string) => {
+    const response = await apiClient.post<ApiResponse<ReturnOrder>>(`/returns/${id}/commit`, { userId });
+    return response.data.data;
+  },
+
+  cancelReturnOrder: async (id: string, payload: { cancelledBy: string; cancelReason: string }) => {
+    const response = await apiClient.post<ApiResponse<ReturnOrder>>(`/returns/${id}/cancel`, payload);
     return response.data.data;
   },
 

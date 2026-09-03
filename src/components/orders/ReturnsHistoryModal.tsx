@@ -170,8 +170,8 @@ export const ReturnsHistoryModal: React.FC<ReturnsHistoryModalProps> = ({
                 <td>${it.sku}</td>
                 <td>${it.unit}</td>
                 <td>${it.quantity}</td>
-                <td>${it.refundUnitPrice.toLocaleString('vi-VN')} đ</td>
-                <td>${it.totalRefund.toLocaleString('vi-VN')} đ</td>
+                <td>${formatVND(it.refundUnitPrice)}</td>
+                <td>${formatVND(it.totalRefund)}</td>
               </tr>
             `
               )
@@ -182,7 +182,7 @@ export const ReturnsHistoryModal: React.FC<ReturnsHistoryModalProps> = ({
         <div class="total-box">
           <div>Tổng số lượng trả: ${ret.totalReturnQuantity} món</div>
           <div style="font-size: 18px; color: #dc2626; margin-top: 4px;">
-            Tổng tiền hoàn trả: ${ret.refundAmount.toLocaleString('vi-VN')} đ
+            Tổng tiền hoàn trả: ${formatVND(ret.refundAmount)}
           </div>
         </div>
 

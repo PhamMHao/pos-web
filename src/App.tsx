@@ -58,6 +58,7 @@ import { hrApi } from './features/hr/api/hrApi';
 import { promotionsApi } from './features/promotions/api/promotionsApi';
 import { assetsApi } from './features/assets/api/assetsApi';
 import { inboundInvoicesApi } from './features/inbound-invoices/api/inboundInvoicesApi';
+import { formatVND } from './utils/currency';
 import { settingsApi } from './features/settings/api/settingsApi';
 import { fraudAlertsApi } from './features/fraud-alerts/api/fraudAlertsApi';
 import { suppliersApi } from './features/suppliers/api/suppliersApi';
@@ -942,7 +943,7 @@ export function App() {
                   author: newOrder.dispatchedBy || currentShift?.staffName || 'Thu Ngân POS',
                   fromStatus: q.status,
                   toStatus: 'completed',
-                  note: `Đã hoàn tất thanh toán hóa đơn ${newOrder.code} tại quầy POS (Tổng thanh toán: ${newOrder.total.toLocaleString('vi-VN')} đ)`,
+                  note: `Đã hoàn tất thanh toán hóa đơn ${newOrder.code} tại quầy POS (Tổng thanh toán: ${formatVND(newOrder.total)})`,
                 },
                 ...(q.lifecycleHistory || []),
               ],
@@ -1355,8 +1356,6 @@ export function App() {
     } catch (e: any) {
       console.warn('API quote status update warning:', e.message);
     }
-
-    setActiveTab('pos');
   };
 
   const handleCancelLoadedQuote = async () => {
@@ -1723,6 +1722,7 @@ export function App() {
                     orders={orders}
                     customers={customers}
                     settings={settings}
+                    onSaveSettings={handleSaveSettings}
                     inboundInvoices={inboundInvoices}
                     setInboundInvoices={setInboundInvoices}
                     products={products}
@@ -1774,9 +1774,11 @@ export function App() {
                     products={products}
                     customers={customers}
                     settings={settings}
+                    onSaveSettings={handleSaveSettings}
                     onSaveQuote={handleSaveQuote}
                     onConvertToOrder={handleConvertQuoteToOrder}
                     onOpenDocOcrScanner={(mode) => handleOpenDocOcrScanner(mode || 'customer_quote')}
+                    onNavigateTab={setActiveTab}
                   />
                 )}
 

@@ -7,11 +7,14 @@ export class MasterDataService {
     const [
       departments,
       jobPositions,
+      warehouses,
       warehouseLocations,
       unitsOfMeasure,
       uomGroups,
       uomLines,
       productCategories,
+      colors,
+      specifications,
       customerGroups,
       customerTiers,
       supplierCategories,
@@ -21,11 +24,14 @@ export class MasterDataService {
     ] = await Promise.all([
       prisma.department.findMany({}),
       prisma.jobPosition.findMany({}),
+      prisma.masterWarehouse.findMany({}),
       prisma.warehouseLocation.findMany({}),
       prisma.masterUnitOfMeasure.findMany({}),
       prisma.masterUomGroup.findMany({}),
       prisma.masterUomGroupLine.findMany({}),
       prisma.masterProductCategory.findMany({}),
+      prisma.masterColor.findMany({}),
+      prisma.masterSpecification.findMany({}),
       prisma.customerGroup.findMany({}),
       prisma.masterCustomerTier.findMany({}),
       prisma.masterSupplierCategory.findMany({}),
@@ -36,10 +42,13 @@ export class MasterDataService {
 
     departments.sort((a, b) => a.code.localeCompare(b.code));
     jobPositions.sort((a, b) => a.code.localeCompare(b.code));
+    warehouses.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0) || a.code.localeCompare(b.code));
     warehouseLocations.sort((a, b) => a.code.localeCompare(b.code));
     unitsOfMeasure.sort((a, b) => a.code.localeCompare(b.code));
     uomGroups.sort((a, b) => a.code.localeCompare(b.code));
     productCategories.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+    colors.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0) || a.code.localeCompare(b.code));
+    specifications.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0) || a.code.localeCompare(b.code));
     customerGroups.sort((a, b) => a.code.localeCompare(b.code));
     customerTiers.sort((a, b) => Number(a.minSpend || 0) - Number(b.minSpend || 0));
     supplierCategories.sort((a, b) => a.code.localeCompare(b.code));
@@ -67,6 +76,7 @@ export class MasterDataService {
         baseSalary: Number(p.baseSalary),
         responsibilityAllowance: Number(p.responsibilityAllowance),
       })),
+      warehouses,
       warehouseLocations,
       unitsOfMeasure: unitsOfMeasure.map((u) => ({
         ...u,
@@ -77,6 +87,8 @@ export class MasterDataService {
         lines: linesByGroup.get(g.id) || [],
       })),
       productCategories,
+      colors,
+      specifications,
       customerGroups: customerGroups.map((g) => ({
         ...g,
         discountPercent: Number(g.discountPercent),
@@ -194,7 +206,46 @@ export class MasterDataService {
     return { success: true };
   }
 
-  // 4. WAREHOUSE LOCATIONS
+  // 4. MASTER WAREHOUSES
+  static async getWarehouses() {
+    const items = await prisma.masterWarehouse.findMany({});
+    items.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0) || a.code.localeCompare(b.code));
+    return items;
+  }
+
+  static async createWarehouse(data: any) {
+    const existing = await prisma.masterWarehouse.findMany({ where: { code: data.code } });
+    if (existing.length > 0) throw new ConflictError("Mã kho hàng đã tồn tại");
+    const id = data.id || `wh-${Date.now()}`;
+    const now = new Date();
+    await prisma.$executeRaw`
+      INSERT INTO [DanhMucKhoHang] (id, code, name, type, address, managerName, phone, capacity, status, isDefault, description, sortOrder, createdAt, updatedAt)
+      VALUES (${id}, ${data.code}, ${data.name}, ${data.type || 'general'}, ${data.address || null}, ${data.managerName || null}, ${data.phone || null}, ${Number(data.capacity) || 1000}, ${data.status || 'active'}, ${data.isDefault ? 1 : 0}, ${data.description || null}, ${Number(data.sortOrder) || 0}, ${now}, ${now})
+    `;
+    const created = await prisma.masterWarehouse.findMany({ where: { id } });
+    return created[0] || null;
+  }
+
+  static async updateWarehouse(id: string, data: any) {
+    const existing = await prisma.masterWarehouse.findMany({ where: { id } });
+    if (existing.length === 0) throw new NotFoundError("Không tìm thấy kho hàng");
+    const now = new Date();
+    await prisma.masterWarehouse.updateMany({
+      where: { id },
+      data: { ...data, updatedAt: now },
+    });
+    const updated = await prisma.masterWarehouse.findMany({ where: { id } });
+    return updated[0] || null;
+  }
+
+  static async deleteWarehouse(id: string) {
+    const existing = await prisma.masterWarehouse.findMany({ where: { id } });
+    if (existing.length === 0) throw new NotFoundError("Không tìm thấy kho hàng");
+    await prisma.masterWarehouse.deleteMany({ where: { id } });
+    return { success: true };
+  }
+
+  // 4.1 WAREHOUSE LOCATIONS
   static async getWarehouseLocations() {
     const items = await prisma.warehouseLocation.findMany({});
     items.sort((a, b) => a.code.localeCompare(b.code));
@@ -207,8 +258,8 @@ export class MasterDataService {
     const id = data.id || `loc-${Date.now()}`;
     const now = new Date();
     await prisma.$executeRaw`
-      INSERT INTO [ViTriLuuKho] (id, code, name, warehouseName, zone, shelf, tier, bin, capacity, currentUsage, status, notes, createdAt, updatedAt)
-      VALUES (${id}, ${data.code}, ${data.name}, ${data.warehouseName || 'Kho Tổng'}, ${data.zone || null}, ${data.shelf || null}, ${data.tier || null}, ${data.bin || null}, ${Number(data.capacity) || 100}, ${Number(data.currentUsage) || 0}, ${data.status || 'active'}, ${data.notes || null}, ${now}, ${now})
+      INSERT INTO [ViTriLuuKho] (id, code, name, barcode, warehouseId, warehouseCode, warehouseName, zone, shelf, tier, bin, capacity, currentUsage, status, notes, createdAt, updatedAt)
+      VALUES (${id}, ${data.code}, ${data.name}, ${data.barcode || data.code}, ${data.warehouseId || null}, ${data.warehouseCode || null}, ${data.warehouseName || 'Kho Tổng'}, ${data.zone || null}, ${data.shelf || null}, ${data.tier || null}, ${data.bin || null}, ${Number(data.capacity) || 100}, ${Number(data.currentUsage) || 0}, ${data.status || 'active'}, ${data.notes || null}, ${now}, ${now})
     `;
     const created = await prisma.warehouseLocation.findMany({ where: { id } });
     return created[0] || null;
@@ -577,6 +628,84 @@ export class MasterDataService {
     if (existing.length === 0) throw new NotFoundError("Không tìm thấy bộ nhóm quy đổi");
     await prisma.masterUomGroupLine.deleteMany({ where: { groupId: id } });
     await prisma.masterUomGroup.deleteMany({ where: { id } });
+    return { success: true };
+  }
+
+  // 12. MASTER COLORS
+  static async getColors() {
+    const colors = await prisma.masterColor.findMany({});
+    colors.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0) || a.code.localeCompare(b.code));
+    return colors;
+  }
+
+  static async createColor(data: any) {
+    const existing = await prisma.masterColor.findMany({ where: { code: data.code } });
+    if (existing.length > 0) throw new ConflictError("Mã màu đã tồn tại");
+    const id = data.id || `clr-${Date.now()}`;
+    const now = new Date();
+    await prisma.$executeRaw`
+      INSERT INTO [DanhMucMauSac] (id, code, name, hexCode, description, status, sortOrder, createdAt, updatedAt)
+      VALUES (${id}, ${data.code}, ${data.name}, ${data.hexCode || '#000000'}, ${data.description || null}, ${data.status || 'active'}, ${Number(data.sortOrder || 0)}, ${now}, ${now})
+    `;
+    const created = await prisma.masterColor.findMany({ where: { id } });
+    return created[0] || null;
+  }
+
+  static async updateColor(id: string, data: any) {
+    const existing = await prisma.masterColor.findMany({ where: { id } });
+    if (existing.length === 0) throw new NotFoundError("Không tìm thấy màu sắc");
+    const now = new Date();
+    await prisma.masterColor.updateMany({
+      where: { id },
+      data: { ...data, updatedAt: now },
+    });
+    const updated = await prisma.masterColor.findMany({ where: { id } });
+    return updated[0] || null;
+  }
+
+  static async deleteColor(id: string) {
+    const existing = await prisma.masterColor.findMany({ where: { id } });
+    if (existing.length === 0) throw new NotFoundError("Không tìm thấy màu sắc");
+    await prisma.masterColor.deleteMany({ where: { id } });
+    return { success: true };
+  }
+
+  // 13. MASTER SPECIFICATIONS
+  static async getSpecifications() {
+    const specs = await prisma.masterSpecification.findMany({});
+    specs.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0) || a.code.localeCompare(b.code));
+    return specs;
+  }
+
+  static async createSpecification(data: any) {
+    const existing = await prisma.masterSpecification.findMany({ where: { code: data.code } });
+    if (existing.length > 0) throw new ConflictError("Mã quy cách đã tồn tại");
+    const id = data.id || `spec-${Date.now()}`;
+    const now = new Date();
+    await prisma.$executeRaw`
+      INSERT INTO [DanhMucQuyCach] (id, code, name, category, standardValue, description, status, sortOrder, createdAt, updatedAt)
+      VALUES (${id}, ${data.code}, ${data.name}, ${data.category || null}, ${data.standardValue || null}, ${data.description || null}, ${data.status || 'active'}, ${Number(data.sortOrder || 0)}, ${now}, ${now})
+    `;
+    const created = await prisma.masterSpecification.findMany({ where: { id } });
+    return created[0] || null;
+  }
+
+  static async updateSpecification(id: string, data: any) {
+    const existing = await prisma.masterSpecification.findMany({ where: { id } });
+    if (existing.length === 0) throw new NotFoundError("Không tìm thấy quy cách");
+    const now = new Date();
+    await prisma.masterSpecification.updateMany({
+      where: { id },
+      data: { ...data, updatedAt: now },
+    });
+    const updated = await prisma.masterSpecification.findMany({ where: { id } });
+    return updated[0] || null;
+  }
+
+  static async deleteSpecification(id: string) {
+    const existing = await prisma.masterSpecification.findMany({ where: { id } });
+    if (existing.length === 0) throw new NotFoundError("Không tìm thấy quy cách");
+    await prisma.masterSpecification.deleteMany({ where: { id } });
     return { success: true };
   }
 }

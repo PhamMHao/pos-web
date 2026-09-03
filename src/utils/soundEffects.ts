@@ -163,6 +163,32 @@ class SoundManager {
       console.warn('Audio cash drawer error:', e);
     }
   }
+
+  public playNotificationSound() {
+    try {
+      const ctx = this.getContext();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, now);
+      gain.gain.setValueAtTime(0.15, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.16);
+    } catch (e) {
+      console.warn('Audio notification error:', e);
+    }
+  }
+
+  // Convenient Aliases
+  public beep() { this.playBarcodeBeep(); }
+  public error() { this.playErrorBeep(); }
+  public success() { this.playSuccessChime(); }
+  public notification() { this.playNotificationSound(); }
 }
 
 export const sounds = new SoundManager();

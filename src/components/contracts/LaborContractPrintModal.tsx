@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { LaborContract, StoreSettings, DigitalSignatureMetadata } from '../../types';
 import { numberToVietnameseWords } from '../../utils/numberToWords';
+import { formatCurrency } from '../../utils/currency';
 import { GiaPhucLogo } from '../common/GiaPhucLogo';
 import { DocumentSignerModal } from '../signatures/DocumentSignerModal';
 import { SignatureVerificationBadge } from '../signatures/SignatureVerificationBadge';
@@ -43,10 +44,6 @@ export const LaborContractPrintModal: React.FC<LaborContractPrintModalProps> = (
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasDrawn, setHasDrawn] = useState(false);
-
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('vi-VN').format(val) + ' đ';
-  };
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return '...';

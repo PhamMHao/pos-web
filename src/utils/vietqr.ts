@@ -30,6 +30,6 @@ export function generateVietQRUrl(params: VietQRParams): string {
   return `https://img.vietqr.io/image/${safeBank}-${safeAccount}-compact2.png?amount=${safeAmount}&addInfo=${encodedDesc}&accountName=${encodedAccountName}`;
 }
 
-export function formatVND(amount: number): string {
-  return (amount || 0).toLocaleString('vi-VN') + ' đ';
-}
+import { formatCurrency, formatVND, formatCompactCurrency, formatNumber, parseCurrencyInput } from './currency';
+
+export { formatCurrency, formatVND, formatCompactCurrency, formatNumber, parseCurrencyInput };

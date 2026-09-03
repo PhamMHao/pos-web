@@ -7,6 +7,7 @@ import {
   Building,
   Briefcase,
   MapPin,
+  Warehouse,
   Scale,
   FolderTree,
   Users,
@@ -26,10 +27,14 @@ import {
   Layers,
   ArrowRightLeft,
   Equal,
+  Palette,
+  Boxes,
+  Sliders,
 } from 'lucide-react';
 import {
   Department,
   JobPosition,
+  MasterWarehouse,
   WarehouseLocation,
   UnitOfMeasure,
   MasterUomGroup,
@@ -45,6 +50,8 @@ import {
   CustomerTier,
   EnterpriseProject,
   EnterpriseProjectStatus,
+  MasterColor,
+  MasterSpecification,
 } from '../../types';
 import { SYSTEM_ROLES } from '../../config/rbac.config';
 
@@ -1227,16 +1234,16 @@ export const UomGroupModal: React.FC<UomGroupModalProps> = ({
 
 
 // ==========================================
-// 5. Warehouse Location Modal (Vị Trí Ô Kệ)
+// 4.5. Master Warehouse Modal (Kho Hàng)
 // ==========================================
-interface WarehouseLocationModalProps {
+interface WarehouseModalProps {
   isOpen: boolean;
   onClose: () => void;
-  initialData?: WarehouseLocation | null;
-  onSave: (data: Omit<WarehouseLocation, 'id' | 'createdAt'>) => void;
+  initialData?: MasterWarehouse | null;
+  onSave: (data: Omit<MasterWarehouse, 'id' | 'createdAt'>) => void;
 }
 
-export const WarehouseLocationModal: React.FC<WarehouseLocationModalProps> = ({
+export const WarehouseModal: React.FC<WarehouseModalProps> = ({
   isOpen,
   onClose,
   initialData,
@@ -1244,35 +1251,38 @@ export const WarehouseLocationModal: React.FC<WarehouseLocationModalProps> = ({
 }) => {
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
-  const [warehouseName, setWarehouseName] = useState('');
-  const [zone, setZone] = useState('');
-  const [barcode, setBarcode] = useState('');
-  const [maxCapacity, setMaxCapacity] = useState<number>(100);
-  const [storageType, setStorageType] = useState<'rack' | 'bin' | 'pallet' | 'secure' | 'bulk' | 'cold'>('rack');
-  const [note, setNote] = useState('');
-  const [status, setStatus] = useState<'active' | 'inactive'>('active');
+  const [type, setType] = useState<'general' | 'showroom' | 'rma' | 'transit' | 'branch'>('general');
+  const [address, setAddress] = useState('');
+  const [managerName, setManagerName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [capacity, setCapacity] = useState<number>(1000);
+  const [status, setStatus] = useState<'active' | 'inactive' | 'maintenance'>('active');
+  const [isDefault, setIsDefault] = useState(false);
+  const [description, setDescription] = useState('');
 
   useEffect(() => {
     if (initialData) {
       setCode(initialData.code || '');
       setName(initialData.name || '');
-      setWarehouseName(initialData.warehouseName || 'Kho Chính Gia Phúc Computer');
-      setZone(initialData.zone || 'Khu A - Linh Kiện');
-      setBarcode(initialData.barcode || '');
-      setMaxCapacity(initialData.maxCapacity || 100);
-      setStorageType(initialData.storageType || 'rack');
-      setNote(initialData.note || '');
+      setType(initialData.type || 'general');
+      setAddress(initialData.address || '');
+      setManagerName(initialData.managerName || '');
+      setPhone(initialData.phone || '');
+      setCapacity(initialData.capacity || 1000);
       setStatus(initialData.status || 'active');
+      setIsDefault(!!initialData.isDefault);
+      setDescription(initialData.description || '');
     } else {
-      setCode('');
+      setCode(`KHO-${Date.now().toString().slice(-4)}`);
       setName('');
-      setWarehouseName('Kho Chính Gia Phúc Computer');
-      setZone('Khu A - Linh Kiện');
-      setBarcode(`LOC-${Date.now().toString().slice(-6)}`);
-      setMaxCapacity(100);
-      setStorageType('rack');
-      setNote('');
+      setType('general');
+      setAddress('');
+      setManagerName('');
+      setPhone('');
+      setCapacity(5000);
       setStatus('active');
+      setIsDefault(false);
+      setDescription('');
     }
   }, [initialData, isOpen]);
 
@@ -1283,12 +1293,292 @@ export const WarehouseLocationModal: React.FC<WarehouseLocationModalProps> = ({
     onSave({
       code: code.trim().toUpperCase(),
       name: name.trim(),
+      type,
+      address: address.trim() || undefined,
+      managerName: managerName.trim() || undefined,
+      phone: phone.trim() || undefined,
+      capacity,
+      status,
+      isDefault,
+      description: description.trim() || undefined,
+    });
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+      <div className="bg-slate-900 border border-slate-700 w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        <div className="px-6 py-4 bg-slate-850 border-b border-slate-700/80 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 bg-blue-600/20 text-blue-400 rounded-2xl border border-blue-500/30">
+              <Warehouse className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-white">
+                {initialData ? 'Chỉnh Sửa Thông Tin Kho Hàng' : 'Thêm Kho Hàng Mới Vào Hệ Thống'}
+              </h3>
+              <p className="text-[11px] text-slate-400">Quản lý định danh cơ sở kho, người phụ trách và sức chứa</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-white rounded-lg cursor-pointer">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">Mã Kho Hàng (Code) *</label>
+              <input
+                type="text"
+                required
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="KHO-CHINH, KHO-HCM..."
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs uppercase font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">Phân Loại Kho</label>
+              <select
+                value={type}
+                onChange={(e) => setType(e.target.value as any)}
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs font-medium"
+              >
+                <option value="general">Kho Tổng / Trung Tâm Phân Phối</option>
+                <option value="showroom">Kho Showroom & Kỹ Thuật Ráp Máy</option>
+                <option value="branch">Kho Chi Nhánh Bán Hàng</option>
+                <option value="rma">Kho Bảo Hành, Đổi Trả & RMA</option>
+                <option value="transit">Kho Trung Chuyển Giao Nhận</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-300 mb-1">Tên Kho Hàng Đầy Đủ *</label>
+            <input
+              type="text"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="VD: Kho Chính Gia Phúc Computer - Tân Bình"
+              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-300 mb-1">Địa Chỉ Thực Tế Của Kho</label>
+            <input
+              type="text"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="VD: Số 123 Đường Cộng Hòa, Phường 12, Quận Tân Bình, TP.HCM"
+              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">Thủ Kho / Người Quản Lý</label>
+              <input
+                type="text"
+                value={managerName}
+                onChange={(e) => setManagerName(e.target.value)}
+                placeholder="VD: Nguyễn Văn Khoa"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">Hotline / Số Điện Thoại</label>
+              <input
+                type="text"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="VD: 0903112233"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs font-mono"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">Sức Chứa Ước Tính (Sản Phẩm)</label>
+              <input
+                type="number"
+                min="1"
+                value={capacity}
+                onChange={(e) => setCapacity(parseInt(e.target.value) || 1000)}
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs font-bold text-amber-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">Trạng Thái Kho</label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as any)}
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs"
+              >
+                <option value="active">Hoạt động bình thường</option>
+                <option value="maintenance">Bảo trì / Kiểm kê định kỳ</option>
+                <option value="inactive">Đóng cửa / Tạm ngưng</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2 pt-1">
+            <input
+              type="checkbox"
+              id="isDefaultWh"
+              checked={isDefault}
+              onChange={(e) => setIsDefault(e.target.checked)}
+              className="w-4 h-4 rounded text-blue-600 bg-slate-800 border-slate-700"
+            />
+            <label htmlFor="isDefaultWh" className="text-xs font-semibold text-slate-300 cursor-pointer">
+              Đặt làm Kho Xuất/Nhập Hàng Mặc Định của hệ thống
+            </label>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-300 mb-1">Mô Tả / Ghi Chú Phân Khu</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+              placeholder="Ghi chú về phân luồng xuất nhập hoặc đặc thù lưu trữ của kho..."
+              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs"
+            />
+          </div>
+
+          <div className="pt-3 border-t border-slate-800 flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl cursor-pointer"
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 cursor-pointer shadow-lg shadow-blue-500/20"
+            >
+              <Save className="w-4 h-4" />
+              <span>{initialData ? 'Cập Nhật Kho' : 'Lưu Kho Hàng'}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+
+// ==========================================
+// 5. Warehouse Location Modal (Vị Trí Ô Kệ Theo Kho)
+// ==========================================
+interface WarehouseLocationModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  initialData?: WarehouseLocation | null;
+  warehouses?: MasterWarehouse[];
+  defaultWarehouseId?: string;
+  onSave: (data: Omit<WarehouseLocation, 'id' | 'createdAt'>) => void;
+}
+
+export const WarehouseLocationModal: React.FC<WarehouseLocationModalProps> = ({
+  isOpen,
+  onClose,
+  initialData,
+  warehouses = [],
+  defaultWarehouseId,
+  onSave,
+}) => {
+  const [code, setCode] = useState('');
+  const [name, setName] = useState('');
+  const [warehouseId, setWarehouseId] = useState('');
+  const [warehouseCode, setWarehouseCode] = useState('');
+  const [warehouseName, setWarehouseName] = useState('');
+  const [zone, setZone] = useState('');
+  const [shelf, setShelf] = useState('');
+  const [tier, setTier] = useState('');
+  const [bin, setBin] = useState('');
+  const [barcode, setBarcode] = useState('');
+  const [capacity, setCapacity] = useState<number>(100);
+  const [storageType, setStorageType] = useState<'rack' | 'bin' | 'pallet' | 'secure' | 'bulk' | 'cold'>('rack');
+  const [note, setNote] = useState('');
+  const [status, setStatus] = useState<'active' | 'inactive' | 'maintenance' | 'full'>('active');
+
+  useEffect(() => {
+    if (initialData) {
+      setCode(initialData.code || '');
+      setName(initialData.name || '');
+      setWarehouseId(initialData.warehouseId || '');
+      setWarehouseCode(initialData.warehouseCode || '');
+      setWarehouseName(initialData.warehouseName || 'Kho Chính Gia Phúc Computer');
+      setZone(initialData.zone || 'Khu A - Linh Kiện Cao Cấp');
+      setShelf(initialData.shelf || '');
+      setTier(initialData.tier || '');
+      setBin(initialData.bin || '');
+      setBarcode(initialData.barcode || initialData.code || '');
+      setCapacity(initialData.capacity || initialData.maxCapacity || 100);
+      setStorageType(initialData.storageType || 'rack');
+      setNote(initialData.notes || initialData.note || '');
+      setStatus((initialData.status as any) || 'active');
+    } else {
+      setCode(`VT-${Date.now().toString().slice(-4)}`);
+      setName('');
+      
+      const targetWh = warehouses.find((w) => w.id === defaultWarehouseId) || warehouses[0];
+      if (targetWh) {
+        setWarehouseId(targetWh.id);
+        setWarehouseCode(targetWh.code);
+        setWarehouseName(targetWh.name);
+      } else {
+        setWarehouseId('');
+        setWarehouseCode('');
+        setWarehouseName('Kho Chính Gia Phúc Computer');
+      }
+
+      setZone('Khu A - Linh Kiện Cao Cấp');
+      setShelf('Kệ A1');
+      setTier('Tầng 1');
+      setBin('Ngăn 01');
+      setBarcode(`LOC-${Date.now().toString().slice(-6)}`);
+      setCapacity(100);
+      setStorageType('rack');
+      setNote('');
+      setStatus('active');
+    }
+  }, [initialData, isOpen, defaultWarehouseId, warehouses]);
+
+  if (!isOpen) return null;
+
+  const handleWarehouseChange = (selectedId: string) => {
+    setWarehouseId(selectedId);
+    const found = warehouses.find((w) => w.id === selectedId);
+    if (found) {
+      setWarehouseCode(found.code);
+      setWarehouseName(found.name);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave({
+      code: code.trim().toUpperCase(),
+      name: name.trim(),
+      barcode: barcode.trim().toUpperCase() || code.trim().toUpperCase(),
+      warehouseId: warehouseId || undefined,
+      warehouseCode: warehouseCode || undefined,
       warehouseName: warehouseName.trim(),
-      zone: zone.trim(),
-      barcode: barcode.trim().toUpperCase(),
-      maxCapacity,
+      zone: zone.trim() || undefined,
+      shelf: shelf.trim() || undefined,
+      tier: tier.trim() || undefined,
+      bin: bin.trim() || undefined,
+      capacity,
+      maxCapacity: capacity,
       currentUsage: initialData?.currentUsage || 0,
       storageType,
+      notes: note.trim() || undefined,
       note: note.trim() || undefined,
       status,
     });
@@ -1297,20 +1587,50 @@ export const WarehouseLocationModal: React.FC<WarehouseLocationModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-      <div className="bg-slate-900 border border-slate-700 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden">
+      <div className="bg-slate-900 border border-slate-700 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         <div className="px-6 py-4 bg-slate-850 border-b border-slate-700/80 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <MapPin className="w-5 h-5 text-emerald-400" />
-            <h3 className="text-sm font-bold text-white">
-              {initialData ? 'Chỉnh Sửa Vị Trí Ô Kệ' : 'Thêm Vị Trí Ô Kệ Mới'}
-            </h3>
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 bg-emerald-600/20 text-emerald-400 rounded-2xl border border-emerald-500/30">
+              <MapPin className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-white">
+                {initialData ? 'Chỉnh Sửa Vị Trí Ô Kệ' : 'Thêm Vị Trí Ô Kệ Theo Kho'}
+              </h3>
+              <p className="text-[11px] text-slate-400">Định vị chính xác phân khu, kệ, tầng và ô chứa hàng</p>
+            </div>
           </div>
-          <button onClick={onClose} className="p-1 text-slate-400 hover:text-white rounded-lg cursor-pointer">
+          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-white rounded-lg cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-300 mb-1">Kho Hàng Trực Thuộc *</label>
+            {warehouses.length > 0 ? (
+              <select
+                value={warehouseId}
+                onChange={(e) => handleWarehouseChange(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs font-bold text-blue-400"
+              >
+                {warehouses.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    [{w.code}] {w.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={warehouseName}
+                onChange={(e) => setWarehouseName(e.target.value)}
+                placeholder="Kho Chính Gia Phúc Computer"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs"
+              />
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-300 mb-1">Mã Vị Trí (Code) *</label>
@@ -1319,7 +1639,7 @@ export const WarehouseLocationModal: React.FC<WarehouseLocationModalProps> = ({
                 required
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                placeholder="LOC-A1-01, LOC-B2..."
+                placeholder="VT-MAIN-A1, VT-SR-01..."
                 className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs uppercase font-mono"
               />
             </div>
@@ -1329,71 +1649,107 @@ export const WarehouseLocationModal: React.FC<WarehouseLocationModalProps> = ({
                 type="text"
                 value={barcode}
                 onChange={(e) => setBarcode(e.target.value)}
-                placeholder="LOC-A1-01-8899"
+                placeholder="LOC-MAIN-A1"
                 className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs font-mono text-cyan-400"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-300 mb-1">Tên Vị Trí / Ngăn Kệ *</label>
+            <label className="block text-xs font-bold text-slate-300 mb-1">Tên Vị Trí / Mô Tả Ô Kệ *</label>
             <input
               type="text"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="VD: Kệ A1 - Tầng 1 (Linh Kiện CPU & Mainboard)"
+              placeholder="VD: Kệ A1 - Tầng 1 (CPU & Vi Xử Lý)"
               className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Kho Trực Thuộc</label>
-              <input
-                type="text"
-                value={warehouseName}
-                onChange={(e) => setWarehouseName(e.target.value)}
-                placeholder="Kho Chính Gia Phúc Computer"
-                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Phân Khu (Zone)</label>
+              <label className="block text-xs font-bold text-slate-300 mb-1">Phân Khu Lưu Trữ (Zone)</label>
               <input
                 type="text"
                 value={zone}
                 onChange={(e) => setZone(e.target.value)}
-                placeholder="Khu A - Linh Kiện Máy Tính"
+                placeholder="VD: Khu A - Linh Kiện Cao Cấp"
                 className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">Kệ / Dãy Hàng (Shelf)</label>
+              <input
+                type="text"
+                value={shelf}
+                onChange={(e) => setShelf(e.target.value)}
+                placeholder="VD: Kệ A1, Kệ B2"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">Tầng (Tier)</label>
+              <input
+                type="text"
+                value={tier}
+                onChange={(e) => setTier(e.target.value)}
+                placeholder="VD: Tầng 1"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">Ô / Ngăn (Bin)</label>
+              <input
+                type="text"
+                value={bin}
+                onChange={(e) => setBin(e.target.value)}
+                placeholder="VD: Ngăn 01"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">Sức Chứa (SKU)</label>
+              <input
+                type="number"
+                min="1"
+                value={capacity}
+                onChange={(e) => setCapacity(parseInt(e.target.value) || 100)}
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs font-bold text-amber-400"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Sức Chứa Tối Đa (Món)</label>
-              <input
-                type="number"
-                min="1"
-                value={maxCapacity}
-                onChange={(e) => setMaxCapacity(parseInt(e.target.value) || 100)}
-                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Loại Lưu Trữ</label>
+              <label className="block text-xs font-bold text-slate-300 mb-1">Loại Hình Lưu Trữ</label>
               <select
                 value={storageType}
                 onChange={(e) => setStorageType(e.target.value as any)}
                 className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs"
               >
-                <option value="rack">Kệ hàng (Rack)</option>
-                <option value="bin">Khay / Ngăn nhỏ (Bin)</option>
-                <option value="pallet">Sàn Pallet cồng kềnh</option>
-                <option value="secure">Tủ khóa an toàn (Secure)</option>
-                <option value="bulk">Khu lưu trữ rời (Bulk)</option>
-                <option value="cold">Kho lạnh bảo quản (Cold)</option>
+                <option value="rack">Kệ Hàng Chia Tầng (Rack)</option>
+                <option value="bin">Khay / Hộp Nhỏ (Bin)</option>
+                <option value="pallet">Sàn Pallet Hàng Cồng Kềnh</option>
+                <option value="secure">Tủ Kính / Khóa An Ninh (Secure)</option>
+                <option value="bulk">Khu Lưu Trữ Rời (Bulk)</option>
+                <option value="cold">Kho Lạnh Bảo Quản (Cold)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">Trạng Thái Ô Kệ</label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as any)}
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs"
+              >
+                <option value="active">Sẵn sàng chứa hàng</option>
+                <option value="maintenance">Đang bảo trì / Kiểm kê</option>
+                <option value="full">Đã đầy tải</option>
+                <option value="inactive">Tạm khóa</option>
               </select>
             </div>
           </div>
@@ -1404,7 +1760,7 @@ export const WarehouseLocationModal: React.FC<WarehouseLocationModalProps> = ({
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={2}
-              placeholder="Ghi chú về chủng loại linh kiện phù hợp..."
+              placeholder="Ghi chú về điều kiện bảo quản, chủng loại thiết bị..."
               className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs"
             />
           </div>
@@ -1413,16 +1769,16 @@ export const WarehouseLocationModal: React.FC<WarehouseLocationModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-300 font-semibold text-xs rounded-xl cursor-pointer"
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl cursor-pointer"
             >
               Hủy
             </button>
             <button
               type="submit"
-              className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl flex items-center space-x-1.5 cursor-pointer shadow"
+              className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 cursor-pointer shadow-lg shadow-emerald-500/20"
             >
               <Save className="w-4 h-4" />
-              <span>{initialData ? 'Cập Nhật Vị Trí' : 'Lưu Vị Trí'}</span>
+              <span>{initialData ? 'Cập Nhật Vị Trí' : 'Lưu Vị Trí Ô Kệ'}</span>
             </button>
           </div>
         </form>
@@ -3025,6 +3381,483 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
             >
               <Check className="w-4 h-4" />
               <span>Lưu Thay Đổi</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// 12. Master Color Modal
+// ==========================================
+interface ColorModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  initialData?: MasterColor | null;
+  onSave: (data: Omit<MasterColor, 'id' | 'createdAt'>) => void;
+}
+
+export const ColorModal: React.FC<ColorModalProps> = ({
+  isOpen,
+  onClose,
+  initialData,
+  onSave,
+}) => {
+  const [code, setCode] = useState('');
+  const [name, setName] = useState('');
+  const [hexCode, setHexCode] = useState('#1e293b');
+  const [description, setDescription] = useState('');
+  const [status, setStatus] = useState<'active' | 'inactive'>('active');
+  const [sortOrder, setSortOrder] = useState<number>(0);
+
+  const PRESET_COLORS = [
+    { label: 'Đen Nhám', hex: '#1e293b' },
+    { label: 'Bạc Titan', hex: '#cbd5e1' },
+    { label: 'Xám Không Gian', hex: '#64748b' },
+    { label: 'Trắng Ngọc Trai', hex: '#f8fafc' },
+    { label: 'Đỏ Gaming', hex: '#ef4444' },
+    { label: 'Xanh Sapphire', hex: '#3b82f6' },
+    { label: 'Vàng Champagne', hex: '#f59e0b' },
+    { label: 'Xanh Emerald', hex: '#10b981' },
+    { label: 'Tím Neon', hex: '#8b5cf6' },
+    { label: 'Hồng Rose Gold', hex: '#ec4899' },
+    { label: 'Xanh Cyan', hex: '#06b6d4' },
+    { label: 'Cam Rực Rỡ', hex: '#f97316' },
+  ];
+
+  useEffect(() => {
+    if (initialData) {
+      setCode(initialData.code);
+      setName(initialData.name);
+      setHexCode(initialData.hexCode || '#1e293b');
+      setDescription(initialData.description || '');
+      setStatus(initialData.status);
+      setSortOrder(initialData.sortOrder || 0);
+    } else {
+      setCode(`CLR-${Math.floor(1000 + Math.random() * 9000)}`);
+      setName('');
+      setHexCode('#1e293b');
+      setDescription('');
+      setStatus('active');
+      setSortOrder(0);
+    }
+  }, [initialData, isOpen]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!code.trim() || !name.trim()) return;
+
+    onSave({
+      code: code.trim().toUpperCase(),
+      name: name.trim(),
+      hexCode: hexCode.trim() || '#000000',
+      description: description.trim() || null,
+      status,
+      sortOrder: Number(sortOrder) || 0,
+    });
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+        {/* Header */}
+        <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-gradient-to-r from-pink-950/30 via-slate-900 to-rose-950/30">
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 bg-pink-600/20 border border-pink-500/30 rounded-2xl text-pink-400">
+              <Palette className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-black text-white">
+                {initialData ? 'Chỉnh Sửa Màu Sắc' : 'Thêm Màu Sắc Sản Phẩm Mới'}
+              </h3>
+              <p className="text-xs text-slate-400">
+                Định nghĩa màu sắc & mã màu HEX chuẩn hiển thị trên toàn hệ thống
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Form Body */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">
+                Mã màu <span className="text-rose-400">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="CLR-BLACK"
+                className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs font-mono uppercase focus:outline-none focus:border-pink-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">
+                Trạng thái hoạt động
+              </label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as 'active' | 'inactive')}
+                className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-pink-500 cursor-pointer"
+              >
+                <option value="active">🟢 Hoạt động</option>
+                <option value="inactive">⚪ Tạm ngưng</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-300 mb-1">
+              Tên màu sắc sản phẩm <span className="text-rose-400">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Đen Nhám (Matte Black)"
+              className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-pink-500"
+            />
+          </div>
+
+          {/* Color Selector & Preview */}
+          <div className="space-y-2 bg-slate-950/60 p-4 rounded-2xl border border-slate-800">
+            <label className="block text-xs font-bold text-slate-300">
+              Chọn Mã Màu HEX Trực Quan
+            </label>
+            <div className="flex items-center space-x-3">
+              <div className="relative">
+                <input
+                  type="color"
+                  value={hexCode}
+                  onChange={(e) => setHexCode(e.target.value)}
+                  className="w-12 h-10 rounded-xl border border-slate-700 bg-transparent cursor-pointer"
+                />
+              </div>
+              <input
+                type="text"
+                value={hexCode}
+                onChange={(e) => setHexCode(e.target.value)}
+                placeholder="#1e293b"
+                className="flex-1 px-3.5 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs font-mono focus:outline-none focus:border-pink-500"
+              />
+              <div
+                className="w-20 h-10 rounded-xl border border-slate-700 flex items-center justify-center text-[10px] font-bold shadow-inner"
+                style={{
+                  backgroundColor: hexCode,
+                  color: ['#ffffff', '#f8fafc', '#cbd5e1'].includes(hexCode.toLowerCase())
+                    ? '#0f172a'
+                    : '#ffffff',
+                }}
+              >
+                Xem Trước
+              </div>
+            </div>
+
+            {/* Quick Palette Swatches */}
+            <div className="pt-2">
+              <span className="text-[10px] font-semibold text-slate-400 mb-1.5 block">
+                Bảng màu gợi ý nhanh:
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {PRESET_COLORS.map((c) => (
+                  <button
+                    key={c.hex}
+                    type="button"
+                    onClick={() => setHexCode(c.hex)}
+                    className={`w-6 h-6 rounded-lg border transition-transform hover:scale-110 cursor-pointer ${
+                      hexCode.toLowerCase() === c.hex.toLowerCase()
+                        ? 'border-white ring-2 ring-pink-500 scale-110'
+                        : 'border-slate-700'
+                    }`}
+                    style={{ backgroundColor: c.hex }}
+                    title={`${c.label} (${c.hex})`}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">
+                Thứ tự sắp xếp
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={sortOrder}
+                onChange={(e) => setSortOrder(parseInt(e.target.value) || 0)}
+                placeholder="0"
+                className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-pink-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">
+                Mô tả ứng dụng màu
+              </label>
+              <input
+                type="text"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Vỏ case, bàn phím, laptop"
+                className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-pink-500"
+              />
+            </div>
+          </div>
+
+          {/* Modal Actions */}
+          <div className="pt-4 border-t border-slate-800 flex items-center justify-end space-x-3 shrink-0">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-5 py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold text-xs rounded-xl cursor-pointer transition-colors"
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-2.5 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-bold text-xs rounded-xl flex items-center space-x-2 cursor-pointer shadow-lg shadow-pink-600/25 transition-all"
+            >
+              <Check className="w-4 h-4" />
+              <span>{initialData ? 'Lưu Thay Đổi' : 'Thêm Màu Sắc'}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// 13. Master Specification Modal
+// ==========================================
+interface SpecificationModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  initialData?: MasterSpecification | null;
+  onSave: (data: Omit<MasterSpecification, 'id' | 'createdAt'>) => void;
+}
+
+export const SpecificationModal: React.FC<SpecificationModalProps> = ({
+  isOpen,
+  onClose,
+  initialData,
+  onSave,
+}) => {
+  const [code, setCode] = useState('');
+  const [name, setName] = useState('');
+  const [category, setCategory] = useState('Đóng gói & Hộp');
+  const [standardValue, setStandardValue] = useState('');
+  const [description, setDescription] = useState('');
+  const [status, setStatus] = useState<'active' | 'inactive'>('active');
+  const [sortOrder, setSortOrder] = useState<number>(0);
+
+  const SPEC_CATEGORIES = [
+    'Đóng gói & Hộp',
+    'Chiều dài & Cuộn',
+    'Khay & Vỉ linh kiện',
+    'Đóng gói Túi',
+    'Khối lượng & Tuýp',
+    'Kích thước & Tiêu chuẩn',
+    'Khác',
+  ];
+
+  useEffect(() => {
+    if (initialData) {
+      setCode(initialData.code);
+      setName(initialData.name);
+      setCategory(initialData.category || 'Đóng gói & Hộp');
+      setStandardValue(initialData.standardValue || '');
+      setDescription(initialData.description || '');
+      setStatus(initialData.status);
+      setSortOrder(initialData.sortOrder || 0);
+    } else {
+      setCode(`SPEC-${Math.floor(1000 + Math.random() * 9000)}`);
+      setName('');
+      setCategory('Đóng gói & Hộp');
+      setStandardValue('');
+      setDescription('');
+      setStatus('active');
+      setSortOrder(0);
+    }
+  }, [initialData, isOpen]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!code.trim() || !name.trim()) return;
+
+    onSave({
+      code: code.trim().toUpperCase(),
+      name: name.trim(),
+      category: category.trim() || null,
+      standardValue: standardValue.trim() || null,
+      description: description.trim() || null,
+      status,
+      sortOrder: Number(sortOrder) || 0,
+    });
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+        {/* Header */}
+        <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-gradient-to-r from-amber-950/30 via-slate-900 to-orange-950/30">
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 bg-amber-600/20 border border-amber-500/30 rounded-2xl text-amber-400">
+              <Boxes className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-black text-white">
+                {initialData ? 'Chỉnh Sửa Quy Cách' : 'Thêm Quy Cách Mới'}
+              </h3>
+              <p className="text-xs text-slate-400">
+                Quy chuẩn đóng gói, chiều dài, khối lượng & thông số định mức
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Form Body */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">
+                Mã quy cách <span className="text-rose-400">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="SPEC-BOX10"
+                className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs font-mono uppercase focus:outline-none focus:border-amber-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">
+                Trạng thái
+              </label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as 'active' | 'inactive')}
+                className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-500 cursor-pointer"
+              >
+                <option value="active">🟢 Hoạt động</option>
+                <option value="inactive">⚪ Tạm ngưng</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-300 mb-1">
+              Tên quy cách <span className="text-rose-400">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Quy cách Hộp 10 Cái tiêu chuẩn"
+              className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-500"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">
+                Phân loại quy cách
+              </label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-500 cursor-pointer"
+              >
+                {SPEC_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">
+                Giá trị tiêu chuẩn
+              </label>
+              <input
+                type="text"
+                value={standardValue}
+                onChange={(e) => setStandardValue(e.target.value)}
+                placeholder="VD: 10 Cái/Hộp, 305 Mét/Cuộn"
+                className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-amber-300 text-xs font-semibold focus:outline-none focus:border-amber-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-300 mb-1">
+              Thứ tự sắp xếp
+            </label>
+            <input
+              type="number"
+              min="0"
+              value={sortOrder}
+              onChange={(e) => setSortOrder(parseInt(e.target.value) || 0)}
+              placeholder="0"
+              className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-300 mb-1">
+              Mô tả quy cách & Hướng dẫn đóng gói
+            </label>
+            <textarea
+              rows={2}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Quy chuẩn đóng gói chống sốc và dán tem niêm phong 10 con mỗi hộp."
+              className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-500"
+            />
+          </div>
+
+          {/* Modal Actions */}
+          <div className="pt-4 border-t border-slate-800 flex items-center justify-end space-x-3 shrink-0">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-5 py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold text-xs rounded-xl cursor-pointer transition-colors"
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-2.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold text-xs rounded-xl flex items-center space-x-2 cursor-pointer shadow-lg shadow-amber-600/25 transition-all"
+            >
+              <Check className="w-4 h-4" />
+              <span>{initialData ? 'Lưu Thay Đổi' : 'Thêm Quy Cách'}</span>
             </button>
           </div>
         </form>

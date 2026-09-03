@@ -18,7 +18,13 @@ router.post("/job-positions", MasterDataController.createJobPosition);
 router.put("/job-positions/:id", MasterDataController.updateJobPosition);
 router.delete("/job-positions/:id", MasterDataController.deleteJobPosition);
 
-// 4. Warehouse Locations
+// 4. Master Warehouses
+router.get("/warehouses", MasterDataController.getWarehouses);
+router.post("/warehouses", MasterDataController.createWarehouse);
+router.put("/warehouses/:id", MasterDataController.updateWarehouse);
+router.delete("/warehouses/:id", MasterDataController.deleteWarehouse);
+
+// 4.1 Warehouse Locations
 router.get("/warehouse-locations", MasterDataController.getWarehouseLocations);
 router.post("/warehouse-locations", MasterDataController.createWarehouseLocation);
 router.put("/warehouse-locations/:id", MasterDataController.updateWarehouseLocation);
@@ -65,6 +71,18 @@ router.get("/uom-groups", MasterDataController.getUomGroups);
 router.post("/uom-groups", MasterDataController.createUomGroup);
 router.put("/uom-groups/:id", MasterDataController.updateUomGroup);
 router.delete("/uom-groups/:id", MasterDataController.deleteUomGroup);
+
+// 12. Master Colors
+router.get("/colors", MasterDataController.getColors);
+router.post("/colors", MasterDataController.createColor);
+router.put("/colors/:id", MasterDataController.updateColor);
+router.delete("/colors/:id", MasterDataController.deleteColor);
+
+// 13. Master Specifications
+router.get("/specifications", MasterDataController.getSpecifications);
+router.post("/specifications", MasterDataController.createSpecification);
+router.put("/specifications/:id", MasterDataController.updateSpecification);
+router.delete("/specifications/:id", MasterDataController.deleteSpecification);
 
 export default router;
 

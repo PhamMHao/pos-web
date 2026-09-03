@@ -245,12 +245,14 @@ export const CreateReturnModal: React.FC<CreateReturnModalProps> = ({
     try {
       const code = `TH-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Date.now().toString().slice(-4)}`;
       const returnItems: ReturnOrderItem[] = selectedItems.map((it) => ({
+        originalOrderItemId: (it as any).originalOrderItemId || null,
         productId: it.productId,
         productName: it.productName,
         sku: it.sku,
         unit: it.unit,
         ratioToBase: it.ratioToBase,
         quantity: it.returnQuantity,
+        costPrice: (it as any).costPrice || it.unitPrice || 0,
         unitPrice: it.unitPrice,
         refundUnitPrice: it.refundUnitPrice,
         totalRefund: it.returnQuantity * it.refundUnitPrice,

@@ -22,25 +22,33 @@ import {
   Trophy,
   RotateCcw,
   ShieldCheck,
+  ArrowRight,
+  X,
 } from 'lucide-react';
 import { PriceQuote, StoreSettings, Product, Customer, QuoteLifecycleStatus, SignableDocument, DigitalSignatureMetadata, SignatureAuditLog } from '../../types';
 import { PrintInvoiceModal } from '../common/PrintInvoiceModal';
 import { NewQuoteModal, InitialQuotePrefill } from './NewQuoteModal';
 import { SupplierComparisonModal } from './SupplierComparisonModal';
 import { QuoteAnalyticsReportModal } from './QuoteAnalyticsReportModal';
+import { formatVND } from '../../utils/currency';
 import { EquivalentQuoteRecommenderModal } from './EquivalentQuoteRecommenderModal';
 import { QuoteLifecycleModal } from './QuoteLifecycleModal';
 import { DocumentSignerModal } from '../signatures/DocumentSignerModal';
 import { SignatureVerificationBadge } from '../signatures/SignatureVerificationBadge';
+import { PriceQuoteDocumentTemplate } from './PriceQuoteDocumentTemplate';
+import { PriceQuotePrintModal } from './PriceQuotePrintModal';
+import { QuoteConversionNextStepsModal } from './QuoteConversionNextStepsModal';
 
 interface QuotesViewProps {
   quotes?: PriceQuote[];
   products?: Product[];
   customers?: Customer[];
   settings?: StoreSettings;
+  onSaveSettings?: (settings: StoreSettings) => void;
   onSaveQuote?: (quote: PriceQuote) => void;
   onConvertToOrder?: (quote: PriceQuote) => void;
   onOpenDocOcrScanner?: (mode?: 'customer_quote') => void;
+  onNavigateTab?: (tab: string) => void;
 }
 
 const STATUS_CONFIG: Record<QuoteLifecycleStatus, { label: string; icon: any; color: string; badge: string }> = {
@@ -58,9 +66,11 @@ export const QuotesView: React.FC<QuotesViewProps> = ({
   products = [],
   customers = [],
   settings,
+  onSaveSettings,
   onSaveQuote,
   onConvertToOrder,
   onOpenDocOcrScanner,
+  onNavigateTab,
 }) => {
   const safeQuotes = Array.isArray(quotes) ? quotes : [];
   const [searchTerm, setSearchTerm] = useState('');
@@ -73,12 +83,10 @@ export const QuotesView: React.FC<QuotesViewProps> = ({
   const [showEquivalentModal, setShowEquivalentModal] = useState(false);
   const [showLifecycleModal, setShowLifecycleModal] = useState(false);
   const [showSignerModal, setShowSignerModal] = useState(false);
+  const [showNextStepsModal, setShowNextStepsModal] = useState(false);
+  const [quoteForNextSteps, setQuoteForNextSteps] = useState<PriceQuote | null>(null);
   const [quoteSignatures, setQuoteSignatures] = useState<Record<string, DigitalSignatureMetadata>>({});
   const [prefillData, setPrefillData] = useState<InitialQuotePrefill | null>(null);
-
-  const formatVND = (amt: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amt);
-  };
 
   const filteredQuotes = safeQuotes.filter((q) => {
     const matchSearch =
@@ -344,6 +352,19 @@ export const QuotesView: React.FC<QuotesViewProps> = ({
                     <span>In Báo Giá (A4/A5)</span>
                   </button>
 
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuoteForNextSteps(selectedQuote);
+                      setShowNextStepsModal(true);
+                    }}
+                    className="px-3.5 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-blue-600/25 flex items-center space-x-1.5 transition-all cursor-pointer active:scale-95"
+                    title="Mở bảng điều hướng các bước tiếp theo (In báo giá, Hóa đơn POS, Xuất kho, HĐĐT)"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                    <span>Các Bước Tiếp Theo 🚀</span>
+                  </button>
+
                   {selectedQuote.status === 'completed' || selectedQuote.convertedOrderCode ? (
                     <div
                       className="px-3.5 py-1.5 bg-teal-950/80 text-teal-300 text-xs font-bold rounded-xl border border-teal-500/40 flex items-center space-x-1.5 shadow-sm"
@@ -354,7 +375,13 @@ export const QuotesView: React.FC<QuotesViewProps> = ({
                     </div>
                   ) : (
                     <button
-                      onClick={() => onConvertToOrder && selectedQuote && onConvertToOrder(selectedQuote)}
+                      onClick={() => {
+                        if (onConvertToOrder && selectedQuote) {
+                          onConvertToOrder(selectedQuote);
+                          setQuoteForNextSteps(selectedQuote);
+                          setShowNextStepsModal(true);
+                        }
+                      }}
                       className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 shadow transition-colors cursor-pointer active:scale-95"
                     >
                       <ShoppingCart className="w-3.5 h-3.5" />
@@ -437,54 +464,27 @@ export const QuotesView: React.FC<QuotesViewProps> = ({
         </div>
       </div>
 
-      {/* Print Quote Modal */}
+      {/* B2B Commercial Price Quote Print Modal */}
       {showPrintModal && selectedQuote && (
-        <PrintInvoiceModal
+        <PriceQuotePrintModal
           isOpen={showPrintModal}
-          initialDocType="quote"
-          settings={settings}
-          order={{
-            id: selectedQuote.id,
-            code: selectedQuote.code,
-            items: selectedQuote.items.map((i) => ({
-              productId: (i as any).productId || i.sku,
-              productName: i.productName,
-              sku: i.sku,
-              barcode: i.sku,
-              quantity: i.quantity,
-              unit: i.unit,
-              unitPrice: i.unitPrice,
-              originalPrice: i.unitPrice,
-              costPrice: i.unitPrice * 0.7,
-              total: i.total,
-              discountPercent: 0,
-              discountAmount: 0,
-            })),
-            subtotal: selectedQuote.totalAmount,
-            discountAmount: (selectedQuote.totalAmount * selectedQuote.discountPercent) / 100,
-            discountCode: selectedQuote.discountPercent > 0 ? 'CK ' + selectedQuote.discountPercent + '%' : undefined,
-            taxAmount: 0,
-            taxRate: 0,
-            total: selectedQuote.finalTotal,
-            totalCost: selectedQuote.totalAmount * 0.7,
-            profit: selectedQuote.finalTotal - selectedQuote.totalAmount * 0.7,
-            profitMargin: 30,
-            paidAmount: selectedQuote.finalTotal,
-            changeAmount: 0,
-            paymentMethod: 'transfer',
-            paymentStatus: 'paid',
-            status: 'confirmed',
-            channel: 'Website',
-            customer: {
-              id: 'c-quote',
-              name: selectedQuote.customerName,
-              phone: selectedQuote.customerPhone,
-              address: selectedQuote.customerCompany || '',
-            },
-            notes: selectedQuote.notes,
-            createdAt: selectedQuote.createdAt,
-          } as any}
           onClose={() => setShowPrintModal(false)}
+          quote={selectedQuote}
+          settings={settings}
+          signature={quoteSignatures[selectedQuote.id] || selectedQuote.digitalSignature}
+          onSaveSettings={onSaveSettings}
+        />
+      )}
+
+      {/* Quote Conversion Next Steps Action Modal */}
+      {showNextStepsModal && (quoteForNextSteps || selectedQuote) && (
+        <QuoteConversionNextStepsModal
+          isOpen={showNextStepsModal}
+          onClose={() => setShowNextStepsModal(false)}
+          quote={quoteForNextSteps || selectedQuote}
+          settings={settings}
+          signature={quoteSignatures[(quoteForNextSteps || selectedQuote)!.id] || (quoteForNextSteps || selectedQuote)!.digitalSignature}
+          onNavigateTab={onNavigateTab}
         />
       )}
 
@@ -544,7 +544,11 @@ export const QuotesView: React.FC<QuotesViewProps> = ({
           onClose={() => setShowLifecycleModal(false)}
           quote={selectedQuote}
           onUpdateQuote={handleUpdateQuote}
-          onConvertToOrder={onConvertToOrder}
+          onConvertToOrder={(q) => {
+            if (onConvertToOrder) onConvertToOrder(q);
+            setQuoteForNextSteps(q);
+            setShowNextStepsModal(true);
+          }}
         />
       )}
 
@@ -567,11 +571,14 @@ export const QuotesView: React.FC<QuotesViewProps> = ({
           settings={settings}
           onClose={() => setShowSignerModal(false)}
           onSignSuccess={(sig) => {
+            const updatedQuote: PriceQuote = {
+              ...selectedQuote,
+              digitalSignature: sig,
+              status: selectedQuote.status === 'draft' ? 'approved' : selectedQuote.status,
+            };
             setQuoteSignatures((prev) => ({ ...prev, [selectedQuote.id]: sig }));
+            handleUpdateQuote(updatedQuote);
             setShowSignerModal(false);
-            if (selectedQuote.status === 'draft') {
-              handleUpdateQuote({ ...selectedQuote, status: 'approved' });
-            }
           }}
         />
       )}

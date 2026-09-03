@@ -86,15 +86,21 @@ export function generateSkuByRule(
   }
 
   if (rule === 'gp_prefix') {
-    let catCode = 'SP';
+    let catCode = 'DM-SP';
     const c = (category || '').toLowerCase();
-    if (c.includes('camera') || c.includes('đầu ghi')) catCode = 'CAM';
-    else if (c.includes('mạng') || c.includes('switch') || c.includes('wifi')) catCode = 'NET';
-    else if (c.includes('linh kiện') || c.includes('ram') || c.includes('ssd') || c.includes('cpu')) catCode = 'LK';
-    else if (c.includes('phụ kiện') || c.includes('chuột') || c.includes('phím')) catCode = 'PK';
-    else if (c.includes('văn phòng') || c.includes('máy in')) catCode = 'VP';
-    const rand = Math.floor(100 + Math.random() * 900);
-    return `GP-${catCode}-${rand}`;
+    if (c.includes('cpu') || c.includes('vi xử lý')) catCode = 'DM-CPU';
+    else if (c.includes('vga') || c.includes('card màn hình')) catCode = 'DM-VGA';
+    else if (c.includes('main') || c.includes('bo mạch')) catCode = 'DM-MAIN';
+    else if (c.includes('ram') || c.includes('bộ nhớ')) catCode = 'DM-RAM';
+    else if (c.includes('ssd') || c.includes('hdd') || c.includes('ổ cứng')) catCode = 'DM-SSD';
+    else if (c.includes('màn hình') || c.includes('monitor')) catCode = 'DM-MONITOR';
+    else if (c.includes('camera') || c.includes('đầu ghi')) catCode = 'DM-CAM';
+    else if (c.includes('mạng') || c.includes('switch') || c.includes('wifi')) catCode = 'DM-NET';
+    else if (c.includes('phụ kiện') || c.includes('chuột') || c.includes('phím')) catCode = 'DM-PK';
+    else if (c.includes('văn phòng') || c.includes('máy in')) catCode = 'DM-VP';
+    else if (c.includes('linh kiện')) catCode = 'DM-LK';
+    const rand = Math.floor(10 + Math.random() * 90);
+    return `SKU-${catCode}-${rand}`;
   }
 
   if (rule === 'incremental') {

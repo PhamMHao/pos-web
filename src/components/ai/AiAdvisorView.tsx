@@ -43,6 +43,7 @@ import {
   Employee,
   AccountingRecord,
 } from '../../types';
+import { formatVND } from '../../utils/currency';
 
 interface AiAdvisorViewProps {
   products?: Product[];
@@ -298,11 +299,11 @@ Thông điệp cần có số tiền nợ chính xác, số tài khoản nhận 
     setIsAnalyzing(true);
     try {
       const prompt = `Phân tích toàn diện hiệu suất kinh doanh của doanh nghiệp:
-- Doanh thu: ${totalRevenue.toLocaleString('vi-VN')} đ
+- Doanh thu: ${formatVND(totalRevenue)}
 - Đơn hàng: ${safeOrders.length}
 - Khách hàng: ${safeCustomers.length}
 - Tồn kho cảnh báo thấp: ${lowStockCount} sản phẩm
-- Công nợ chưa thu hồi: ${totalDebt.toLocaleString('vi-VN')} đ
+- Công nợ chưa thu hồi: ${formatVND(totalDebt)}
 
 Đưa ra báo cáo chi tiết gồm:
 1. 📊 Đánh giá sức khỏe tài chính & dòng tiền
@@ -384,7 +385,7 @@ Yêu cầu cung cấp:
           </div>
           <div className="px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-slate-300">
             <span>Công nợ: </span>
-            <strong className="text-amber-400 font-bold">{totalDebt.toLocaleString('vi-VN')}đ</strong>
+            <strong className="text-amber-400 font-bold">{formatVND(totalDebt)}</strong>
           </div>
         </div>
       </div>
@@ -772,7 +773,7 @@ Yêu cầu cung cấp:
                 >
                   {safeCustomers.map((c) => (
                     <option key={c.id} value={c.name}>
-                      {c.name} ({c.phone}) - Nợ: {c.debt.toLocaleString('vi-VN')}đ [{c.tier}]
+                      {c.name} ({c.phone}) - Nợ: {formatVND(c.debt)} [{c.tier}]
                     </option>
                   ))}
                 </select>

@@ -28,6 +28,7 @@ import { LaborContractManagerView } from '../contracts/LaborContractManagerView'
 import { NewEmployeeModal } from './NewEmployeeModal';
 import { KpiScoringModal } from './KpiScoringModal';
 import { KpiEvaluationReportModal } from './KpiEvaluationReportModal';
+import { formatVND } from '../../utils/currency';
 import { generateInitialKpiEvaluations } from '../../utils/kpiDefaults';
 
 interface HrViewProps {
@@ -63,10 +64,6 @@ export const HrView: React.FC<HrViewProps> = ({
   const [showReportModal, setShowReportModal] = useState<boolean>(false);
   const [kpiRankFilter, setKpiRankFilter] = useState<string>('all');
   const [kpiRoleFilter, setKpiRoleFilter] = useState<string>('all');
-
-  const formatVND = (amt: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amt);
-  };
 
   const filteredEmployees = safeEmployees.filter(
     (e) =>

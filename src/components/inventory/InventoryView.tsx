@@ -32,6 +32,9 @@ import {
   Globe,
   Truck,
   AlertCircle,
+  ArrowRightLeft,
+  Package,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   Product,
@@ -48,8 +51,12 @@ import {
   Order,
   SerialDeviceRecord,
   StockOutboundNote,
+  MasterUomGroup,
+  ReturnOrder,
+  ProductExchange,
+  ReturnPolicyConfig,
 } from '../../types';
-import { formatVND } from '../../utils/vietqr';
+import { formatVND, formatNumber, parseCurrencyInput } from '../../utils/currency';
 import { COMMON_UNITS, solveUomChain, getUomEquivalentsSummary } from '../../utils/uomConverter';
 import { compressImageFile } from '../../utils/imageCompressor';
 import { InboundEInvoiceModal } from '../invoices/InboundEInvoiceModal';
@@ -69,6 +76,10 @@ import { PrintInvoiceModal } from '../common/PrintInvoiceModal';
 import { NewStockGoodsReceiptModal } from './NewStockGoodsReceiptModal';
 import { NewStockGoodsIssueModal } from './NewStockGoodsIssueModal';
 import { StockGoodsIssuePrintModal } from './StockGoodsIssuePrintModal';
+import { ReturnsAndExchangesTab } from './ReturnsAndExchangesTab';
+import { CreateStockExchangeModal } from './CreateStockExchangeModal';
+import { CreateStockReturnModal } from './CreateStockReturnModal';
+import { ReturnExchangePolicyModal } from './ReturnExchangePolicyModal';
 import { PriceQuote, Supplier, PurchaseOrder, StockGoodsIssue } from '../../types';
 
 const LIFECYCLE_STAGE_BADGES: Record<string, { label: string; badge: string }> = {
@@ -145,17 +156,20 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   const {
     productCategories: masterCategories,
     unitsOfMeasure: masterUOMs,
+    uomGroups: masterUomGroups,
+    colors: masterColors,
+    specifications: masterSpecifications,
+    warehouses: masterWarehouses,
     warehouseLocations: masterLocations,
     suppliers: masterSuppliers,
   } = useMasterData();
 
-  const [activeTab, setActiveTab] = useState<'catalog' | 'receipts' | 'outbound' | 'serial_devices' | 'logs'>('catalog');
+  const [activeTab, setActiveTab] = useState<'catalog' | 'receipts' | 'outbound' | 'returns_exchanges' | 'serial_devices' | 'logs'>('catalog');
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [warehouseFilter, setWarehouseFilter] = useState<string>('all');
   const [stockFilter, setStockFilter] = useState<'all' | 'low' | 'out'>('all');
   const [quickAddType, setQuickAddType] = useState<MasterDataType | null>(null);
-  const [categoriesList, setCategoriesList] = useState<string[]>([]);
   const [warehouseList, setWarehouseList] = useState<string[]>(
     settings?.warehouseList || [
       'Kho Chính Gia Phúc Computer',
@@ -177,6 +191,9 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   // New Inward Goods Receipt Modal & Outbound Goods Issue Modal state
   const [showNewReceiptModal, setShowNewReceiptModal] = useState<boolean>(false);
   const [showNewIssueModal, setShowNewIssueModal] = useState<boolean>(false);
+  const [showExchangeModal, setShowExchangeModal] = useState<boolean>(false);
+  const [showReturnModal, setShowReturnModal] = useState<boolean>(false);
+  const [showPolicyModal, setShowPolicyModal] = useState<boolean>(false);
   const [printReceiptData, setPrintReceiptData] = useState<StockGoodsReceipt | null>(null);
   const [printIssueData, setPrintIssueData] = useState<StockGoodsIssue | null>(null);
   const [receiptsSearchTerm, setReceiptsSearchTerm] = useState<string>('');
@@ -287,47 +304,32 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   }, [serialRecords, serialStatusFilter, serialSearchTerm]);
 
   const dynamicCategories = useMemo(() => {
-    const fromMaster = (masterCategories || []).filter((c) => c.status === 'active').map((c) => c.name);
-    const fromProds = safeProducts.map((p) => p.category).filter(Boolean);
-    return Array.from(new Set([...fromMaster, ...fromProds, ...categoriesList]));
-  }, [masterCategories, safeProducts, categoriesList]);
+    return (masterCategories || []).filter((c) => c.status === 'active');
+  }, [masterCategories]);
 
-  const dynamicUOMChips = useMemo(() => {
-    return (masterUOMs || []).filter((u) => u.status === 'active').map((u) => u.name);
+  const dynamicUOMOptions = useMemo(() => {
+    const fromMaster = (masterUOMs || []).filter((u) => u.status === 'active').map((u) => u.name);
+    return fromMaster.length > 0 ? fromMaster : ['Cái', 'Hộp', 'Bộ', 'Thùng', 'Cuộn', 'Mét', 'Kg'];
   }, [masterUOMs]);
 
-  const dynamicLocationChips = useMemo(() => {
-    return (masterLocations || []).filter((l) => l.status === 'active').map((l) => `${l.name} (${l.code})`);
-  }, [masterLocations]);
+  const dynamicColors = useMemo(() => {
+    return (masterColors || []).filter((c) => c.status === 'active');
+  }, [masterColors]);
 
-  const pendingInboundCount = (inboundInvoices || []).filter((i) => i.status === 'pending_review').length;
+  const dynamicSpecifications = useMemo(() => {
+    return (masterSpecifications || []).filter((s) => s.status === 'active');
+  }, [masterSpecifications]);
+
+  const dynamicWarehouses = useMemo(() => {
+    const fromMaster = (masterWarehouses || []).filter((w) => w.status === 'active');
+    if (fromMaster.length > 0) return fromMaster;
+    return (warehouseList || []).map((name) => ({ id: name, code: name, name, type: 'general' }));
+  }, [masterWarehouses, warehouseList]);
 
   // Product modal
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showProductModal, setShowProductModal] = useState(false);
   const [isAiGenerating, setIsAiGenerating] = useState(false);
-
-  const handleAddCategoryQuick = () => {
-    const name = prompt('Nhập tên Danh mục ngành hàng mới:');
-    if (name && name.trim()) {
-      const trimmed = name.trim();
-      if (!categoriesList.includes(trimmed)) {
-        setCategoriesList((prev) => [...prev, trimmed]);
-      }
-      setFormData((prev) => ({ ...prev, category: trimmed as any }));
-    }
-  };
-
-  const handleAddWarehouseQuick = () => {
-    const name = prompt('Nhập tên Kho lưu trữ mới:');
-    if (name && name.trim()) {
-      const trimmed = name.trim();
-      if (!warehouseList.includes(trimmed)) {
-        setWarehouseList((prev) => [...prev, trimmed]);
-      }
-      setFormData((prev) => ({ ...prev, warehouse: trimmed }));
-    }
-  };
 
   // Form state
   const [formData, setFormData] = useState<Partial<Product>>({
@@ -336,6 +338,10 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
     barcode: '',
     category: 'Thiết bị điện tử',
     unit: 'Cái',
+    color: '',
+    specifications: '',
+    warehouse: 'Kho Chính Gia Phúc Computer',
+    storageLocation: '',
     costPrice: 0,
     sellingPrice: 0,
     stock: 0,
@@ -344,6 +350,30 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
     description: '',
     uomConversions: [],
   });
+
+  const dynamicLocationsForSelectedWarehouse = useMemo(() => {
+    const currentWh = formData.warehouse || settings?.defaultWarehouse || (dynamicWarehouses[0]?.name ?? 'Kho Chính Gia Phúc Computer');
+    const allActive = (masterLocations || []).filter((l) => l.status === 'active');
+    if (!currentWh) return allActive;
+
+    const matchedWh = (masterWarehouses || []).find(
+      (w) => w.name === currentWh || w.code === currentWh || w.id === currentWh
+    );
+
+    return allActive.filter((l) => {
+      if (matchedWh) {
+        return (
+          l.warehouseId === matchedWh.id ||
+          l.warehouseCode === matchedWh.code ||
+          l.warehouseName === matchedWh.name ||
+          l.warehouseName === currentWh
+        );
+      }
+      return l.warehouseName === currentWh;
+    });
+  }, [formData.warehouse, settings?.defaultWarehouse, dynamicWarehouses, masterLocations, masterWarehouses]);
+
+  const pendingInboundCount = (inboundInvoices || []).filter((i) => i.status === 'pending_review').length;
 
   // Web Image Picker & Computer File Upload Ref
   const [showWebImagePicker, setShowWebImagePicker] = useState(false);
@@ -437,29 +467,65 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       });
   }, [orders, outboundStatusFilter, outboundSearchTerm]);
 
+  // Generate SKU by Category Rule (e.g. DM-CPU -> SKU-DM-CPU)
+  const generateProductSkuFromCategory = (
+    catNameOrCode: string,
+    categories: typeof dynamicCategories,
+    productList: Product[]
+  ): string => {
+    const cat = categories.find((c) => c.name === catNameOrCode || c.code === catNameOrCode);
+    const rawCode = (cat?.code || catNameOrCode || 'DM-SP').trim();
+    const cleanCode = rawCode.toUpperCase();
+    const baseSku = cleanCode.startsWith('SKU-') ? cleanCode : `SKU-${cleanCode}`;
+
+    // If baseSku does not exist among current products, use it
+    const exists = productList.some((p) => p.sku === baseSku);
+    if (!exists) {
+      return baseSku;
+    }
+
+    // If baseSku already exists, append sequential number (e.g. SKU-DM-CPU-01, SKU-DM-CPU-02...)
+    let seq = 1;
+    while (productList.some((p) => p.sku === `${baseSku}-${String(seq).padStart(2, '0')}`)) {
+      seq++;
+    }
+    return `${baseSku}-${String(seq).padStart(2, '0')}`;
+  };
+
   const openAddModal = () => {
-    const randomSku = 'SKU-' + Math.floor(1000 + Math.random() * 9000);
+    const defaultCatObj = dynamicCategories[0];
+    const defaultCatName = defaultCatObj?.name || 'Linh Kiện Máy Tính & PC ráp';
+    const initialSku = generateProductSkuFromCategory(defaultCatObj?.code || defaultCatName, dynamicCategories, products);
     const randomBarcode = '893' + Math.floor(100000000 + Math.random() * 900000000);
+    const defaultUnit = dynamicUOMOptions[0] || 'Cái';
+    const defaultWh = settings?.defaultWarehouse || (dynamicWarehouses[0]?.name ?? 'Kho Chính Gia Phúc Computer');
     setEditingProduct(null);
     setFormData({
       name: '',
-      sku: randomSku,
+      sku: initialSku,
       barcode: String(randomBarcode),
-      category: 'Thiết bị điện tử',
-      unit: 'Cái',
-      costPrice: 100000,
-      sellingPrice: 180000,
-      stock: 20,
+      category: defaultCatName as any,
+      unit: defaultUnit,
+      color: '',
+      specifications: '',
+      warehouse: defaultWh,
+      storageLocation: '',
+      costPrice: 0,
+      sellingPrice: 0,
+      stock: 0,
       minStock: 5,
       image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80',
       description: '',
       uomConversions: [
         {
-          unit: 'Cái',
+          unit: defaultUnit,
+          referenceUnit: defaultUnit,
+          conversionRate: 1,
           ratioToBase: 1,
-          costPrice: 100000,
-          sellingPrice: 180000,
+          costPrice: 0,
+          sellingPrice: 0,
           barcode: String(randomBarcode),
+          isBase: true,
           description: 'Đơn vị cơ bản chuẩn',
         },
       ],
@@ -520,194 +586,49 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
     }
   };
 
-  // Preset UOM configurations
-  const handleApplyUomPreset = (presetType: 'drink' | 'cable' | 'grain' | 'pharma') => {
+  // Apply Master UOM Group from Master Data (DB)
+  const handleApplyMasterUomGroup = (group: MasterUomGroup) => {
+    if (!group) return;
+    const baseUnit = group.baseUnit || 'Cái';
     const baseCost = Number(formData.costPrice) || 0;
     const baseSelling = Number(formData.sellingPrice) || 0;
 
-    let conversions: UOMOption[] = [];
-    if (presetType === 'cable') {
-      // 1 Thùng = 10 Cuộn; 1 Cuộn = 100 Mét; 1 Cuộn = 1.3 Kg; 1 Cuộn = 1300 Gam
-      setFormData((prev) => ({ ...prev, unit: 'Mét' }));
-      const meterCost = baseCost > 0 ? baseCost : 10000;
-      const meterSelling = baseSelling > 0 ? baseSelling : 13500;
+    const conversions: UOMOption[] = [];
 
-      conversions = [
-        {
-          unit: 'Thùng',
-          referenceUnit: 'Cuộn',
-          conversionRate: 10,
-          ratioToBase: 1000,
-          costPrice: meterCost * 1000,
-          sellingPrice: meterSelling * 1000,
-          description: '1 Thùng = 10 Cuộn = 1.000 Mét = 13 Kg = 13.000 Gam',
-        },
-        {
-          unit: 'Cuộn',
-          referenceUnit: 'Mét',
-          conversionRate: 100,
-          ratioToBase: 100,
-          costPrice: meterCost * 100,
-          sellingPrice: meterSelling * 100,
-          description: '1 Cuộn = 100 Mét = 1.3 Kg = 1.300 Gam',
-        },
-        {
-          unit: 'Kg',
-          referenceUnit: 'Gam',
-          conversionRate: 1000,
-          ratioToBase: 100 / 1.3, // ~76.923 mét cho 1 kg
-          costPrice: Math.round(meterCost * (100 / 1.3)),
-          sellingPrice: Math.round(meterSelling * (100 / 1.3)),
-          description: '1 Kg ≈ 76.92 Mét (1 Cuộn = 1.3 Kg)',
-        },
-        {
-          unit: 'Gam',
-          referenceUnit: 'Kg',
-          conversionRate: 0.001,
-          ratioToBase: 100 / 1300, // ~0.0769 mét cho 1 gam
-          costPrice: Math.round(meterCost * (100 / 1300)),
-          sellingPrice: Math.round(meterSelling * (100 / 1300)),
-          description: '1 Gam ≈ 0.077 Mét (1 Cuộn = 1.300 Gam)',
-        },
-        {
-          unit: 'Mét',
-          referenceUnit: 'Mét',
-          conversionRate: 1,
-          ratioToBase: 1,
-          costPrice: meterCost,
-          sellingPrice: meterSelling,
-          isBase: true,
-          description: '1 Mét (ĐVT Cơ bản cắt lẻ)',
-        },
-      ];
-    } else if (presetType === 'drink') {
-      setFormData((prev) => ({ ...prev, unit: 'Lon' }));
-      const lonCost = baseCost > 0 ? baseCost : 10000;
-      const lonSelling = baseSelling > 0 ? baseSelling : 13000;
+    // Add conversions from lines
+    (group.lines || []).forEach((line) => {
+      const convRate = Number(line.conversionFactor) || 1;
+      const ratio = Number(line.ratioToBase) || convRate;
+      conversions.push({
+        unit: line.unit,
+        referenceUnit: line.referenceUnit || baseUnit,
+        conversionRate: convRate,
+        ratioToBase: ratio,
+        costPrice: baseCost * ratio,
+        sellingPrice: baseSelling * ratio,
+        description: line.note || `1 ${line.unit} = ${convRate} ${line.referenceUnit || baseUnit}`,
+      });
+    });
 
-      conversions = [
-        {
-          unit: 'Thùng',
-          referenceUnit: 'Lốc',
-          conversionRate: 4,
-          ratioToBase: 24,
-          costPrice: lonCost * 24,
-          sellingPrice: lonSelling * 24,
-          description: '1 Thùng = 4 Lốc = 24 Lon',
-        },
-        {
-          unit: 'Lốc',
-          referenceUnit: 'Lon',
-          conversionRate: 6,
-          ratioToBase: 6,
-          costPrice: lonCost * 6,
-          sellingPrice: lonSelling * 6,
-          description: '1 Lốc = 6 Lon',
-        },
-        {
-          unit: 'Lon',
-          referenceUnit: 'Lon',
-          conversionRate: 1,
-          ratioToBase: 1,
-          costPrice: lonCost,
-          sellingPrice: lonSelling,
-          isBase: true,
-          description: '1 Lon (ĐVT cơ bản)',
-        },
-      ];
-    } else if (presetType === 'grain') {
-      setFormData((prev) => ({ ...prev, unit: 'Kg' }));
-      const kgCost = baseCost > 0 ? baseCost : 20000;
-      const kgSelling = baseSelling > 0 ? baseSelling : 26000;
-
-      conversions = [
-        {
-          unit: 'Bao lớn',
-          referenceUnit: 'Túi',
-          conversionRate: 10,
-          ratioToBase: 50,
-          costPrice: kgCost * 50,
-          sellingPrice: kgSelling * 50,
-          description: '1 Bao lớn = 10 Túi = 50 Kg',
-        },
-        {
-          unit: 'Túi',
-          referenceUnit: 'Kg',
-          conversionRate: 5,
-          ratioToBase: 5,
-          costPrice: kgCost * 5,
-          sellingPrice: kgSelling * 5,
-          description: '1 Túi = 5 Kg đóng gói',
-        },
-        {
-          unit: 'Kg',
-          referenceUnit: 'Kg',
-          conversionRate: 1,
-          ratioToBase: 1,
-          costPrice: kgCost,
-          sellingPrice: kgSelling,
-          isBase: true,
-          description: '1 Kg (ĐVT cơ bản cân lẻ)',
-        },
-        {
-          unit: 'Gam',
-          referenceUnit: 'Kg',
-          conversionRate: 0.001,
-          ratioToBase: 0.001,
-          costPrice: Math.round(kgCost * 0.001),
-          sellingPrice: Math.round(kgSelling * 0.001),
-          description: '1 Gam = 0.001 Kg',
-        },
-      ];
-    } else if (presetType === 'pharma') {
-      setFormData((prev) => ({ ...prev, unit: 'Viên' }));
-      const vienCost = baseCost > 0 ? baseCost : 2000;
-      const vienSelling = baseSelling > 0 ? baseSelling : 3500;
-
-      conversions = [
-        {
-          unit: 'Thùng',
-          referenceUnit: 'Hộp',
-          conversionRate: 50,
-          ratioToBase: 5000,
-          costPrice: vienCost * 5000,
-          sellingPrice: vienSelling * 5000,
-          description: '1 Thùng = 50 Hộp = 500 Vỉ = 5.000 Viên',
-        },
-        {
-          unit: 'Hộp',
-          referenceUnit: 'Vỉ',
-          conversionRate: 10,
-          ratioToBase: 100,
-          costPrice: vienCost * 100,
-          sellingPrice: vienSelling * 100,
-          description: '1 Hộp = 10 Vỉ = 100 Viên',
-        },
-        {
-          unit: 'Vỉ',
-          referenceUnit: 'Viên',
-          conversionRate: 10,
-          ratioToBase: 10,
-          costPrice: vienCost * 10,
-          sellingPrice: vienSelling * 10,
-          description: '1 Vỉ = 10 Viên',
-        },
-        {
-          unit: 'Viên',
-          referenceUnit: 'Viên',
-          conversionRate: 1,
-          ratioToBase: 1,
-          costPrice: vienCost,
-          sellingPrice: vienSelling,
-          isBase: true,
-          description: '1 Viên (ĐVT cơ bản)',
-        },
-      ];
+    // Ensure base unit exists in conversions list
+    if (!conversions.some((c) => c.unit.toLowerCase() === baseUnit.toLowerCase())) {
+      conversions.push({
+        unit: baseUnit,
+        referenceUnit: baseUnit,
+        conversionRate: 1,
+        ratioToBase: 1,
+        costPrice: baseCost,
+        sellingPrice: baseSelling,
+        isBase: true,
+        description: `1 ${baseUnit} (ĐVT cơ sở)`,
+      });
     }
 
+    const solved = solveUomChain(conversions, baseUnit, baseCost, baseSelling);
     setFormData((prev) => ({
       ...prev,
-      uomConversions: conversions,
+      unit: baseUnit,
+      uomConversions: solved,
     }));
   };
 
@@ -1037,6 +958,28 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             <span>In Tem Mã Vạch</span>
           </button>
           <button
+            onClick={() => {
+              setActiveTab('returns_exchanges');
+              setShowExchangeModal(true);
+            }}
+            className="flex items-center space-x-1.5 px-3 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-bold rounded-xl shadow-md shadow-cyan-600/20 transition-all cursor-pointer"
+            title="Lập phiếu đổi hàng 2 chiều cân đối kho và chênh lệch thu chi"
+          >
+            <ArrowRightLeft className="w-4 h-4" />
+            <span>+ Đổi Hàng</span>
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab('returns_exchanges');
+              setShowReturnModal(true);
+            }}
+            className="flex items-center space-x-1.5 px-3 py-2 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white text-xs font-bold rounded-xl shadow-md shadow-rose-600/20 transition-all cursor-pointer"
+            title="Lập phiếu trả hàng hoàn tiền & giảm trừ doanh thu"
+          >
+            <Package className="w-4 h-4" />
+            <span>+ Trả Hàng</span>
+          </button>
+          <button
             onClick={openAddModal}
             className="flex items-center space-x-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs font-bold rounded-xl border border-slate-700 transition-all cursor-pointer"
           >
@@ -1064,7 +1007,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         <div className="flex flex-wrap items-center gap-1.5 text-xs">
           <button
             type="button"
-            onClick={() => setQuickAddType('product')}
+            onClick={() => openAddModal()}
             className="px-2.5 py-1.5 rounded-xl bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 hover:text-cyan-200 border border-cyan-500/40 font-bold flex items-center space-x-1 transition cursor-pointer shadow-xs"
           >
             <Plus className="w-3.5 h-3.5 text-cyan-400" />
@@ -1072,7 +1015,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => setQuickAddType('uom')}
+            onClick={() => setQuickAddType('uoms')}
             className="px-2.5 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold flex items-center space-x-1 transition cursor-pointer hover:border-slate-600"
           >
             <Plus className="w-3.5 h-3.5 text-emerald-400" />
@@ -1088,7 +1031,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => setQuickAddType('location')}
+            onClick={() => setQuickAddType('locations')}
             className="px-2.5 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold flex items-center space-x-1 transition cursor-pointer hover:border-slate-600"
           >
             <Plus className="w-3.5 h-3.5 text-amber-400" />
@@ -1096,7 +1039,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => setQuickAddType('color')}
+            onClick={() => setQuickAddType('colors')}
             className="px-2.5 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold flex items-center space-x-1 transition cursor-pointer hover:border-slate-600"
           >
             <Plus className="w-3.5 h-3.5 text-rose-400" />
@@ -1104,11 +1047,41 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => setQuickAddType('department')}
+            onClick={() => setQuickAddType('departments')}
             className="px-2.5 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold flex items-center space-x-1 transition cursor-pointer hover:border-slate-600"
           >
             <Plus className="w-3.5 h-3.5 text-blue-400" />
             <span>Phòng Ban</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('returns_exchanges');
+              setShowExchangeModal(true);
+            }}
+            className="px-2.5 py-1.5 rounded-xl bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 hover:text-cyan-200 border border-cyan-500/40 font-bold flex items-center space-x-1 transition cursor-pointer shadow-xs"
+          >
+            <ArrowRightLeft className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Đổi Hàng</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('returns_exchanges');
+              setShowReturnModal(true);
+            }}
+            className="px-2.5 py-1.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 hover:text-rose-200 border border-rose-500/40 font-bold flex items-center space-x-1 transition cursor-pointer shadow-xs"
+          >
+            <Package className="w-3.5 h-3.5 text-rose-400" />
+            <span>Trả Hàng</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowPolicyModal(true)}
+            className="px-2.5 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 hover:text-blue-200 border border-blue-500/40 font-semibold flex items-center space-x-1 transition cursor-pointer shadow-xs"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
+            <span>Chính Sách</span>
           </button>
           <button
             type="button"
@@ -1188,6 +1161,18 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             >
               <Boxes className="w-3.5 h-3.5" />
               <span>📤 Sổ Xuất Kho ({orders.filter((o) => o.status !== 'cancelled').length})</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('returns_exchanges')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 ${
+                activeTab === 'returns_exchanges'
+                  ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-slate-950 font-extrabold shadow-lg shadow-cyan-500/30'
+                  : 'text-cyan-400 bg-cyan-950/40 border border-cyan-700/50 hover:bg-cyan-900/60 hover:text-white'
+              }`}
+            >
+              <ArrowRightLeft className="w-3.5 h-3.5 text-cyan-300" />
+              <span>🔄 Đổi & Trả Hàng (Returns/Exchanges)</span>
+              <span className="px-1.5 py-0.2 bg-cyan-400/20 text-cyan-300 text-[10px] font-mono rounded border border-cyan-400/30 font-black animate-pulse">HOT</span>
             </button>
             <button
               onClick={() => setActiveTab('serial_devices')}
@@ -1367,10 +1352,10 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 onChange={(e) => setCategoryFilter(e.target.value)}
                 className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
               >
-                <option value="all">Tất cả danh mục</option>
+                <option value="all">Tất cả nhóm hàng</option>
                 {dynamicCategories.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
+                  <option key={c.id || c.code} value={c.name}>
+                    {c.name} {c.defaultVatRate !== undefined ? `(VAT ${c.defaultVatRate}%)` : ''}
                   </option>
                 ))}
               </select>
@@ -1382,15 +1367,9 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
               >
                 <option value="all">Tất cả kho hàng</option>
-                {(settings?.warehouseList || [
-                  'Kho Chính Gia Phúc Computer',
-                  'Kho Kỹ Thuật & Showroom',
-                  'Kho Chi Nhánh TP.HCM',
-                  'Kho Chi Nhánh Bình Dương',
-                  'Kho Bảo Hành & Linh Kiện',
-                ]).map((wh) => (
-                  <option key={wh} value={wh}>
-                    {wh}
+                {dynamicWarehouses.map((wh) => (
+                  <option key={wh.id || wh.code} value={wh.name}>
+                    {wh.name}
                   </option>
                 ))}
               </select>
@@ -1431,18 +1410,18 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       {activeTab === 'catalog' && (
         <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full min-w-[1400px] text-left text-xs">
               <thead>
-                <tr className="bg-slate-950/60 text-slate-400 border-b border-slate-800 uppercase tracking-wider font-semibold">
-                  <th className="py-3.5 px-4">Sản Phẩm</th>
-                  <th className="py-3.5 px-4">Danh Mục</th>
-                  <th className="py-3.5 px-4">Kho & Vị Trí Kệ</th>
-                  <th className="py-3.5 px-4">Dòng Đời & Lô/HSD</th>
-                  <th className="py-3.5 px-4">ĐVT</th>
-                  <th className="py-3.5 px-4 text-right">Giá Vốn</th>
-                  <th className="py-3.5 px-4 text-right">Giá Bán</th>
-                  <th className="py-3.5 px-4 text-center">Tồn Kho</th>
-                  <th className="py-3.5 px-4 text-right">Thao Tác</th>
+                <tr className="bg-slate-950/60 text-slate-400 border-b border-slate-800 uppercase tracking-wider font-semibold text-[11px]">
+                  <th className="py-3.5 px-4 min-w-[280px]">Sản Phẩm</th>
+                  <th className="py-3.5 px-4 min-w-[160px] whitespace-nowrap">Danh Mục</th>
+                  <th className="py-3.5 px-4 min-w-[220px] whitespace-nowrap">Kho & Vị Trí Kệ</th>
+                  <th className="py-3.5 px-4 min-w-[160px] whitespace-nowrap">Dòng Đời & Lô/HSD</th>
+                  <th className="py-3.5 px-4 min-w-[120px] whitespace-nowrap">ĐVT</th>
+                  <th className="py-3.5 px-4 min-w-[130px] whitespace-nowrap text-right">Giá Vốn</th>
+                  <th className="py-3.5 px-4 min-w-[140px] whitespace-nowrap text-right">Giá Bán</th>
+                  <th className="py-3.5 px-4 min-w-[100px] whitespace-nowrap text-center">Tồn Kho</th>
+                  <th className="py-3.5 px-4 min-w-[230px] whitespace-nowrap text-right">Thao Tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
@@ -1460,19 +1439,19 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                     return (
                       <tr key={p.id} className="hover:bg-slate-850/60 transition-colors">
                         {/* Product info & thumb */}
-                        <td className="py-3 px-4">
+                        <td className="py-3 px-4 min-w-[280px]">
                           <div className="flex items-center space-x-3">
                             <img
                               src={p.image}
                               alt={p.name}
-                              className="w-10 h-10 rounded-lg object-cover bg-slate-800 shrink-0"
+                              className="w-11 h-11 rounded-xl object-cover bg-slate-800 shrink-0 border border-slate-700/50"
                               referrerPolicy="no-referrer"
                             />
-                            <div>
-                              <div className="font-semibold text-slate-200 line-clamp-1">
+                            <div className="min-w-0">
+                              <div className="font-semibold text-slate-100 text-xs line-clamp-2" title={p.name}>
                                 {p.name}
                               </div>
-                              <div className="flex items-center space-x-2 text-[10px] text-slate-400 font-mono mt-0.5">
+                              <div className="flex items-center space-x-2 text-[10px] text-slate-400 font-mono mt-1">
                                 <span>SKU: {p.sku}</span>
                                 <span>•</span>
                                 <span>Vạch: {p.barcode}</span>
@@ -1482,16 +1461,20 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                         </td>
 
                         {/* Category */}
-                        <td className="py-3 px-4 text-slate-300">{p.category}</td>
+                        <td className="py-3 px-4 min-w-[160px] whitespace-nowrap text-slate-300">
+                          <span className="inline-block bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-700/60 font-medium">
+                            {p.category}
+                          </span>
+                        </td>
 
                         {/* Warehouse & Storage Location */}
-                        <td className="py-3 px-4">
-                          <div className="text-[11px] space-y-0.5">
-                            <span className="font-semibold text-blue-300 block line-clamp-1">
+                        <td className="py-3 px-4 min-w-[220px]">
+                          <div className="text-[11px] space-y-1">
+                            <span className="font-semibold text-blue-300 block line-clamp-1" title={p.warehouse || settings?.defaultWarehouse || 'Kho Chính Gia Phúc Computer'}>
                               🏬 {p.warehouse || settings?.defaultWarehouse || 'Kho Chính Gia Phúc Computer'}
                             </span>
                             {p.storageLocation ? (
-                              <span className="text-emerald-400 font-medium block text-[10px] bg-slate-800/80 px-1.5 py-0.5 rounded border border-slate-700/60">
+                              <span className="text-emerald-400 font-medium inline-block text-[10px] bg-slate-800/90 px-2 py-0.5 rounded border border-slate-700/70" title={p.storageLocation}>
                                 📍 {p.storageLocation}
                               </span>
                             ) : (
@@ -1501,22 +1484,22 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                         </td>
 
                         {/* Lifecycle Stage & Lot/Batch */}
-                        <td className="py-3 px-4">
+                        <td className="py-3 px-4 min-w-[160px]">
                           <div className="space-y-1">
                             <span
-                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap ${
                                 LIFECYCLE_STAGE_BADGES[p.lifecycleStage || 'in_storage']?.badge || 'bg-slate-800 text-slate-300'
                               }`}
                             >
                               {LIFECYCLE_STAGE_BADGES[p.lifecycleStage || 'in_storage']?.label || 'Lưu Kho Chuẩn'}
                             </span>
                             {p.batchNumber && (
-                              <div className="text-[10px] text-slate-400 font-mono">
+                              <div className="text-[10px] text-slate-400 font-mono whitespace-nowrap">
                                 Lô: <strong className="text-slate-300">{p.batchNumber}</strong>
                               </div>
                             )}
                             {p.expiryDate && (
-                              <div className="text-[10px] text-rose-400 font-mono">
+                              <div className="text-[10px] text-rose-400 font-mono whitespace-nowrap">
                                 HSD: {p.expiryDate}
                               </div>
                             )}
@@ -1524,9 +1507,9 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                         </td>
 
                         {/* Unit */}
-                        <td className="py-3 px-4">
+                        <td className="py-3 px-4 min-w-[120px]">
                           <div className="space-y-1">
-                            <span className="font-semibold text-slate-200 bg-slate-800 px-2 py-0.5 rounded border border-slate-700 text-[11px]">
+                            <span className="font-bold text-slate-200 bg-slate-800 px-2 py-0.5 rounded border border-slate-700 text-[11px] inline-block">
                               {p.unit}
                             </span>
                             {p.uomConversions && p.uomConversions.length > 1 && (
@@ -1536,7 +1519,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                                   .map((u, idx) => (
                                     <span
                                       key={idx}
-                                      className="text-[9px] bg-indigo-950/80 text-indigo-300 border border-indigo-800/60 px-1.5 py-0.2 rounded"
+                                      className="text-[9px] bg-indigo-950/80 text-indigo-300 border border-indigo-800/60 px-1.5 py-0.5 rounded whitespace-nowrap"
                                       title={`1 ${u.unit} = ${u.ratioToBase} ${p.unit} | Bán: ${formatVND(u.sellingPrice)}`}
                                     >
                                       {u.unit} (x{u.ratioToBase})
@@ -1548,17 +1531,17 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                         </td>
 
                         {/* Cost Price */}
-                        <td className="py-3 px-4 text-right font-mono text-slate-400">
+                        <td className="py-3 px-4 min-w-[130px] text-right font-mono text-slate-400 whitespace-nowrap font-medium">
                           {formatVND(p.costPrice)}
                         </td>
 
                         {/* Selling Price */}
-                        <td className="py-3 px-4 text-right font-mono font-bold text-emerald-400 text-sm">
+                        <td className="py-3 px-4 min-w-[140px] text-right font-mono font-bold text-emerald-400 text-sm whitespace-nowrap">
                           {formatVND(p.sellingPrice)}
                         </td>
 
                         {/* Stock status */}
-                        <td className="py-3 px-4 text-center">
+                        <td className="py-3 px-4 min-w-[100px] text-center whitespace-nowrap">
                           <span
                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-bold ${
                               isOut
@@ -1576,7 +1559,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                         </td>
 
                         {/* Actions */}
-                        <td className="py-3 px-4 text-right">
+                        <td className="py-3 px-4 min-w-[230px] text-right whitespace-nowrap">
                           <div className="flex items-center justify-end space-x-1">
                             <button
                               onClick={() => {
@@ -1663,17 +1646,17 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       {activeTab === 'receipts' && (
         <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full min-w-[1150px] text-left text-xs">
               <thead>
                 <tr className="bg-slate-950/60 text-slate-400 border-b border-slate-800 uppercase tracking-wider font-semibold">
-                  <th className="py-3.5 px-4">Mã Phiếu Nhập</th>
-                  <th className="py-3.5 px-4">Ngày Nhập</th>
-                  <th className="py-3.5 px-4">Nhà Cung Cấp / Đối Tác</th>
-                  <th className="py-3.5 px-4">Nguồn Chứng Từ</th>
-                  <th className="py-3.5 px-4">Mặt Hàng & Serial Nạp</th>
-                  <th className="py-3.5 px-4 text-right">Tổng Tiền Hàng</th>
-                  <th className="py-3.5 px-4 text-center">Thanh Toán</th>
-                  <th className="py-3.5 px-4 text-right">Thao Tác</th>
+                  <th className="py-3.5 px-4 min-w-[140px] whitespace-nowrap">Mã Phiếu Nhập</th>
+                  <th className="py-3.5 px-4 min-w-[130px] whitespace-nowrap">Ngày Nhập</th>
+                  <th className="py-3.5 px-4 min-w-[180px] whitespace-nowrap">Nhà Cung Cấp / Đối Tác</th>
+                  <th className="py-3.5 px-4 min-w-[150px] whitespace-nowrap">Nguồn Chứng Từ</th>
+                  <th className="py-3.5 px-4 min-w-[200px] whitespace-nowrap">Mặt Hàng & Serial Nạp</th>
+                  <th className="py-3.5 px-4 min-w-[130px] whitespace-nowrap text-right">Tổng Tiền Hàng</th>
+                  <th className="py-3.5 px-4 min-w-[120px] whitespace-nowrap text-center">Thanh Toán</th>
+                  <th className="py-3.5 px-4 min-w-[120px] whitespace-nowrap text-right">Thao Tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
@@ -1810,16 +1793,16 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       {activeTab === 'outbound' && (
         <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full min-w-[1150px] text-left text-xs">
               <thead>
                 <tr className="bg-slate-950/60 text-slate-400 border-b border-slate-800 uppercase tracking-wider font-semibold">
-                  <th className="py-3.5 px-4">Mã Đơn Hàng</th>
-                  <th className="py-3.5 px-4">Thời Gian</th>
-                  <th className="py-3.5 px-4">Khách Hàng & Nơi Giao</th>
-                  <th className="py-3.5 px-4">Sản Phẩm & Tiến Độ Serial</th>
-                  <th className="py-3.5 px-4 text-right">Tổng Tiền</th>
-                  <th className="py-3.5 px-4 text-center">Trạng Thái Xuất Kho</th>
-                  <th className="py-3.5 px-4 text-right">Thao Tác</th>
+                  <th className="py-3.5 px-4 min-w-[140px] whitespace-nowrap">Mã Đơn Hàng</th>
+                  <th className="py-3.5 px-4 min-w-[130px] whitespace-nowrap">Thời Gian</th>
+                  <th className="py-3.5 px-4 min-w-[200px] whitespace-nowrap">Khách Hàng & Nơi Giao</th>
+                  <th className="py-3.5 px-4 min-w-[220px] whitespace-nowrap">Sản Phẩm & Tiến Độ Serial</th>
+                  <th className="py-3.5 px-4 min-w-[130px] whitespace-nowrap text-right">Tổng Tiền</th>
+                  <th className="py-3.5 px-4 min-w-[140px] whitespace-nowrap text-center">Trạng Thái Xuất Kho</th>
+                  <th className="py-3.5 px-4 min-w-[140px] whitespace-nowrap text-right">Thao Tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
@@ -1957,16 +1940,16 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       {activeTab === 'serial_devices' && (
         <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full min-w-[1200px] text-left text-xs">
               <thead>
                 <tr className="bg-slate-950/60 text-slate-400 border-b border-slate-800 uppercase tracking-wider font-semibold">
-                  <th className="py-3.5 px-4">Số Serial / IMEI</th>
-                  <th className="py-3.5 px-4">Tên Thiết Bị & SKU</th>
-                  <th className="py-3.5 px-4">Hãng SX, Màu & Quy Cách</th>
-                  <th className="py-3.5 px-4 text-center">Trạng Thái Kho</th>
-                  <th className="py-3.5 px-4">Vị Trí Kệ / Đơn Hàng Bán</th>
-                  <th className="py-3.5 px-4">Phiếu Nhập Kho</th>
-                  <th className="py-3.5 px-4">Thời Hạn Bảo Hành</th>
+                  <th className="py-3.5 px-4 min-w-[150px] whitespace-nowrap">Số Serial / IMEI</th>
+                  <th className="py-3.5 px-4 min-w-[200px] whitespace-nowrap">Tên Thiết Bị & SKU</th>
+                  <th className="py-3.5 px-4 min-w-[180px] whitespace-nowrap">Hãng SX, Màu & Quy Cách</th>
+                  <th className="py-3.5 px-4 min-w-[130px] whitespace-nowrap text-center">Trạng Thái Kho</th>
+                  <th className="py-3.5 px-4 min-w-[180px] whitespace-nowrap">Vị Trí Kệ / Đơn Hàng Bán</th>
+                  <th className="py-3.5 px-4 min-w-[140px] whitespace-nowrap">Phiếu Nhập Kho</th>
+                  <th className="py-3.5 px-4 min-w-[140px] whitespace-nowrap">Thời Hạn Bảo Hành</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
@@ -2090,20 +2073,25 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         </div>
       )}
 
+      {/* Returns & Exchanges Tab */}
+      {activeTab === 'returns_exchanges' && (
+        <ReturnsAndExchangesTab products={products} orders={orders} settings={settings} />
+      )}
+
       {/* Inventory Logs Tab */}
       {activeTab === 'logs' && (
         <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full min-w-[1050px] text-left text-xs">
               <thead>
                 <tr className="bg-slate-950/60 text-slate-400 border-b border-slate-800 uppercase tracking-wider font-semibold">
-                  <th className="py-3.5 px-4">Thời Gian</th>
-                  <th className="py-3.5 px-4">Sản Phẩm</th>
-                  <th className="py-3.5 px-4">Loại Nghiệp Vụ</th>
-                  <th className="py-3.5 px-4 text-center">Thay Đổi</th>
-                  <th className="py-3.5 px-4 text-center">Tồn Trước/Sau</th>
-                  <th className="py-3.5 px-4">Lý Do / Diễn Giải</th>
-                  <th className="py-3.5 px-4">Người Thực Hiện</th>
+                  <th className="py-3.5 px-4 min-w-[140px] whitespace-nowrap">Thời Gian</th>
+                  <th className="py-3.5 px-4 min-w-[200px] whitespace-nowrap">Sản Phẩm</th>
+                  <th className="py-3.5 px-4 min-w-[130px] whitespace-nowrap">Loại Nghiệp Vụ</th>
+                  <th className="py-3.5 px-4 min-w-[110px] whitespace-nowrap text-center">Thay Đổi</th>
+                  <th className="py-3.5 px-4 min-w-[120px] whitespace-nowrap text-center">Tồn Trước/Sau</th>
+                  <th className="py-3.5 px-4 min-w-[200px] whitespace-nowrap">Lý Do / Diễn Giải</th>
+                  <th className="py-3.5 px-4 min-w-[140px] whitespace-nowrap">Người Thực Hiện</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
@@ -2208,14 +2196,34 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">
-                    Mã SKU (*):
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-slate-300 font-semibold">
+                      Mã SKU (*):
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const matchedCat = dynamicCategories.find((c) => c.name === formData.category);
+                        const autoSku = generateProductSkuFromCategory(
+                          matchedCat?.code || formData.category || '',
+                          dynamicCategories,
+                          products
+                        );
+                        setFormData({ ...formData, sku: autoSku });
+                      }}
+                      className="text-[10px] text-emerald-400 hover:text-emerald-300 font-medium flex items-center gap-1 cursor-pointer bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-700/40 px-1.5 py-0.5 rounded"
+                      title="Tự động sinh mã SKU theo Nhóm Ngành Hàng (SKU-[MÃ_NHÓM])"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      <span>Sinh mã theo nhóm</span>
+                    </button>
+                  </div>
                   <input
                     type="text"
                     value={formData.sku || ''}
                     onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-emerald-500"
+                    placeholder="VD: SKU-DM-CPU"
                     required
                   />
                 </div>
@@ -2234,30 +2242,41 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="text-slate-300 font-semibold text-xs">Danh mục:</label>
+                    <label className="text-slate-300 font-semibold text-xs">Danh mục (Nhóm hàng & VAT):</label>
                     <button
                       type="button"
-                      onClick={handleAddCategoryQuick}
+                      onClick={() => setQuickAddType('category')}
                       className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-700/50 px-2 py-0.5 rounded-lg flex items-center space-x-1 cursor-pointer transition shadow-xs"
-                      title="Thêm danh mục ngành hàng mới"
+                      title="Thêm nhóm ngành hàng & thuế VAT mới vào Dữ liệu cơ bản"
                     >
                       <Plus className="w-3 h-3" />
                       <span>Thêm Danh Mục</span>
                     </button>
                   </div>
                   <select
-                    value={formData.category || 'Thiết bị điện tử'}
-                    onChange={(e) =>
+                    value={formData.category || dynamicCategories[0]?.name || 'Linh Kiện Máy Tính & PC ráp'}
+                    onChange={(e) => {
+                      const selectedCatName = e.target.value;
+                      const matchedCat = dynamicCategories.find((c) => c.name === selectedCatName);
+                      const newCatCode = matchedCat?.code || selectedCatName;
+
+                      // Auto-update SKU if adding new product (not editing)
+                      let nextSku = formData.sku;
+                      if (!editingProduct) {
+                        nextSku = generateProductSkuFromCategory(newCatCode, dynamicCategories, products);
+                      }
+
                       setFormData({
                         ...formData,
-                        category: e.target.value as ProductCategory,
-                      })
-                    }
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500 text-xs"
+                        category: selectedCatName as ProductCategory,
+                        sku: nextSku,
+                      });
+                    }}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500 text-xs font-semibold cursor-pointer"
                   >
                     {dynamicCategories.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
+                      <option key={c.id || c.code} value={c.name}>
+                        {c.name} {c.code ? `(${c.code})` : ''} {c.defaultVatRate !== undefined ? `(VAT ${c.defaultVatRate}%)` : ''}
                       </option>
                     ))}
                   </select>
@@ -2276,66 +2295,138 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                       <span>Thêm ĐVT</span>
                     </button>
                   </div>
-                  <input
-                    type="text"
-                    list="common-uom-datalist"
-                    value={formData.unit || 'Cái'}
+                  <select
+                    value={formData.unit || dynamicUOMOptions[0] || 'Cái'}
                     onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500 text-xs font-bold"
-                    placeholder="Cái, Hộp, Gói, Kg..."
-                  />
-                  <datalist id="common-uom-datalist">
-                    {dynamicUOMChips.map((u) => (
-                      <option key={u} value={u} />
-                    ))}
-                  </datalist>
-
-                  {/* Quick-select chips */}
-                  <div className="flex flex-wrap items-center gap-1 mt-1.5">
-                    {dynamicUOMChips.slice(0, 10).map((uom) => (
-                      <button
-                        key={uom}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, unit: uom })}
-                        className={`px-1.5 py-0.5 text-[10px] rounded-md border font-semibold transition-all cursor-pointer ${
-                          formData.unit === uom
-                            ? 'bg-emerald-500 text-slate-950 border-emerald-400 font-bold shadow-xs'
-                            : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white hover:border-slate-600'
-                        }`}
-                      >
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500 text-xs font-semibold cursor-pointer"
+                  >
+                    {dynamicUOMOptions.map((uom) => (
+                      <option key={uom} value={uom}>
                         {uom}
-                      </button>
+                      </option>
                     ))}
+                  </select>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-slate-300 font-semibold text-xs">Màu sắc sản phẩm:</label>
+                    <button
+                      type="button"
+                      onClick={() => setQuickAddType('color')}
+                      className="text-[10px] font-bold text-pink-400 hover:text-pink-300 bg-pink-950/60 hover:bg-pink-900 border border-pink-700/50 px-2 py-0.5 rounded-lg flex items-center space-x-1 cursor-pointer transition shadow-xs"
+                      title="Thêm màu sắc mới vào Dữ liệu cơ bản"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Thêm Màu Sắc</span>
+                    </button>
+                  </div>
+                  <select
+                    value={formData.color || ''}
+                    onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-pink-500 text-xs font-medium cursor-pointer"
+                  >
+                    <option value="">-- Chọn màu sắc ({dynamicColors.length} màu) --</option>
+                    {dynamicColors.map((c) => (
+                      <option key={c.id || c.code} value={c.name}>
+                        {c.name} {c.hexCode ? `(${c.hexCode})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-slate-300 font-semibold text-xs">Quy cách & Đóng gói:</label>
+                    <button
+                      type="button"
+                      onClick={() => setQuickAddType('specifications')}
+                      className="text-[10px] font-bold text-violet-400 hover:text-violet-300 bg-violet-950/60 hover:bg-violet-900 border border-violet-700/50 px-2 py-0.5 rounded-lg flex items-center space-x-1 cursor-pointer transition shadow-xs"
+                      title="Thêm quy cách mới vào Dữ liệu cơ bản"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Thêm Quy Cách</span>
+                    </button>
+                  </div>
+                  <select
+                    value={formData.specifications || ''}
+                    onChange={(e) => setFormData({ ...formData, specifications: e.target.value })}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-violet-500 text-xs font-medium cursor-pointer"
+                  >
+                    <option value="">-- Chọn quy cách ({dynamicSpecifications.length} quy cách) --</option>
+                    {dynamicSpecifications.map((s) => (
+                      <option key={s.id || s.code} value={s.name}>
+                        {s.name} {s.standardValue ? `[${s.standardValue}]` : ''} {s.category ? `• ${s.category}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-slate-300 font-semibold text-xs">Giá vốn (COGS):</label>
+                    <span className="text-[11px] font-mono font-bold text-slate-400">
+                      {formatVND(formData.costPrice)}
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={formData.costPrice !== undefined && formData.costPrice !== null ? formatNumber(formData.costPrice) : '0'}
+                      onChange={(e) => {
+                        const val = parseCurrencyInput(e.target.value);
+                        setFormData((prev) => {
+                          const updated = { ...prev, costPrice: val };
+                          if (prev.uomConversions && prev.uomConversions.length > 0) {
+                            updated.uomConversions = solveUomChain(
+                              prev.uomConversions,
+                              prev.unit || 'Cái',
+                              val,
+                              prev.sellingPrice
+                            );
+                          }
+                          return updated;
+                        });
+                      }}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 pr-12 text-white font-mono font-bold focus:outline-none focus:border-emerald-500 text-right text-xs"
+                      placeholder="0"
+                    />
+                    <span className="absolute right-3 top-2 text-xs text-slate-400 font-bold pointer-events-none">VNĐ</span>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">
-                    Giá vốn (COGS):
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.costPrice || 0}
-                    onChange={(e) =>
-                      setFormData({ ...formData, costPrice: Number(e.target.value) })
-                    }
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-slate-300 font-semibold mb-1">
-                    Giá bán niêm yết (*):
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.sellingPrice || 0}
-                    onChange={(e) =>
-                      setFormData({ ...formData, sellingPrice: Number(e.target.value) })
-                    }
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-emerald-400 font-mono font-bold focus:outline-none focus:border-emerald-500"
-                    required
-                  />
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-slate-300 font-semibold text-xs">Giá bán niêm yết (*):</label>
+                    <span className="text-[11px] font-mono font-bold text-emerald-400">
+                      {formatVND(formData.sellingPrice)}
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={formData.sellingPrice !== undefined && formData.sellingPrice !== null ? formatNumber(formData.sellingPrice) : '0'}
+                      onChange={(e) => {
+                        const val = parseCurrencyInput(e.target.value);
+                        setFormData((prev) => {
+                          const updated = { ...prev, sellingPrice: val };
+                          if (prev.uomConversions && prev.uomConversions.length > 0) {
+                            updated.uomConversions = solveUomChain(
+                              prev.uomConversions,
+                              prev.unit || 'Cái',
+                              prev.costPrice,
+                              val
+                            );
+                          }
+                          return updated;
+                        });
+                      }}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 pr-12 text-emerald-400 font-mono font-bold focus:outline-none focus:border-emerald-500 text-right text-xs"
+                      placeholder="0"
+                      required
+                    />
+                    <span className="absolute right-3 top-2 text-xs text-emerald-400/80 font-bold pointer-events-none">VNĐ</span>
+                  </div>
                 </div>
 
                 <div>
@@ -2371,22 +2462,29 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                     <label className="text-slate-300 font-semibold text-xs">Kho hàng lưu trữ:</label>
                     <button
                       type="button"
-                      onClick={handleAddWarehouseQuick}
+                      onClick={() => setQuickAddType('warehouse')}
                       className="text-[10px] font-bold text-amber-400 hover:text-amber-300 bg-amber-950/60 hover:bg-amber-900 border border-amber-700/50 px-2 py-0.5 rounded-lg flex items-center space-x-1 cursor-pointer transition shadow-xs"
-                      title="Thêm kho lưu trữ mới"
+                      title="Thêm kho lưu trữ mới vào Database"
                     >
                       <Plus className="w-3 h-3" />
                       <span>Thêm Kho</span>
                     </button>
                   </div>
                   <select
-                    value={formData.warehouse || settings?.defaultWarehouse || 'Kho Chính Gia Phúc Computer'}
-                    onChange={(e) => setFormData({ ...formData, warehouse: e.target.value })}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500 text-xs"
+                    value={formData.warehouse || settings?.defaultWarehouse || (dynamicWarehouses[0]?.name ?? 'Kho Chính Gia Phúc Computer')}
+                    onChange={(e) => {
+                      const newWh = e.target.value;
+                      setFormData((prev) => ({
+                        ...prev,
+                        warehouse: newWh,
+                        storageLocation: '',
+                      }));
+                    }}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500 text-xs font-medium"
                   >
-                    {warehouseList.map((wh) => (
-                      <option key={wh} value={wh}>
-                        {wh}
+                    {dynamicWarehouses.map((wh) => (
+                      <option key={wh.id || wh.code} value={wh.name}>
+                        {wh.name}
                       </option>
                     ))}
                   </select>
@@ -2399,43 +2497,46 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                       type="button"
                       onClick={() => setQuickAddType('location')}
                       className="text-[10px] font-bold text-sky-400 hover:text-sky-300 bg-sky-950/60 hover:bg-sky-900 border border-sky-700/50 px-2 py-0.5 rounded-lg flex items-center space-x-1 cursor-pointer transition shadow-xs"
-                      title="Mở thêm vị trí kệ chuẩn hóa"
+                      title="Mở thêm vị trí kệ chuẩn hóa vào Database"
                     >
                       <Plus className="w-3 h-3" />
                       <span>Thêm Vị Trí</span>
                     </button>
                   </div>
-                  <input
-                    type="text"
-                    list="common-location-datalist"
-                    value={formData.storageLocation || ''}
-                    onChange={(e) => setFormData({ ...formData, storageLocation: e.target.value })}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 text-xs"
-                    placeholder="VD: Kệ A1 - Tầng 1, Tủ C1..."
-                  />
-                  <datalist id="common-location-datalist">
-                    {dynamicLocationChips.map((loc) => (
-                      <option key={loc} value={loc} />
-                    ))}
-                  </datalist>
+                  
+                  {dynamicLocationsForSelectedWarehouse.length > 0 ? (
+                    <select
+                      value={formData.storageLocation || ''}
+                      onChange={(e) => setFormData({ ...formData, storageLocation: e.target.value })}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500 text-xs"
+                    >
+                      <option value="">-- Chọn vị trí ô kệ ({dynamicLocationsForSelectedWarehouse.length} vị trí) --</option>
+                      {dynamicLocationsForSelectedWarehouse.map((loc) => (
+                        <option key={loc.id} value={loc.name}>
+                          [{loc.code}] {loc.name} {loc.zone ? `• ${loc.zone}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={formData.storageLocation || ''}
+                      onChange={(e) => setFormData({ ...formData, storageLocation: e.target.value })}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 text-xs"
+                      placeholder="Chưa có vị trí ô kệ cho kho này. Nhập tay hoặc bấm '+ Thêm Vị Trí'..."
+                    />
+                  )}
 
-                  {/* Quick-select chips */}
-                  <div className="flex flex-wrap items-center gap-1 mt-1.5">
-                    {dynamicLocationChips.map((loc) => (
-                      <button
-                        key={loc}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, storageLocation: loc })}
-                        className={`px-1.5 py-0.5 text-[9.5px] rounded-md border font-medium transition-all cursor-pointer ${
-                          formData.storageLocation === loc
-                            ? 'bg-sky-500 text-slate-950 border-sky-400 font-bold shadow-xs'
-                            : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white hover:border-slate-600'
-                        }`}
-                      >
-                        {loc}
-                      </button>
-                    ))}
-                  </div>
+                  {dynamicLocationsForSelectedWarehouse.length === 0 && (
+                    <p className="text-[11px] text-amber-400/90 italic mt-1.5 flex items-center space-x-1">
+                      <span>⚠️ Kho này chưa có vị trí ô kệ. Nhấn "+ Thêm Vị Trí" để tạo mới.</span>
+                    </p>
+                  )}
+                  {dynamicLocationsForSelectedWarehouse.length > 0 && (
+                    <p className="text-[10.5px] text-slate-400 mt-1 flex items-center space-x-1">
+                      <span>📍 Hiển thị {dynamicLocationsForSelectedWarehouse.length} vị trí trực thuộc {formData.warehouse || 'kho đang chọn'}</span>
+                    </p>
+                  )}
                 </div>
 
                 <div className="sm:col-span-2">
@@ -2538,11 +2639,8 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                     <div>
                       <h4 className="font-bold text-slate-100 flex items-center space-x-1.5 text-xs">
                         <Scale className="w-4 h-4 text-indigo-400" />
-                        <span>Cấu hình Đơn Vị Tính Quy Đổi & Bảng Giá Tương Đương (Đa Cấp / Đa Chiều):</span>
+                        <span>Cấu hình Đơn Vị Tính Quy Đổi & Bảng Giá Tương Đương</span>
                       </h4>
-                      <p className="text-[11px] text-slate-400 mt-0.5">
-                        Hỗ trợ chuỗi quy đổi linh hoạt (VD: 1 Thùng = 10 Cuộn; 1 Cuộn = 100 Mét = 1.3 Kg = 1.300 Gam). Tự động tính giá và tỷ lệ chuẩn.
-                      </p>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-1.5">
@@ -2560,7 +2658,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                             uomConversions: solved,
                           }));
                         }}
-                        className="px-2.5 py-1 bg-indigo-900/60 hover:bg-indigo-800/80 text-indigo-300 rounded-lg text-[10px] font-bold border border-indigo-700/50 flex items-center space-x-1 transition-all"
+                        className="px-2.5 py-1 bg-indigo-900/60 hover:bg-indigo-800/80 text-indigo-300 rounded-lg text-[10px] font-bold border border-indigo-700/50 flex items-center space-x-1 transition-all cursor-pointer"
                         title="Tính lại toàn bộ chuỗi quy đổi và bảng giá theo tỷ lệ chuẩn"
                       >
                         <Calculator className="w-3 h-3" />
@@ -2573,19 +2671,20 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                           const baseCost = Number(formData.costPrice) || 0;
                           const baseSelling = Number(formData.sellingPrice) || 0;
                           const current = formData.uomConversions || [];
-                          const newUnit = current.length === 0 ? 'Cuộn' : 'ĐVT mới';
+                          const usedUnits = new Set([formData.unit, ...current.map((c) => c.unit)]);
+                          const nextUnit = dynamicUOMOptions.find((u) => !usedUnits.has(u)) || dynamicUOMOptions[0] || 'Hộp';
                           const refUnit = current.length > 0 ? current[current.length - 1].unit : (formData.unit || 'Cái');
                           
                           const newConversions: UOMOption[] = [
                             ...current,
                             {
-                              unit: newUnit,
+                              unit: nextUnit,
                               referenceUnit: refUnit,
                               conversionRate: 10,
                               ratioToBase: 10,
                               costPrice: baseCost * 10,
                               sellingPrice: baseSelling * 10,
-                              description: `1 ${newUnit} = 10 ${refUnit}`,
+                              description: `1 ${nextUnit} = 10 ${refUnit}`,
                             },
                           ];
                           const solved = solveUomChain(newConversions, formData.unit || 'Cái', baseCost, baseSelling);
@@ -2594,7 +2693,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                             uomConversions: solved,
                           }));
                         }}
-                        className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[10px] font-bold flex items-center space-x-1 shadow-sm transition-all"
+                        className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[10px] font-bold flex items-center space-x-1 shadow-sm transition-all cursor-pointer"
                       >
                         <Plus className="w-3 h-3" />
                         <span>Thêm ĐVT</span>
@@ -2602,46 +2701,45 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                     </div>
                   </div>
 
-                  {/* Preset Templates Quick Selector */}
-                  <div className="flex items-center space-x-2 pt-1 border-t border-slate-800 text-[11px] flex-wrap gap-y-1">
-                    <span className="text-slate-400 font-semibold flex items-center space-x-1">
-                      <Boxes className="w-3 h-3 text-slate-400" />
+                  {/* Preset Templates Quick Selector from Master Data DB */}
+                  <div className="flex items-center space-x-2 pt-2 border-t border-slate-800 text-[11px] flex-wrap gap-y-1.5">
+                    <span className="text-slate-400 font-semibold flex items-center space-x-1 shrink-0">
+                      <Boxes className="w-3.5 h-3.5 text-indigo-400" />
                       <span>Mẫu cấu hình nhanh:</span>
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => handleApplyUomPreset('cable')}
-                      className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 rounded text-[10px] font-semibold border border-slate-700 transition-colors"
-                      title="1 Thùng = 10 Cuộn; 1 Cuộn = 100 Mét = 1.3 Kg = 1.300 Gam"
-                    >
-                      🔌 Cáp / Dây điện (Thùng - Cuộn - Mét - Kg - Gam)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleApplyUomPreset('drink')}
-                      className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-amber-300 rounded text-[10px] font-semibold border border-slate-700 transition-colors"
-                    >
-                      🍺 Nước ngọt / Bia (Thùng - Lốc - Lon)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleApplyUomPreset('grain')}
-                      className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-emerald-300 rounded text-[10px] font-semibold border border-slate-700 transition-colors"
-                    >
-                      🌾 Gạo / Nông sản (Bao - Túi - Kg - Gam)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleApplyUomPreset('pharma')}
-                      className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-purple-300 rounded text-[10px] font-semibold border border-slate-700 transition-colors"
-                    >
-                      💊 Dược phẩm (Thùng - Hộp - Vỉ - Viên)
-                    </button>
+                    {Array.isArray(masterUomGroups) && masterUomGroups.filter((g) => g.status === 'active').length > 0 ? (
+                      <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
+                        {masterUomGroups
+                          .filter((g) => g.status === 'active')
+                          .map((group) => {
+                            const unitList = [group.baseUnit, ...(group.lines || []).map((l) => l.unit)]
+                              .filter(Boolean)
+                              .join(' - ');
+
+                            return (
+                              <button
+                                key={group.id || group.code}
+                                type="button"
+                                onClick={() => handleApplyMasterUomGroup(group)}
+                                className="px-2.5 py-1 bg-slate-800 hover:bg-indigo-950/80 text-cyan-300 hover:text-cyan-200 rounded-lg text-[10.5px] font-semibold border border-slate-700 hover:border-indigo-500/50 transition-all cursor-pointer flex items-center space-x-1"
+                                title={`Áp dụng mẫu nhóm ${group.name} (ĐVT cơ sở: ${group.baseUnit})`}
+                              >
+                                <span>{group.name}</span>
+                                {unitList && <span className="text-slate-400 text-[9.5px]">({unitList})</span>}
+                              </button>
+                            );
+                          })}
+                      </div>
+                    ) : (
+                      <span className="text-slate-500 text-[10.5px] italic">
+                        Chưa có bộ nhóm ĐVT nào được tạo trong Dữ liệu cơ bản.
+                      </span>
+                    )}
                   </div>
 
-                  {/* Suggestions Datalist */}
+                  {/* Suggestions Datalist directly from Master Data DB */}
                   <datalist id="uom-common-list">
-                    {COMMON_UNITS.map((u) => (
+                    {dynamicUOMOptions.map((u) => (
                       <option key={u} value={u} />
                     ))}
                   </datalist>
@@ -2654,8 +2752,8 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                           <th className="py-2 px-2.5">Tên ĐVT</th>
                           <th className="py-2 px-2.5">Quy Đổi Chuyển Đổi (1 ĐVT = X ĐVT Chuyển)</th>
                           <th className="py-2 px-2.5">Quy Đổi Chuẩn</th>
-                          <th className="py-2 px-2.5">Giá Vốn (đ)</th>
-                          <th className="py-2 px-2.5">Giá Bán (đ)</th>
+                          <th className="py-2 px-2.5">Giá Vốn (VNĐ)</th>
+                          <th className="py-2 px-2.5">Giá Bán (VNĐ)</th>
                           <th className="py-2 px-2.5">Diễn Giải / Quy Cách</th>
                           <th className="py-2 px-2 text-center w-10">Xóa</th>
                         </tr>
@@ -2673,15 +2771,13 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                               .map((x) => x.unit)
                               .filter((u) => u && u !== uom.unit);
                             const availableRefs = Array.from(
-                              new Set([formData.unit || 'Cái', ...otherUnits, ...COMMON_UNITS])
+                              new Set([formData.unit || 'Cái', ...otherUnits, ...dynamicUOMOptions])
                             );
 
                             return (
                               <tr key={uIdx} className="hover:bg-slate-800/40">
                                 <td className="py-1.5 px-2">
-                                  <input
-                                    type="text"
-                                    list="uom-common-list"
+                                  <select
                                     value={uom.unit}
                                     onChange={(e) => {
                                       const val = e.target.value;
@@ -2699,9 +2795,17 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                                         uomConversions: solved,
                                       }));
                                     }}
-                                    className="w-20 bg-slate-800 border border-slate-700 rounded px-1.5 py-1 text-white font-bold focus:outline-none focus:border-indigo-400"
-                                    placeholder="Thùng, Cuộn..."
-                                  />
+                                    className="w-28 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-white font-bold focus:outline-none focus:border-indigo-400 text-xs"
+                                  >
+                                    {!dynamicUOMOptions.includes(uom.unit) && (
+                                      <option value={uom.unit}>{uom.unit}</option>
+                                    )}
+                                    {dynamicUOMOptions.map((opt) => (
+                                      <option key={opt} value={opt}>
+                                        {opt}
+                                      </option>
+                                    ))}
+                                  </select>
                                 </td>
                                 <td className="py-1.5 px-2">
                                   <div className="flex items-center space-x-1">
@@ -2773,10 +2877,10 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                                 </td>
                                 <td className="py-1.5 px-2">
                                   <input
-                                    type="number"
-                                    value={uom.costPrice}
+                                    type="text"
+                                    value={uom.costPrice !== undefined && uom.costPrice !== null ? formatNumber(uom.costPrice) : '0'}
                                     onChange={(e) => {
-                                      const val = Number(e.target.value);
+                                      const val = parseCurrencyInput(e.target.value);
                                       setFormData((prev) => ({
                                         ...prev,
                                         uomConversions: prev.uomConversions?.map((u, i) =>
@@ -2784,15 +2888,16 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                                         ),
                                       }));
                                     }}
-                                    className="w-20 bg-slate-800 border border-slate-700 rounded px-1.5 py-1 text-slate-300 font-mono focus:outline-none focus:border-indigo-400 text-right"
+                                    className="w-24 bg-slate-800 border border-slate-700 rounded px-1.5 py-1 text-slate-300 font-mono font-bold focus:outline-none focus:border-indigo-400 text-right text-xs"
+                                    placeholder="0"
                                   />
                                 </td>
                                 <td className="py-1.5 px-2">
                                   <input
-                                    type="number"
-                                    value={uom.sellingPrice}
+                                    type="text"
+                                    value={uom.sellingPrice !== undefined && uom.sellingPrice !== null ? formatNumber(uom.sellingPrice) : '0'}
                                     onChange={(e) => {
-                                      const val = Number(e.target.value);
+                                      const val = parseCurrencyInput(e.target.value);
                                       setFormData((prev) => ({
                                         ...prev,
                                         uomConversions: prev.uomConversions?.map((u, i) =>
@@ -2800,7 +2905,8 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                                         ),
                                       }));
                                     }}
-                                    className="w-20 bg-slate-800 border border-slate-700 rounded px-1.5 py-1 text-emerald-400 font-mono font-bold focus:outline-none focus:border-emerald-500 text-right"
+                                    className="w-24 bg-slate-800 border border-slate-700 rounded px-1.5 py-1 text-emerald-400 font-mono font-bold focus:outline-none focus:border-emerald-500 text-right text-xs"
+                                    placeholder="0"
                                   />
                                 </td>
                                 <td className="py-1.5 px-2">
@@ -3168,6 +3274,18 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           onSuccess={(item, type) => {
             if (type === 'product') {
               onSaveProduct(item);
+            } else if (type === 'category' || type === 'categories') {
+              if (item?.name) setFormData((prev) => ({ ...prev, category: item.name }));
+            } else if (type === 'uom' || type === 'uoms') {
+              if (item?.name) setFormData((prev) => ({ ...prev, unit: item.name }));
+            } else if (type === 'color' || type === 'colors') {
+              if (item?.name) setFormData((prev) => ({ ...prev, color: item.name }));
+            } else if (type === 'specifications' || type === 'specification') {
+              if (item?.name) setFormData((prev) => ({ ...prev, specifications: item.name }));
+            } else if (type === 'warehouse' || type === 'warehouses') {
+              if (item?.name) setFormData((prev) => ({ ...prev, warehouse: item.name, storageLocation: '' }));
+            } else if (type === 'location' || type === 'locations') {
+              if (item?.name) setFormData((prev) => ({ ...prev, storageLocation: item.name }));
             }
           }}
         />
@@ -3312,6 +3430,40 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           issue={printIssueData}
           settings={settings}
           onClose={() => setPrintIssueData(null)}
+        />
+      )}
+
+      {/* Direct Create Stock Exchange Modal */}
+      {showExchangeModal && (
+        <CreateStockExchangeModal
+          isOpen={showExchangeModal}
+          onClose={() => setShowExchangeModal(false)}
+          products={products}
+          orders={orders}
+          onSuccess={() => {
+            if (onRefreshDb) onRefreshDb();
+          }}
+        />
+      )}
+
+      {/* Direct Create Stock Return Modal */}
+      {showReturnModal && (
+        <CreateStockReturnModal
+          isOpen={showReturnModal}
+          onClose={() => setShowReturnModal(false)}
+          products={products}
+          orders={orders}
+          onSuccess={() => {
+            if (onRefreshDb) onRefreshDb();
+          }}
+        />
+      )}
+
+      {/* Direct Policy Modal */}
+      {showPolicyModal && (
+        <ReturnExchangePolicyModal
+          isOpen={showPolicyModal}
+          onClose={() => setShowPolicyModal(false)}
         />
       )}
     </div>

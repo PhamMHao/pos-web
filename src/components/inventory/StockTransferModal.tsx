@@ -270,8 +270,8 @@ export const StockTransferModal: React.FC<StockTransferModalProps> = ({
                 <td>${it.sku}</td>
                 <td>${it.unit}</td>
                 <td>${it.quantity}</td>
-                <td>${it.unitCost.toLocaleString('vi-VN')} đ</td>
-                <td>${it.totalCost.toLocaleString('vi-VN')} đ</td>
+                <td>${formatVND(it.unitCost)}</td>
+                <td>${formatVND(it.totalCost)}</td>
               </tr>
             `
               )
@@ -282,7 +282,7 @@ export const StockTransferModal: React.FC<StockTransferModalProps> = ({
         <div class="total-box">
           <div>Tổng số lượng chuyển: ${transfer.totalQuantity} món</div>
           <div style="color: #0284c7; margin-top: 4px;">
-            Tổng giá trị chuyển kho: ${transfer.items.reduce((s, i) => s + i.totalCost, 0).toLocaleString('vi-VN')} đ
+            Tổng giá trị chuyển kho: ${formatVND(transfer.items.reduce((s, i) => s + i.totalCost, 0))}
           </div>
         </div>
 

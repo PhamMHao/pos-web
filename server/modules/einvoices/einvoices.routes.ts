@@ -10,6 +10,7 @@ import { authenticate } from "../../core/middlewares/authMiddleware";
 const router = Router();
 
 router.get("/", validateRequest({ query: eInvoiceQuerySchema }), EInvoicesController.getInvoices);
+router.get("/lookup-tax/:taxCode", EInvoicesController.lookupTaxCode);
 router.get("/:id", EInvoicesController.getInvoiceById);
 router.post(
   "/",

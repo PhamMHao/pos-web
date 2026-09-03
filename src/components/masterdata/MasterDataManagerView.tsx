@@ -4,6 +4,7 @@ import {
   Building,
   Briefcase,
   MapPin,
+  Warehouse,
   Scale,
   FolderTree,
   Users,
@@ -47,12 +48,15 @@ import {
   Package,
   Layers,
   ArrowRightLeft,
+  Palette,
+  Boxes,
 } from 'lucide-react';
 import {
   useMasterData,
   MasterDataType,
 } from '../../core/contexts/MasterDataContext';
 import { useAuth } from '../../core/contexts/AuthContext';
+import { formatVND } from '../../utils/currency';
 import { QuickAddMasterDataModal } from '../common/QuickAddMasterDataModal';
 import {
   DepartmentModal,
@@ -64,14 +68,18 @@ import {
   CategoryModal,
   UnitOfMeasureModal,
   UomGroupModal,
+  WarehouseModal,
   WarehouseLocationModal,
   CustomerGroupModal,
   SupplierCategoryModal,
   ProjectModal,
+  ColorModal,
+  SpecificationModal,
 } from './MasterDataModals';
 import {
   Department,
   JobPosition,
+  MasterWarehouse,
   WarehouseLocation,
   UnitOfMeasure,
   MasterUomGroup,
@@ -85,6 +93,8 @@ import {
   Supplier,
   EnterpriseProject,
   EnterpriseProjectStatus,
+  MasterColor,
+  MasterSpecification,
 } from '../../types';
 
 export const MasterDataManagerView: React.FC = () => {
@@ -119,6 +129,11 @@ export const MasterDataManagerView: React.FC = () => {
     addJobPosition,
     updateJobPosition,
 
+    warehouses,
+    deleteWarehouse,
+    addWarehouse,
+    updateWarehouse,
+
     warehouseLocations,
     deleteWarehouseLocation,
     addWarehouseLocation,
@@ -138,6 +153,16 @@ export const MasterDataManagerView: React.FC = () => {
     deleteProductCategory,
     addProductCategory,
     updateProductCategory,
+
+    colors,
+    deleteColor,
+    addColor,
+    updateColor,
+
+    specifications,
+    deleteSpecification,
+    addSpecification,
+    updateSpecification,
 
     customerGroups,
     deleteCustomerGroup,
@@ -169,7 +194,7 @@ export const MasterDataManagerView: React.FC = () => {
 
   const { user: currentUser } = useAuth();
 
-  // Active Tab State (10 Tabs including Projects)
+  // Active Tab State (12 Tabs including Colors & Specifications)
   const [activeTab, setActiveTab] = useState<
     | 'customers'
     | 'projects'
@@ -179,6 +204,8 @@ export const MasterDataManagerView: React.FC = () => {
     | 'locations'
     | 'uoms'
     | 'categories'
+    | 'colors'
+    | 'specifications'
     | 'security'
     | 'email'
   >('customers');
@@ -219,11 +246,22 @@ export const MasterDataManagerView: React.FC = () => {
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<MasterProductCategory | null>(null);
 
+  const [isColorModalOpen, setIsColorModalOpen] = useState(false);
+  const [editingColor, setEditingColor] = useState<MasterColor | null>(null);
+
+  const [isSpecModalOpen, setIsSpecModalOpen] = useState(false);
+  const [editingSpec, setEditingSpec] = useState<MasterSpecification | null>(null);
+
   const [isUomModalOpen, setIsUomModalOpen] = useState(false);
   const [editingUom, setEditingUom] = useState<UnitOfMeasure | null>(null);
 
   const [isUomGroupModalOpen, setIsUomGroupModalOpen] = useState(false);
   const [editingUomGroup, setEditingUomGroup] = useState<MasterUomGroup | null>(null);
+
+  const [isWarehouseModalOpen, setIsWarehouseModalOpen] = useState(false);
+  const [editingWarehouse, setEditingWarehouse] = useState<MasterWarehouse | null>(null);
+  const [warehouseSubTab, setWarehouseSubTab] = useState<'warehouses' | 'locations'>('warehouses');
+  const [selectedWarehouseFilter, setSelectedWarehouseFilter] = useState<string>('all');
 
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [editingLocation, setEditingLocation] = useState<WarehouseLocation | null>(null);
@@ -396,6 +434,10 @@ export const MasterDataManagerView: React.FC = () => {
                 ? 'uoms'
                 : activeTab === 'categories'
                 ? 'categories'
+                : activeTab === 'colors'
+                ? 'colors'
+                : activeTab === 'specifications'
+                ? 'specifications'
                 : activeTab === 'locations'
                 ? 'locations'
                 : activeTab === 'departments'
@@ -416,7 +458,7 @@ export const MasterDataManagerView: React.FC = () => {
         </div>
       </div>
 
-      {/* Navigation Tabs (10 Tabs including Projects) */}
+      {/* Navigation Tabs (12 Tabs including Colors & Specifications) */}
       <div className="px-6 border-b border-slate-800 bg-slate-900/60 shrink-0 overflow-x-auto flex space-x-1 py-2 scrollbar-none">
         {[
           { id: 'customers', label: 'Khách Hàng & Phân Nhóm', icon: Users, count: customers.length },
@@ -424,9 +466,11 @@ export const MasterDataManagerView: React.FC = () => {
           { id: 'suppliers', label: 'Nhà Cung Ứng & Đối Tác', icon: Truck, count: suppliers.length },
           { id: 'departments', label: 'Phòng Ban & Bộ Phận', icon: Building, count: departments.length },
           { id: 'positions', label: 'Chức Vụ & Cấp Bậc', icon: Briefcase, count: jobPositions.length },
-          { id: 'locations', label: 'Vị Trí Ô Kệ Kho', icon: MapPin, count: warehouseLocations.length },
+          { id: 'locations', label: 'Kho & Vị Trí Ô Kệ', icon: Warehouse, count: (warehouses || []).length + (warehouseLocations || []).length },
           { id: 'uoms', label: 'Đơn Vị Tính & Quy Đổi', icon: Scale, count: unitsOfMeasure.length },
           { id: 'categories', label: 'Nhóm Hàng & VAT', icon: FolderTree, count: productCategories.length },
+          { id: 'colors', label: 'Màu Sắc Sản Phẩm', icon: Palette, count: (colors || []).length },
+          { id: 'specifications', label: 'Quy Cách & Đóng Gói', icon: Boxes, count: (specifications || []).length },
           { id: 'security', label: 'Bảo Mật & Cấp Lại Mật Khẩu', icon: KeyRound, count: passwordResetRequests.filter(r => r.status === 'pending_admin_approval').length, alert: true },
           { id: 'email', label: 'Cổng Email Gateway & Logs', icon: Mail, count: emailLogs.length },
         ].map((tab) => {
@@ -654,15 +698,15 @@ export const MasterDataManagerView: React.FC = () => {
                                 </div>
                               </td>
                               <td className="py-3 px-4 text-right font-bold text-emerald-400">
-                                {(Number(cust.totalSpent) || 0).toLocaleString('vi-VN')} đ
+                                {formatVND(cust.totalSpent)}
                               </td>
                               <td className="py-3 px-4 text-right">
                                 {(Number(cust.debt) || 0) > 0 ? (
                                   <span className="font-bold text-rose-400">
-                                    {(Number(cust.debt) || 0).toLocaleString('vi-VN')} đ
+                                    {formatVND(cust.debt)}
                                   </span>
                                 ) : (
-                                  <span className="text-slate-500">0 đ</span>
+                                  <span className="text-slate-500">{formatVND(0)}</span>
                                 )}
                               </td>
                               <td className="py-3 px-4 text-right space-x-1">
@@ -763,7 +807,7 @@ export const MasterDataManagerView: React.FC = () => {
                       <div className="flex justify-between">
                         <span className="text-slate-400">Chi tiêu tích lũy:</span>
                         <span className="font-bold text-emerald-400">
-                          {(Number((t as any).minSpend ?? t.minSpent ?? 0)).toLocaleString('vi-VN')} đ
+                          {formatVND((t as any).minSpend ?? t.minSpent ?? 0)}
                         </span>
                       </div>
                       <div className="flex justify-between">
@@ -832,7 +876,7 @@ export const MasterDataManagerView: React.FC = () => {
                       <div className="flex justify-between">
                         <span className="text-slate-400">Hạn mức nợ tối đa:</span>
                         <span className="font-bold text-amber-400">
-                          {(Number((grp as any).defaultDebtLimit ?? (grp as any).creditLimit ?? 0)).toLocaleString('vi-VN')} đ
+                          {formatVND((grp as any).defaultDebtLimit ?? (grp as any).creditLimit ?? 0)}
                         </span>
                       </div>
                       <div className="flex justify-between">
@@ -1013,7 +1057,7 @@ export const MasterDataManagerView: React.FC = () => {
                           <div>
                             <div className="text-[11px] text-slate-400">Tổng mức đầu tư:</div>
                             <div className="font-mono font-bold text-emerald-400">
-                              {p.budget ? `${p.budget.toLocaleString('vi-VN')} đ` : '0 đ'}
+                              {p.budget ? formatVND(p.budget) : formatVND(0)}
                             </div>
                           </div>
                           <div>
@@ -1181,7 +1225,7 @@ export const MasterDataManagerView: React.FC = () => {
                                 </span>
                               </td>
                               <td className="py-3 px-4 text-right font-bold text-amber-400">
-                                {sup.currentDebt > 0 ? `${sup.currentDebt.toLocaleString('vi-VN')} đ` : '0 đ'}
+                                {sup.currentDebt > 0 ? formatVND(sup.currentDebt) : formatVND(0)}
                               </td>
                               <td className="py-3 px-4 text-right space-x-1">
                                 <button
@@ -1410,10 +1454,10 @@ export const MasterDataManagerView: React.FC = () => {
                       <td className="py-3 px-4 font-bold text-white">{pos.title}</td>
                       <td className="py-3 px-4 text-slate-300">{pos.departmentName}</td>
                       <td className="py-3 px-4 text-right font-bold text-emerald-400">
-                        {(Number(pos.baseSalary) || 0).toLocaleString('vi-VN')} đ
+                        {formatVND(pos.baseSalary)}
                       </td>
                       <td className="py-3 px-4 text-right text-amber-400 font-medium">
-                        +{(Number(pos.responsibilityAllowance) || 0).toLocaleString('vi-VN')} đ
+                        +{formatVND(pos.responsibilityAllowance)}
                       </td>
                       <td className="py-3 px-4">
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-blue-300 border border-blue-500/30 uppercase">
@@ -1452,95 +1496,476 @@ export const MasterDataManagerView: React.FC = () => {
           </div>
         )}
 
-        {/* TAB 6: VỊ TRÍ Ô KỆ & LAYOUT KHO */}
-        {activeTab === 'locations' && (
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/80 p-4 rounded-2xl border border-slate-800">
-              <div className="flex items-center space-x-2">
-                <MapPin className="w-5 h-5 text-emerald-400" />
-                <div>
-                  <h3 className="text-sm font-bold text-white">Sơ Đồ Phân Bổ Ô Kệ & Layout Kho Hàng</h3>
-                  <p className="text-xs text-slate-400">Quản lý mã vạch vị trí, sức chứa tối đa và phân khu lưu trữ sản phẩm</p>
+        {/* TAB 6: KHO & VỊ TRÍ Ô KỆ (WAREHOUSES & SHELF LOCATIONS) */}
+        {activeTab === 'locations' && (() => {
+          const safeWarehouses = Array.isArray(warehouses) ? warehouses : [];
+          const safeLocations = Array.isArray(warehouseLocations) ? warehouseLocations : [];
+
+          const totalWarehouseCapacity = safeWarehouses.reduce((sum, w) => sum + (Number(w.capacity) || 0), 0);
+          const defaultWarehouse = safeWarehouses.find((w) => w.isDefault) || safeWarehouses[0];
+
+          const getWarehouseTypeBadge = (type: string) => {
+            switch (type) {
+              case 'general':
+                return { label: 'Kho Tổng Phân Phối', bg: 'bg-blue-500/10 text-blue-400 border-blue-500/20' };
+              case 'showroom':
+                return { label: 'Showroom & Kỹ Thuật', bg: 'bg-purple-500/10 text-purple-400 border-purple-500/20' };
+              case 'branch':
+                return { label: 'Kho Chi Nhánh', bg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' };
+              case 'rma':
+                return { label: 'Bảo Hành & RMA', bg: 'bg-rose-500/10 text-rose-400 border-rose-500/20' };
+              case 'transit':
+                return { label: 'Kho Trung Chuyển', bg: 'bg-amber-500/10 text-amber-400 border-amber-500/20' };
+              default:
+                return { label: 'Kho Lưu Trữ', bg: 'bg-slate-800 text-slate-300 border-slate-700' };
+            }
+          };
+
+          const filteredWarehouses = safeWarehouses.filter((w) => {
+            if (!searchQuery) return true;
+            const q = searchQuery.toLowerCase();
+            return (
+              w.name.toLowerCase().includes(q) ||
+              w.code.toLowerCase().includes(q) ||
+              (w.address && w.address.toLowerCase().includes(q)) ||
+              (w.managerName && w.managerName.toLowerCase().includes(q)) ||
+              (w.phone && w.phone.includes(q))
+            );
+          });
+
+          const filteredLocations = safeLocations.filter((loc) => {
+            const matchWarehouse =
+              selectedWarehouseFilter === 'all' ||
+              loc.warehouseId === selectedWarehouseFilter ||
+              loc.warehouseCode === selectedWarehouseFilter ||
+              loc.warehouseName === selectedWarehouseFilter;
+
+            if (!matchWarehouse) return false;
+
+            if (!searchQuery) return true;
+            const q = searchQuery.toLowerCase();
+            return (
+              loc.name.toLowerCase().includes(q) ||
+              loc.code.toLowerCase().includes(q) ||
+              (loc.barcode && loc.barcode.toLowerCase().includes(q)) ||
+              (loc.zone && loc.zone.toLowerCase().includes(q)) ||
+              (loc.shelf && loc.shelf.toLowerCase().includes(q)) ||
+              loc.warehouseName.toLowerCase().includes(q)
+            );
+          });
+
+          return (
+            <div className="space-y-6">
+              {/* Sub-Tabs Selector & Action Buttons */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/80 p-3.5 rounded-2xl border border-slate-800">
+                <div className="flex items-center space-x-2 overflow-x-auto">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWarehouseSubTab('warehouses');
+                      setSearchQuery('');
+                    }}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center space-x-2 transition-all cursor-pointer ${
+                      warehouseSubTab === 'warehouses'
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                        : 'bg-slate-800 text-slate-300 hover:bg-slate-750'
+                    }`}
+                  >
+                    <Warehouse className="w-4 h-4 text-blue-300" />
+                    <span>Danh Sách Kho Hàng ({safeWarehouses.length})</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWarehouseSubTab('locations');
+                      setSearchQuery('');
+                    }}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center space-x-2 transition-all cursor-pointer ${
+                      warehouseSubTab === 'locations'
+                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/20'
+                        : 'bg-slate-800 text-slate-300 hover:bg-slate-750'
+                    }`}
+                  >
+                    <MapPin className="w-4 h-4 text-emerald-300" />
+                    <span>Vị Trí Ô Kệ Theo Kho ({safeLocations.length})</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  {warehouseSubTab === 'warehouses' && (
+                    <button
+                      onClick={() => {
+                        setEditingWarehouse(null);
+                        setIsWarehouseModalOpen(true);
+                      }}
+                      className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 cursor-pointer shadow-md shadow-blue-500/20"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Thêm Kho Hàng Mới</span>
+                    </button>
+                  )}
+                  {warehouseSubTab === 'locations' && (
+                    <button
+                      onClick={() => {
+                        setEditingLocation(null);
+                        setIsLocationModalOpen(true);
+                      }}
+                      className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 cursor-pointer shadow-md shadow-emerald-500/20"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Thêm Vị Trí Ô Kệ</span>
+                    </button>
+                  )}
                 </div>
               </div>
-              <button
-                onClick={() => {
-                  setEditingLocation(null);
-                  setIsLocationModalOpen(true);
-                }}
-                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl flex items-center space-x-1 cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Thêm Vị Trí Ô Kệ</span>
-              </button>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {warehouseLocations.map((loc) => (
-                <div
-                  key={loc.id}
-                  className="bg-slate-900 border border-slate-800 hover:border-slate-700 p-5 rounded-2xl space-y-3 transition-all group"
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-[10px] font-mono font-bold text-emerald-400 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
-                          {loc.code}
-                        </span>
-                        <span className="text-[10px] font-mono text-slate-400 bg-slate-800 px-1.5 py-0.2 rounded border border-slate-700">
-                          {loc.barcode}
-                        </span>
+              {/* SUB-TAB 1: DANH SÁCH KHO HÀNG (MASTER WAREHOUSES) */}
+              {warehouseSubTab === 'warehouses' && (
+                <div className="space-y-6">
+                  {/* KPI Overview Summary */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex items-center space-x-3.5">
+                      <div className="p-3 bg-blue-600/20 text-blue-400 rounded-xl border border-blue-500/30">
+                        <Warehouse className="w-5 h-5" />
                       </div>
-                      <h4 className="text-sm font-bold text-white mt-1.5">{loc.name}</h4>
+                      <div>
+                        <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Tổng Cơ Sở Kho</div>
+                        <div className="text-xl font-black text-white">{safeWarehouses.length} Kho hàng</div>
+                      </div>
                     </div>
 
-                    <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => {
-                          setEditingLocation(loc);
-                          setIsLocationModalOpen(true);
-                        }}
-                        className="p-1 text-slate-400 hover:text-white rounded-lg cursor-pointer"
-                        title="Chỉnh sửa vị trí"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (window.confirm(`Xóa vị trí ${loc.name}?`)) {
-                            deleteWarehouseLocation(loc.id);
-                            showToast('Đã xóa vị trí ô kệ');
-                          }
-                        }}
-                        className="p-1 text-slate-400 hover:text-rose-400 rounded-lg cursor-pointer"
-                        title="Xóa vị trí"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                    <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex items-center space-x-3.5">
+                      <div className="p-3 bg-amber-600/20 text-amber-400 rounded-xl border border-amber-500/30">
+                        <Crown className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Kho Xuất Mặc Định</div>
+                        <div className="text-sm font-bold text-amber-300 truncate max-w-[170px]" title={defaultWarehouse?.name}>
+                          {defaultWarehouse ? defaultWarehouse.name : 'Chưa thiết lập'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex items-center space-x-3.5">
+                      <div className="p-3 bg-emerald-600/20 text-emerald-400 rounded-xl border border-emerald-500/30">
+                        <Package className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Tổng Sức Chứa SKU</div>
+                        <div className="text-xl font-black text-emerald-400">
+                          {totalWarehouseCapacity.toLocaleString('vi-VN')}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex items-center space-x-3.5">
+                      <div className="p-3 bg-cyan-600/20 text-cyan-400 rounded-xl border border-cyan-500/30">
+                        <MapPin className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Vị Trí Ô Kệ Toàn Hệ Thống</div>
+                        <div className="text-xl font-black text-cyan-400">{safeLocations.length} Vị trí</div>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="space-y-1 text-xs text-slate-300">
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Kho:</span>
-                      <span className="font-bold text-slate-200">{loc.warehouseName}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Phân khu:</span>
-                      <span className="text-cyan-400 font-medium">{loc.zone}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Sức chứa tối đa:</span>
-                      <span className="font-bold text-amber-400">{loc.maxCapacity} sản phẩm</span>
-                    </div>
+                  {/* Search Bar */}
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Tìm kiếm kho theo mã kho, tên kho, địa chỉ, thủ kho, số điện thoại..."
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                    />
                   </div>
 
-                  {loc.note && <p className="text-[11px] text-slate-400 italic pt-1 border-t border-slate-800">{loc.note}</p>}
+                  {/* Warehouses Grid Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                    {filteredWarehouses.map((wh) => {
+                      const typeBadge = getWarehouseTypeBadge(wh.type);
+                      const whLocations = safeLocations.filter(
+                        (l) => l.warehouseId === wh.id || l.warehouseCode === wh.code || l.warehouseName === wh.name
+                      );
+
+                      return (
+                        <div
+                          key={wh.id}
+                          className="bg-slate-900 border border-slate-800 hover:border-slate-700 p-5 rounded-2xl space-y-4 transition-all group flex flex-col justify-between shadow-lg"
+                        >
+                          <div className="space-y-3">
+                            <div className="flex items-start justify-between">
+                              <div className="space-y-1">
+                                <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                                  <span className="text-[11px] font-mono font-bold text-blue-400 px-2.5 py-0.5 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                                    {wh.code}
+                                  </span>
+                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border ${typeBadge.bg}`}>
+                                    {typeBadge.label}
+                                  </span>
+                                  {wh.isDefault && (
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center space-x-1">
+                                      <span>★ Mặc Định</span>
+                                    </span>
+                                  )}
+                                </div>
+                                <h4 className="text-sm font-bold text-white pt-1">{wh.name}</h4>
+                              </div>
+
+                              <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  onClick={() => {
+                                    setEditingWarehouse(wh);
+                                    setIsWarehouseModalOpen(true);
+                                  }}
+                                  className="p-1.5 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg cursor-pointer transition-colors"
+                                  title="Chỉnh sửa kho hàng"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (window.confirm(`Bạn có chắc chắn muốn xóa kho "${wh.name}"?`)) {
+                                      deleteWarehouse(wh.id);
+                                      showToast('Đã xóa kho hàng khỏi hệ thống');
+                                    }
+                                  }}
+                                  className="p-1.5 text-slate-400 hover:text-rose-400 bg-slate-800 hover:bg-rose-500/20 rounded-lg cursor-pointer transition-colors"
+                                  title="Xóa kho hàng"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {wh.address && (
+                              <div className="flex items-start space-x-2 text-xs text-slate-400">
+                                <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0 mt-0.5" />
+                                <span>{wh.address}</span>
+                              </div>
+                            )}
+
+                            <div className="space-y-1.5 text-xs text-slate-300 bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
+                              <div className="flex justify-between items-center">
+                                <span className="text-slate-400">Quản lý / Thủ kho:</span>
+                                <span className="font-bold text-slate-200">{wh.managerName || 'Chưa chỉ định'}</span>
+                              </div>
+                              {wh.phone && (
+                                <div className="flex justify-between items-center">
+                                  <span className="text-slate-400">Hotline liên hệ:</span>
+                                  <span className="font-mono text-cyan-400 font-semibold">{wh.phone}</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between items-center">
+                                <span className="text-slate-400">Sức chứa tối đa:</span>
+                                <span className="font-bold text-amber-400">{(wh.capacity || 1000).toLocaleString('vi-VN')} SKU</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-slate-400">Phân khu ô kệ:</span>
+                                <span className="font-bold text-emerald-400">{whLocations.length} vị trí</span>
+                              </div>
+                            </div>
+
+                            {wh.description && (
+                              <p className="text-[11px] text-slate-400 italic line-clamp-2">
+                                {wh.description}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Switch to Locations Tab Filtered */}
+                          <div className="pt-2 border-t border-slate-800">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedWarehouseFilter(wh.id);
+                                setWarehouseSubTab('locations');
+                              }}
+                              className="w-full py-2 bg-slate-800 hover:bg-slate-750 text-blue-400 hover:text-blue-300 text-xs font-bold rounded-xl flex items-center justify-center space-x-1.5 transition-colors cursor-pointer border border-slate-700/60"
+                            >
+                              <MapPin className="w-3.5 h-3.5" />
+                              <span>Xem {whLocations.length} vị trí ô kệ của kho này</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              ))}
+              )}
+
+              {/* SUB-TAB 2: VỊ TRÍ Ô KỆ THEO KHO (WAREHOUSE LOCATIONS) */}
+              {warehouseSubTab === 'locations' && (
+                <div className="space-y-5">
+                  {/* Warehouse Filter Pills */}
+                  <div className="flex items-center space-x-2 overflow-x-auto pb-1 scrollbar-none">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedWarehouseFilter('all')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                        selectedWarehouseFilter === 'all'
+                          ? 'bg-emerald-600 text-white shadow-md'
+                          : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      Tất Cả Kho ({safeLocations.length})
+                    </button>
+                    {safeWarehouses.map((wh) => {
+                      const count = safeLocations.filter(
+                        (l) => l.warehouseId === wh.id || l.warehouseCode === wh.code || l.warehouseName === wh.name
+                      ).length;
+                      const isSelected = selectedWarehouseFilter === wh.id || selectedWarehouseFilter === wh.name;
+
+                      return (
+                        <button
+                          key={wh.id}
+                          type="button"
+                          onClick={() => setSelectedWarehouseFilter(wh.id)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 flex items-center space-x-1.5 transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                              : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                          }`}
+                        >
+                          <Warehouse className="w-3.5 h-3.5" />
+                          <span>{wh.name}</span>
+                          <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-700 text-slate-300'}`}>
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Search Bar & Stats */}
+                  <div className="flex flex-col sm:flex-row items-center gap-3">
+                    <div className="relative flex-1 w-full">
+                      <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Tìm kiếm ô kệ theo mã vị trí, mã barcode, tên vị trí, phân khu, kệ, tầng..."
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                    {selectedWarehouseFilter !== 'all' && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedWarehouseFilter('all')}
+                        className="px-3 py-2 bg-slate-800 hover:bg-slate-750 text-slate-300 text-xs font-semibold rounded-xl shrink-0 cursor-pointer flex items-center space-x-1"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        <span>Bỏ lọc kho</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Locations Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {filteredLocations.map((loc) => (
+                      <div
+                        key={loc.id}
+                        className="bg-slate-900 border border-slate-800 hover:border-slate-700 p-5 rounded-2xl space-y-3.5 transition-all group shadow-md"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                              <span className="text-[10px] font-mono font-bold text-emerald-400 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
+                                {loc.code}
+                              </span>
+                              {loc.barcode && (
+                                <span className="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20">
+                                  {loc.barcode}
+                                </span>
+                              )}
+                            </div>
+                            <h4 className="text-sm font-bold text-white mt-1.5">{loc.name}</h4>
+                          </div>
+
+                          <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => {
+                                setEditingLocation(loc);
+                                setIsLocationModalOpen(true);
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg cursor-pointer transition-colors"
+                              title="Chỉnh sửa vị trí"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm(`Xóa vị trí "${loc.name}"?`)) {
+                                  deleteWarehouseLocation(loc.id);
+                                  showToast('Đã xóa vị trí ô kệ');
+                                }
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-rose-400 bg-slate-800 hover:bg-rose-500/20 rounded-lg cursor-pointer transition-colors"
+                              title="Xóa vị trí"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Location Details */}
+                        <div className="space-y-1.5 text-xs text-slate-300 bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
+                          <div className="flex justify-between items-center">
+                            <span className="text-slate-400">Kho trực thuộc:</span>
+                            <span className="font-bold text-blue-400 flex items-center space-x-1">
+                              <Warehouse className="w-3.5 h-3.5 inline mr-1 text-blue-400" />
+                              <span>{loc.warehouseName}</span>
+                            </span>
+                          </div>
+                          {loc.zone && (
+                            <div className="flex justify-between items-center">
+                              <span className="text-slate-400">Phân khu (Zone):</span>
+                              <span className="text-cyan-300 font-medium">{loc.zone}</span>
+                            </div>
+                          )}
+                          {(loc.shelf || loc.tier || loc.bin) && (
+                            <div className="flex justify-between items-center">
+                              <span className="text-slate-400">Layout Kệ / Tầng / Ô:</span>
+                              <span className="text-slate-200 font-mono">
+                                {[loc.shelf, loc.tier, loc.bin].filter(Boolean).join(' • ')}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex justify-between items-center">
+                            <span className="text-slate-400">Sức chứa tối đa:</span>
+                            <span className="font-bold text-amber-400">
+                              {(loc.capacity || loc.maxCapacity || 100).toLocaleString('vi-VN')} SKU
+                            </span>
+                          </div>
+                        </div>
+
+                        {(loc.notes || loc.note) && (
+                          <p className="text-[11px] text-slate-400 italic pt-1 border-t border-slate-800">
+                            {loc.notes || loc.note}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {filteredLocations.length === 0 && (
+                    <div className="p-12 text-center bg-slate-900 border border-slate-800 rounded-3xl space-y-3">
+                      <MapPin className="w-10 h-10 text-slate-600 mx-auto" />
+                      <h4 className="text-sm font-bold text-slate-300">Không tìm thấy vị trí ô kệ nào</h4>
+                      <p className="text-xs text-slate-500">
+                        {selectedWarehouseFilter !== 'all'
+                          ? 'Kho hàng này chưa có ô kệ nào được tạo. Hãy nhấn "Thêm Vị Trí Ô Kệ" để phân bổ layout.'
+                          : 'Thử thay đổi từ khóa tìm kiếm hoặc bấm nút thêm mới.'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* TAB 7: ĐƠN VỊ TÍNH & QUY ĐỔI (UOM & CONVERSION GROUPS) */}
         {activeTab === 'uoms' && (() => {
@@ -1896,6 +2321,336 @@ export const MasterDataManagerView: React.FC = () => {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* TAB: MÀU SẮC SẢN PHẨM (Master Colors) */}
+        {activeTab === 'colors' && (
+          <div className="space-y-4">
+            {/* Header info */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/80 p-4 rounded-2xl border border-slate-800">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-xl bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-400">
+                  <Palette className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <h3 className="text-sm font-bold text-white">Danh Mục Màu Sắc Sản Phẩm & Mã Màu HEX</h3>
+                    <span className="px-2 py-0.5 bg-pink-500/10 text-pink-300 border border-pink-500/20 rounded-full text-xs font-mono font-bold">
+                      {(colors || []).length} màu
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    Bảng mã màu chuẩn quốc tế HEX và tên gọi cho linh kiện PC, case, gaming gear và thiết bị mạng
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => {
+                    setEditingColor(null);
+                    setIsColorModalOpen(true);
+                  }}
+                  className="px-4 py-2 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white rounded-xl text-xs font-bold shadow-md shadow-pink-600/20 flex items-center space-x-1.5 transition-all cursor-pointer shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Thêm Màu Sắc Mới</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Filter & Search */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="relative flex-1 max-w-md">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Tìm theo mã màu, tên màu, mã HEX..."
+                  className="w-full pl-9 pr-4 py-2 bg-slate-900/80 border border-slate-800 rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-pink-500"
+                />
+              </div>
+            </div>
+
+            {/* Grid Colors */}
+            {(() => {
+              const safeColors = Array.isArray(colors) ? colors : [];
+              const filteredColors = safeColors.filter((c) => {
+                if (!searchQuery) return true;
+                const q = searchQuery.toLowerCase();
+                return (
+                  c.code?.toLowerCase().includes(q) ||
+                  c.name?.toLowerCase().includes(q) ||
+                  c.hexCode?.toLowerCase().includes(q) ||
+                  c.description?.toLowerCase().includes(q)
+                );
+              });
+
+              if (filteredColors.length === 0) {
+                return (
+                  <div className="p-12 text-center bg-slate-900/40 rounded-3xl border border-slate-800">
+                    <Palette className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+                    <h4 className="text-sm font-bold text-slate-400">Không tìm thấy màu sắc nào</h4>
+                    <p className="text-xs text-slate-500 mt-1">Thử đổi từ khóa tìm kiếm hoặc nhấn nút thêm màu mới</p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {filteredColors.map((col) => (
+                    <div
+                      key={col.id}
+                      className="bg-slate-900/90 border border-slate-800 hover:border-pink-500/50 rounded-2xl p-4 transition-all group flex flex-col justify-between shadow-lg"
+                    >
+                      <div>
+                        {/* Top header */}
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center space-x-3">
+                            <div
+                              className="w-8 h-8 rounded-xl border-2 border-slate-700 shadow-md flex items-center justify-center shrink-0"
+                              style={{ backgroundColor: col.hexCode || '#1e293b' }}
+                            />
+                            <div>
+                              <h4 className="text-xs font-bold text-white group-hover:text-pink-400 transition-colors line-clamp-1">
+                                {col.name}
+                              </h4>
+                              <span className="text-[10px] font-mono text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">
+                                {col.code}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => {
+                                setEditingColor(col);
+                                setIsColorModalOpen(true);
+                              }}
+                              className="p-1 text-slate-400 hover:text-white rounded-lg cursor-pointer"
+                              title="Chỉnh sửa màu"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm(`Xóa màu ${col.name}?`)) {
+                                  deleteColor(col.id);
+                                  showToast('Đã xóa màu sắc');
+                                }
+                              }}
+                              className="p-1 text-slate-400 hover:text-rose-400 rounded-lg cursor-pointer"
+                              title="Xóa màu"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* HEX & Description */}
+                        <div className="space-y-2 mb-3">
+                          <div className="flex items-center justify-between bg-slate-950/60 px-2.5 py-1.5 rounded-xl border border-slate-800/80">
+                            <span className="text-[11px] text-slate-400 font-medium">Mã HEX:</span>
+                            <span className="text-xs font-mono font-bold text-pink-300 flex items-center space-x-1.5">
+                              <span
+                                className="w-2.5 h-2.5 rounded-full inline-block"
+                                style={{ backgroundColor: col.hexCode }}
+                              />
+                              <span>{col.hexCode}</span>
+                            </span>
+                          </div>
+
+                          <p className="text-xs text-slate-300 line-clamp-2">
+                            {col.description || 'Chưa có mô tả chi tiết'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Footer */}
+                      <div className="pt-2 border-t border-slate-800 text-[11px] flex items-center justify-between">
+                        <span className="text-slate-500">
+                          Thứ tự: <strong className="text-slate-300 font-mono">{col.sortOrder || 0}</strong>
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 rounded-md font-semibold text-[10px] ${
+                            col.status === 'active'
+                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                              : 'bg-slate-800 text-slate-400 border border-slate-700'
+                          }`}
+                        >
+                          {col.status === 'active' ? '🟢 Hoạt động' : '⚪ Tạm ngưng'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* TAB: QUY CÁCH SẢN PHẨM & ĐÓNG GÓI (Master Specifications) */}
+        {activeTab === 'specifications' && (
+          <div className="space-y-4">
+            {/* Header info */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/80 p-4 rounded-2xl border border-slate-800">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                  <Boxes className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <h3 className="text-sm font-bold text-white">Danh Mục Quy Cách Sản Phẩm & Định Mức Đóng Gói</h3>
+                    <span className="px-2 py-0.5 bg-amber-500/10 text-amber-300 border border-amber-500/20 rounded-full text-xs font-mono font-bold">
+                      {(specifications || []).length} quy cách
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    Quy chuẩn đóng gói thùng - hộp, cuộn chiều dài, vỉ linh kiện IC, túi zip và định mức tiêu chuẩn
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => {
+                    setEditingSpec(null);
+                    setIsSpecModalOpen(true);
+                  }}
+                  className="px-4 py-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white rounded-xl text-xs font-bold shadow-md shadow-amber-600/20 flex items-center space-x-1.5 transition-all cursor-pointer shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Thêm Quy Cách Mới</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Filter & Search */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="relative flex-1 max-w-md">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Tìm theo mã, tên quy cách, phân loại, giá trị chuẩn..."
+                  className="w-full pl-9 pr-4 py-2 bg-slate-900/80 border border-slate-800 rounded-xl text-white text-xs placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                />
+              </div>
+            </div>
+
+            {/* Grid Specifications */}
+            {(() => {
+              const safeSpecs = Array.isArray(specifications) ? specifications : [];
+              const filteredSpecs = safeSpecs.filter((s) => {
+                if (!searchQuery) return true;
+                const q = searchQuery.toLowerCase();
+                return (
+                  s.code?.toLowerCase().includes(q) ||
+                  s.name?.toLowerCase().includes(q) ||
+                  s.category?.toLowerCase().includes(q) ||
+                  s.standardValue?.toLowerCase().includes(q) ||
+                  s.description?.toLowerCase().includes(q)
+                );
+              });
+
+              if (filteredSpecs.length === 0) {
+                return (
+                  <div className="p-12 text-center bg-slate-900/40 rounded-3xl border border-slate-800">
+                    <Boxes className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+                    <h4 className="text-sm font-bold text-slate-400">Không tìm thấy quy cách nào</h4>
+                    <p className="text-xs text-slate-500 mt-1">Thử chọn danh mục khác hoặc tạo quy cách mới</p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredSpecs.map((spec) => (
+                    <div
+                      key={spec.id}
+                      className="bg-slate-900/90 border border-slate-800 hover:border-amber-500/50 rounded-2xl p-5 transition-all group flex flex-col justify-between shadow-lg"
+                    >
+                      <div>
+                        {/* Header */}
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="space-y-1">
+                            <div className="flex items-center space-x-2">
+                              <span className="px-2 py-0.5 bg-amber-500/10 text-amber-300 border border-amber-500/20 rounded-md text-[10px] font-bold">
+                                {spec.category || 'Quy cách'}
+                              </span>
+                              <span className="text-[10px] font-mono text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">
+                                {spec.code}
+                              </span>
+                            </div>
+                            <h4 className="text-sm font-bold text-white group-hover:text-amber-400 transition-colors">
+                              {spec.name}
+                            </h4>
+                          </div>
+
+                          <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => {
+                                setEditingSpec(spec);
+                                setIsSpecModalOpen(true);
+                              }}
+                              className="p-1 text-slate-400 hover:text-white rounded-lg cursor-pointer"
+                              title="Chỉnh sửa quy cách"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm(`Xóa quy cách ${spec.name}?`)) {
+                                  deleteSpecification(spec.id);
+                                  showToast('Đã xóa quy cách');
+                                }
+                              }}
+                              className="p-1 text-slate-400 hover:text-rose-400 rounded-lg cursor-pointer"
+                              title="Xóa quy cách"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Badges Info */}
+                        <div className="space-y-2 mb-3">
+                          {spec.standardValue && (
+                            <div className="flex items-center space-x-2 text-xs bg-slate-950/60 px-3 py-2 rounded-xl border border-slate-800">
+                              <span className="text-slate-400 font-medium">📦 Giá trị chuẩn:</span>
+                              <span className="font-bold text-amber-300 font-mono">{spec.standardValue}</span>
+                            </div>
+                          )}
+
+                          <p className="text-xs text-slate-300 line-clamp-2">
+                            {spec.description || 'Chưa có mô tả chi tiết'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Footer */}
+                      <div className="pt-3 border-t border-slate-800 text-[11px] flex items-center justify-between">
+                        <span className="text-slate-500">
+                          Thứ tự: <strong className="text-slate-300 font-mono">{spec.sortOrder || 0}</strong>
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 rounded-md font-semibold text-[10px] ${
+                            spec.status === 'active'
+                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                              : 'bg-slate-800 text-slate-400 border border-slate-700'
+                          }`}
+                        >
+                          {spec.status === 'active' ? '🟢 Hoạt động' : '⚪ Tạm ngưng'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -2385,6 +3140,25 @@ export const MasterDataManagerView: React.FC = () => {
         }}
       />
 
+      {/* Master Warehouse Modal */}
+      <WarehouseModal
+        isOpen={isWarehouseModalOpen}
+        onClose={() => {
+          setIsWarehouseModalOpen(false);
+          setEditingWarehouse(null);
+        }}
+        initialData={editingWarehouse}
+        onSave={(data) => {
+          if (editingWarehouse) {
+            updateWarehouse(editingWarehouse.id, data);
+            showToast('Đã cập nhật thông tin kho hàng');
+          } else {
+            addWarehouse(data);
+            showToast('Đã thêm kho hàng mới vào hệ thống');
+          }
+        }}
+      />
+
       {/* Warehouse Location Modal */}
       <WarehouseLocationModal
         isOpen={isLocationModalOpen}
@@ -2393,6 +3167,8 @@ export const MasterDataManagerView: React.FC = () => {
           setEditingLocation(null);
         }}
         initialData={editingLocation}
+        warehouses={warehouses}
+        defaultWarehouseId={selectedWarehouseFilter !== 'all' ? selectedWarehouseFilter : undefined}
         onSave={(data) => {
           if (editingLocation) {
             updateWarehouseLocation(editingLocation.id, data);
@@ -2439,6 +3215,44 @@ export const MasterDataManagerView: React.FC = () => {
           } else {
             addJobPosition(data);
             showToast('Đã thêm chức vụ mới');
+          }
+        }}
+      />
+
+      {/* Color Detail Modal */}
+      <ColorModal
+        isOpen={isColorModalOpen}
+        onClose={() => {
+          setIsColorModalOpen(false);
+          setEditingColor(null);
+        }}
+        initialData={editingColor}
+        onSave={(data) => {
+          if (editingColor) {
+            updateColor(editingColor.id, data);
+            showToast('Đã cập nhật màu sắc thành công');
+          } else {
+            addColor(data);
+            showToast('Đã thêm màu sắc mới');
+          }
+        }}
+      />
+
+      {/* Specification Detail Modal */}
+      <SpecificationModal
+        isOpen={isSpecModalOpen}
+        onClose={() => {
+          setIsSpecModalOpen(false);
+          setEditingSpec(null);
+        }}
+        initialData={editingSpec}
+        onSave={(data) => {
+          if (editingSpec) {
+            updateSpecification(editingSpec.id, data);
+            showToast('Đã cập nhật quy cách thành công');
+          } else {
+            addSpecification(data);
+            showToast('Đã thêm quy cách mới');
           }
         }}
       />

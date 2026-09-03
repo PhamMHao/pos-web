@@ -247,8 +247,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                       {idx + 1}. {item.productName}
                     </div>
                     <div className="flex justify-between items-center text-[7.5pt] text-slate-600 mt-0.5">
-                      <span>{item.quantity} {item.unit || 'Cái'} x {item.unitPrice.toLocaleString('vi-VN')}</span>
-                      <span className="font-bold font-mono text-slate-900">{item.total.toLocaleString('vi-VN')}</span>
+                      <span>{item.quantity} {item.unit || 'Cái'} x {formatVND(item.unitPrice)}</span>
+                      <span className="font-bold font-mono text-slate-900">{formatVND(item.total)}</span>
                     </div>
                     {item.discountPercent > 0 && (
                       <div className="text-[7pt] text-rose-600 font-medium">Giảm {item.discountPercent}%</div>
@@ -294,11 +294,11 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                       <td className="py-1.5 text-center font-semibold text-slate-800">
                         {item.quantity}
                       </td>
-                      <td className="py-1.5 text-right text-slate-600">
-                        {item.unitPrice.toLocaleString('vi-VN')}
+                      <td className="py-1.5 text-right text-slate-600 font-mono">
+                        {formatVND(item.unitPrice)}
                       </td>
-                      <td className="py-1.5 text-right font-semibold text-slate-900">
-                        {item.total.toLocaleString('vi-VN')}
+                      <td className="py-1.5 text-right font-semibold text-slate-900 font-mono">
+                        {formatVND(item.total)}
                       </td>
                     </tr>
                   ))}

@@ -1928,11 +1928,11 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
                         <td className="p-2.5 text-center font-bold text-slate-300">
                           {item.quantity}
                         </td>
-                        <td className="p-2.5 text-right text-slate-400">
-                          {item.unitPrice.toLocaleString('vi-VN')}
+                        <td className="p-2.5 text-right text-slate-400 font-mono">
+                          {formatVND(item.unitPrice)}
                         </td>
                         <td className="p-2.5 text-right font-mono font-bold text-emerald-400">
-                          {item.total.toLocaleString('vi-VN')}
+                          {formatVND(item.total)}
                         </td>
                       </tr>
                     ))}

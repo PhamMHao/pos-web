@@ -110,8 +110,6 @@ export const NewStockGoodsIssueModal: React.FC<NewStockGoodsIssueModalProps> = (
 
       if (preselectedOrder) {
         handleSelectOrder(preselectedOrder.id);
-      } else if (availableOrders.length > 0) {
-        handleSelectOrder(availableOrders[0].id);
       } else {
         setItems([]);
         setSelectedOrderId('');
@@ -121,15 +119,31 @@ export const NewStockGoodsIssueModal: React.FC<NewStockGoodsIssueModalProps> = (
         setOrderCode('');
       }
     }
-  }, [isOpen, preselectedOrder, availableOrders, settings, currentUserName]);
+  }, [isOpen, preselectedOrder, settings, currentUserName]);
 
   // Handle selecting an order
   const handleSelectOrder = (orderId: string) => {
     setSelectedOrderId(orderId);
-    if (!orderId) return;
+    if (!orderId) {
+      setItems([]);
+      setCustomerName('');
+      setCustomerPhone('');
+      setCustomerAddress('');
+      setOrderCode('');
+      setIssueNotes('');
+      return;
+    }
 
     const ord = orders.find((o) => o.id === orderId);
-    if (!ord) return;
+    if (!ord) {
+      setItems([]);
+      setCustomerName('');
+      setCustomerPhone('');
+      setCustomerAddress('');
+      setOrderCode('');
+      setIssueNotes('');
+      return;
+    }
 
     setOrderCode(ord.code);
     setCustomerName(ord.customer?.name || ord.recipientName || 'Khách Mua Hàng');

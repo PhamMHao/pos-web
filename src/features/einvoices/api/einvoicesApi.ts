@@ -1,5 +1,5 @@
 import apiClient, { ApiResponse } from "../../../core/api/apiClient";
-import { EInvoice } from "../../../types";
+import { EInvoice, TaxRiskAssessmentResult } from "../../../types";
 
 export interface EInvoiceQueryParams {
   search?: string;
@@ -38,6 +38,11 @@ export const einvoicesApi = {
 
   deleteInvoice: async (id: string) => {
     const response = await apiClient.delete<ApiResponse<{ message: string }>>(`/einvoices/${id}`);
+    return response.data.data;
+  },
+
+  lookupTaxCode: async (taxCode: string): Promise<TaxRiskAssessmentResult> => {
+    const response = await apiClient.get<ApiResponse<TaxRiskAssessmentResult>>(`/einvoices/lookup-tax/${encodeURIComponent(taxCode.trim())}`);
     return response.data.data;
   },
 };

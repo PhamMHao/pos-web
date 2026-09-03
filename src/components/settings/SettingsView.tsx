@@ -46,6 +46,8 @@ import {
   Search,
   Sliders,
   FileEdit,
+  ArrowDownLeft,
+  ArrowUpRight,
 } from 'lucide-react';
 import { StoreSettings, PrintDocType, PrintDocConfig } from '../../types';
 import { generateVietQRUrl, POPULAR_VIETNAMESE_BANKS } from '../../utils/vietqr';
@@ -70,7 +72,7 @@ const DOC_CATEGORIES: Record<
   { label: string; types: PrintDocType[] }
 > = {
   all: {
-    label: 'Tất Cả Biểu Mẫu (19)',
+    label: 'Tất Cả Biểu Mẫu (23)',
     types: [
       'sales_invoice',
       'sales_order',
@@ -87,10 +89,23 @@ const DOC_CATEGORIES: Record<
       'shipping_label',
       'goods_delivery_record',
       'sales_return',
+      'goods_handover_exchange',
+      'goods_return_invoice_recall',
+      'work_completion_handover',
+      'goods_exchange_invoice_replace',
       'asset_handover',
       'asset_transfer',
       'stock_disposal',
       'liquidation_receipt',
+    ],
+  },
+  legal: {
+    label: 'Biên Bản & Nghiệm Thu Pháp Lý (4)',
+    types: [
+      'goods_handover_exchange',
+      'goods_return_invoice_recall',
+      'work_completion_handover',
+      'goods_exchange_invoice_replace',
     ],
   },
   sales: {
@@ -98,12 +113,22 @@ const DOC_CATEGORIES: Record<
     types: ['sales_invoice', 'sales_order', 'delivery_note', 'quote', 'payment_receipt', 'warranty_receipt', 'einvoice_vat'],
   },
   inventory: {
-    label: 'Kho Hàng & Giao Nhận',
-    types: ['goods_receipt', 'exchange_return', 'delivery_dispatch', 'shipping_label', 'goods_delivery_record', 'sales_return'],
+    label: 'Kho Hàng & Đổi Trả',
+    types: [
+      'goods_receipt',
+      'exchange_return',
+      'goods_handover_exchange',
+      'goods_return_invoice_recall',
+      'goods_exchange_invoice_replace',
+      'delivery_dispatch',
+      'shipping_label',
+      'goods_delivery_record',
+      'sales_return',
+    ],
   },
   warranty: {
     label: 'Bảo Hành & Kỹ Thuật',
-    types: ['warranty_intake', 'warranty_return'],
+    types: ['warranty_intake', 'warranty_return', 'work_completion_handover'],
   },
   assets: {
     label: 'Tài Sản & Tiêu Hủy',
@@ -131,8 +156,8 @@ const DOC_TYPE_LABELS: Record<PrintDocType, { label: string; desc: string; defau
     defaultOrientation: 'portrait',
   },
   exchange_return: {
-    label: '4. Phiếu Đổi Trả Kiêm Nhập Xuất',
-    desc: 'Mẫu đổi trả hàng hóa, hoàn tiền & xuất thiết bị thay thế (Ảnh 4)',
+    label: '4. Phiếu Đổi Hàng & Xuất Nhập Kho (Mẫu 01/02-VT / Mẫu 01/02-TT)',
+    desc: 'Mẫu đổi hàng kiêm nhập xuất kho vật tư, bàn giao thiết bị & quyết toán thu/chi tiền chênh lệch',
     defaultSize: 'A4',
     defaultOrientation: 'portrait',
   },
@@ -221,8 +246,32 @@ const DOC_TYPE_LABELS: Record<PrintDocType, { label: string; desc: string; defau
     defaultOrientation: 'portrait',
   },
   sales_return: {
-    label: '19. Phiếu Hàng Bán Trả Lại Mẫu 02-TT (Ảnh 2)',
-    desc: 'Mẫu hàng bán trả lại chuẩn Thông tư 200/2014/TT-BTC định khoản Nợ 1561/5212 Có 6321/1311',
+    label: '19. Phiếu Trả Hàng & Nhập Kho Thu Hồi (NĐ 123 / Mẫu 02-VT / Mẫu 02-TT)',
+    desc: 'Mẫu trả lại hàng, nhập kho thu hồi linh kiện, hoàn tiền & định khoản kế toán theo NĐ 123 / TT 200',
+    defaultSize: 'A4',
+    defaultOrientation: 'portrait',
+  },
+  goods_handover_exchange: {
+    label: '20. Biên Bản Bàn Giao - Trao Đổi Hàng (Thu Cũ Đổi Mới)',
+    desc: 'Mẫu bàn giao & trao đổi trade-in máy cũ đổi máy mới kèm tính khấu hao vật tư 30% (Theo Ảnh 1)',
+    defaultSize: 'A4',
+    defaultOrientation: 'portrait',
+  },
+  goods_return_invoice_recall: {
+    label: '21. Biên Bản Trả Hàng Và Thu Hồi Hoá Đơn (NĐ 123)',
+    desc: 'Mẫu trả lại hàng kèm thu hồi hủy hóa đơn điện tử theo NĐ 123/2020 & TT 78/2021 (Theo Ảnh 2)',
+    defaultSize: 'A4',
+    defaultOrientation: 'portrait',
+  },
+  work_completion_handover: {
+    label: '22. Biên Bản Xác Nhận Hoàn Thành Công Việc & Nghiệm Thu',
+    desc: 'Nghiệm thu dịch vụ kỹ thuật, sửa chữa linh kiện máy in/PC & bàn giao hoạt động tốt (Theo Ảnh 3)',
+    defaultSize: 'A4',
+    defaultOrientation: 'portrait',
+  },
+  goods_exchange_invoice_replace: {
+    label: '23. Biên Bản Đổi Hàng Và Thay Đổi Hoá Đơn',
+    desc: 'Bảng kép hàng cũ cần đổi vs hàng mới đổi, thu hồi hóa đơn cũ & xuất hóa đơn thay thế 100% (Theo Ảnh 4)',
     defaultSize: 'A4',
     defaultOrientation: 'portrait',
   },
@@ -1117,7 +1166,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <div>
                   <h3 className="text-sm font-bold text-white flex items-center space-x-2">
                     <Layers className="w-4 h-4 text-blue-400" />
-                    <span>Cấu Hình & Chỉnh Sửa Chi Tiết Từng Loại Biểu Mẫu In (19 Mẫu)</span>
+                    <span>Cấu Hình & Chỉnh Sửa Chi Tiết Từng Loại Biểu Mẫu In (23 Loại Biểu Mẫu Doanh Nghiệp)</span>
                   </h3>
                   <p className="text-xs text-slate-400 mt-0.5">
                     Tùy biến Tiêu đề phiếu, Diễn giải, Ghi chú điều khoản từng dòng, Khổ giấy, Barcode/QR, Chữ ký và lưu trực tiếp vào cơ sở dữ liệu.

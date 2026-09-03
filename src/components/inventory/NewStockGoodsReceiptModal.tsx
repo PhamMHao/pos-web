@@ -136,41 +136,10 @@ export const NewStockGoodsReceiptModal: React.FC<NewStockGoodsReceiptModalProps>
       setActiveSerialItemIndex(null);
       setExpandedInfoIndex(null);
 
-      // Default sample 1 item if empty
-      if (products.length > 0) {
-        const p = products[0];
-        setItems([
-          {
-            productId: p.id,
-            productName: p.name,
-            sku: p.sku,
-            unit: p.unit || 'Cái',
-            quantity: 1,
-            oldStock: p.stock || 0,
-            newStock: (p.stock || 0) + 1,
-            oldCostPrice: p.costPrice || 0,
-            newCostPrice: p.costPrice || 0,
-            unitCost: p.costPrice || 0,
-            taxRate: 8,
-            totalAmount: p.costPrice ? p.costPrice * 1.08 : 0,
-            storageLocation: p.storageLocation || 'Kệ A1 - Tầng 1',
-            warehouse: 'Kho Chính Gia Phúc Computer',
-            category: typeof p.category === 'string' ? p.category : 'Thiết bị điện tử',
-            specifications: p.specifications || '',
-            color: p.color || 'Đen',
-            brand: p.brand || 'Hikvision',
-            warrantyMonths: p.warrantyMonths || 24,
-            accessories: p.accessories || 'Adapter, Chuột quang, Ốc vít, Sách HDSD',
-            serials: [],
-            notes: '',
-          },
-        ]);
-        setActiveSerialItemIndex(0);
-      } else {
-        setItems([]);
-      }
+      // Reset items table to empty by default
+      setItems([]);
     }
-  }, [isOpen, products, settings, currentUserName]);
+  }, [isOpen, settings, currentUserName]);
 
   // Filter available POs
   const availablePurchaseOrders = useMemo(() => {
@@ -181,10 +150,23 @@ export const NewStockGoodsReceiptModal: React.FC<NewStockGoodsReceiptModalProps>
   // Handle PO selection
   const handleSelectPO = (poId: string) => {
     setSelectedPoId(poId);
-    if (!poId) return;
+    if (!poId) {
+      setItems([]);
+      setActiveSerialItemIndex(null);
+      setSupplierName('');
+      setSupplierPhone('');
+      setSupplierAddress('');
+      setSupplierTaxCode('');
+      setReceiptNotes('');
+      return;
+    }
 
     const po = purchaseOrders.find((p) => p.id === poId);
-    if (!po) return;
+    if (!po) {
+      setItems([]);
+      setActiveSerialItemIndex(null);
+      return;
+    }
 
     setSupplierName(po.supplierName);
     setSupplierPhone(po.supplierPhone || '');
@@ -237,10 +219,21 @@ export const NewStockGoodsReceiptModal: React.FC<NewStockGoodsReceiptModalProps>
   // Handle Quote selection
   const handleSelectQuote = (quoteId: string) => {
     setSelectedQuoteId(quoteId);
-    if (!quoteId) return;
+    if (!quoteId) {
+      setItems([]);
+      setActiveSerialItemIndex(null);
+      setSupplierName('');
+      setSupplierPhone('');
+      setReceiptNotes('');
+      return;
+    }
 
     const q = quotes.find((quote) => quote.id === quoteId);
-    if (!q) return;
+    if (!q) {
+      setItems([]);
+      setActiveSerialItemIndex(null);
+      return;
+    }
 
     setSupplierName(q.customerCompany || q.customerName);
     setSupplierPhone(q.customerPhone || '');
@@ -288,10 +281,22 @@ export const NewStockGoodsReceiptModal: React.FC<NewStockGoodsReceiptModalProps>
   // Handle Inbound E-Invoice selection
   const handleSelectInboundInvoice = (invId: string) => {
     setSelectedInboundInvId(invId);
-    if (!invId) return;
+    if (!invId) {
+      setItems([]);
+      setActiveSerialItemIndex(null);
+      setSupplierName('');
+      setSupplierTaxCode('');
+      setSupplierAddress('');
+      setReceiptNotes('');
+      return;
+    }
 
     const inv = inboundInvoices.find((i) => i.id === invId);
-    if (!inv) return;
+    if (!inv) {
+      setItems([]);
+      setActiveSerialItemIndex(null);
+      return;
+    }
 
     let sellerObj: any = {};
     try {
@@ -686,7 +691,14 @@ export const NewStockGoodsReceiptModal: React.FC<NewStockGoodsReceiptModalProps>
                     type="button"
                     onClick={() => {
                       setSourceType('po');
-                      if (availablePurchaseOrders.length > 0) handleSelectPO(availablePurchaseOrders[0].id);
+                      setSelectedPoId('');
+                      setItems([]);
+                      setActiveSerialItemIndex(null);
+                      setSupplierName('');
+                      setSupplierPhone('');
+                      setSupplierAddress('');
+                      setSupplierTaxCode('');
+                      setReceiptNotes('');
                     }}
                     className={`px-3 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
                       sourceType === 'po'
@@ -701,7 +713,12 @@ export const NewStockGoodsReceiptModal: React.FC<NewStockGoodsReceiptModalProps>
                     type="button"
                     onClick={() => {
                       setSourceType('quote');
-                      if (quotes.length > 0) handleSelectQuote(quotes[0].id);
+                      setSelectedQuoteId('');
+                      setItems([]);
+                      setActiveSerialItemIndex(null);
+                      setSupplierName('');
+                      setSupplierPhone('');
+                      setReceiptNotes('');
                     }}
                     className={`px-3 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
                       sourceType === 'quote'
@@ -716,7 +733,13 @@ export const NewStockGoodsReceiptModal: React.FC<NewStockGoodsReceiptModalProps>
                     type="button"
                     onClick={() => {
                       setSourceType('inbound_invoice');
-                      if (inboundInvoices.length > 0) handleSelectInboundInvoice(inboundInvoices[0].id);
+                      setSelectedInboundInvId('');
+                      setItems([]);
+                      setActiveSerialItemIndex(null);
+                      setSupplierName('');
+                      setSupplierTaxCode('');
+                      setSupplierAddress('');
+                      setReceiptNotes('');
                     }}
                     className={`px-3 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
                       sourceType === 'inbound_invoice'
@@ -729,7 +752,11 @@ export const NewStockGoodsReceiptModal: React.FC<NewStockGoodsReceiptModalProps>
 
                   <button
                     type="button"
-                    onClick={() => setSourceType('manual')}
+                    onClick={() => {
+                      setSourceType('manual');
+                      setItems([]);
+                      setActiveSerialItemIndex(null);
+                    }}
                     className={`px-3 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
                       sourceType === 'manual'
                         ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/20'

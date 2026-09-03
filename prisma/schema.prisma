@@ -21,6 +21,8 @@ model User {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
   shifts       CashShift[]
+  createdExchanges ProductExchange[] @relation("ExchangeCreatedBy")
+  createdReturns   ReturnOrder[]     @relation("ReturnCreatedBy")
 
   @@map("NguoiDung")
 }
@@ -82,6 +84,9 @@ model Product {
   orderItems      OrderItem[]
   receiptItems    StockGoodsReceiptItem[]
   inventoryLogs   InventoryLog[]
+  returnItems      ReturnOrderItem[]
+  exchangeInItems  ProductExchangeInItem[]
+  exchangeOutItems ProductExchangeOutItem[]
 
   @@map("SanPham")
 }
@@ -119,6 +124,9 @@ model Customer {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   orders      Order[]
+  returnOrders   ReturnOrder[]
+  exchangeOrders ProductExchange[]
+  debtLogs       CustomerDebtLog[]
 
   @@map("KhachHang")
 }
@@ -156,25 +164,30 @@ model Order {
   completedAt     DateTime?
   items           OrderItem[]
   eInvoices       EInvoice[]
+  returnOrders    ReturnOrder[]
+  exchangeOrders  ProductExchange[]
 
   @@map("HoaDon")
 }
 
 model OrderItem {
-  id              String   @id @default(uuid())
-  orderId         String
-  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId       String
-  product         Product  @relation(fields: [productId], references: [id])
-  productName     String
-  sku             String
-  unit            String
-  ratioToBase     Decimal  @default(1) @db.Decimal(18, 4)
-  quantity        Decimal  @db.Decimal(18, 2)
-  unitPrice       Decimal  @db.Decimal(18, 2)
-  costPrice       Decimal  @db.Decimal(18, 2)
-  discountPercent Decimal  @default(0) @db.Decimal(5, 2)
-  total           Decimal  @db.Decimal(18, 2)
+  id               String   @id @default(uuid())
+  orderId          String
+  order            Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId        String
+  product          Product  @relation(fields: [productId], references: [id])
+  productName      String
+  sku              String
+  unit             String
+  ratioToBase      Decimal  @default(1) @db.Decimal(18, 4)
+  quantity         Decimal  @db.Decimal(18, 2)
+  returnedQuantity Decimal  @default(0) @db.Decimal(18, 2)
+  unitPrice        Decimal  @db.Decimal(18, 2)
+  costPrice        Decimal  @db.Decimal(18, 2)
+  discountPercent  Decimal  @default(0) @db.Decimal(5, 2)
+  total            Decimal  @db.Decimal(18, 2)
+  returnItems      ReturnOrderItem[]
+  exchangeInItems  ProductExchangeInItem[]
 
   @@map("ChiTietHoaDon")
 }
@@ -813,50 +826,348 @@ model PurchaseOrderItem {
   @@map("ChiTietDonDatHangMua")
 }
 
-// 16. PHIẾU TRẢ HÀNG & HOÀN TIỀN (CUSTOMER RETURN & SUPPLIER RMA)
+// ==========================================
+// 16. CHÍNH SÁCH ĐỔI TRẢ & BÚT TOÁN KẾ TOÁN KÉP & ĐỔI TRẢ HÀNG
+// ==========================================
+
+// 16.0 CẤU HÌNH CHÍNH SÁCH ĐỔI TRẢ
+model ReturnPolicyConfig {
+  id                      String   @id @default("default_policy")
+  returnPeriodDays        Int      @default(15) // Hạn trả hàng (ngày)
+  exchangePeriodDays      Int      @default(30) // Hạn đổi hàng (ngày)
+  approvalThresholdAmount Decimal  @default(10000000) @db.Decimal(18, 2) // Ngưỡng duyệt (10tr)
+  restockingFeeDamagedBox Decimal  @default(10) @db.Decimal(5, 2) // % phí mở seal/hộp
+  restockingFeeUsed       Decimal  @default(20) @db.Decimal(5, 2) // % phí đã dùng/trầy xước
+  allowNoReceiptReturn    Boolean  @default(false)
+  updatedAt               DateTime @updatedAt
+
+  @@map("CauHinhChinhSachDoiTra")
+}
+
+// 16.1 BÚT TOÁN KẾ TOÁN KÉP (DOUBLE-ENTRY JOURNAL ENTRIES)
+model AccountingJournalEntry {
+  id          String             @id @default(uuid())
+  entryCode   String             @unique // PKT-2026-0001
+  entryDate   DateTime           @default(now())
+  docType     String             // 'sales_return' | 'product_exchange' | 'sales_invoice'
+  docId       String
+  docCode     String
+  description String             @db.NVarChar(Max)
+  totalDebit  Decimal            @db.Decimal(18, 2)
+  totalCredit Decimal            @db.Decimal(18, 2)
+  postedBy    String
+  createdAt   DateTime           @default(now())
+  lines       JournalEntryLine[]
+
+  @@index([docCode])
+  @@index([entryDate])
+  @@map("SoNhatKyChung")
+}
+
+model JournalEntryLine {
+  id           String                 @id @default(uuid())
+  entryId      String
+  entry        AccountingJournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  accountCode  String                 // '5212' | '33311' | '131' | '111' | '112' | '632' | '156' | '511'
+  accountName  String
+  debitAmount  Decimal                @default(0) @db.Decimal(18, 2)
+  creditAmount Decimal                @default(0) @db.Decimal(18, 2)
+  description  String?
+  partyId      String?
+  partyName    String?
+  productId    String?
+  orderId      String?
+
+  @@index([accountCode])
+  @@index([entryId])
+  @@map("ChiTietSoNhatKy")
+}
+
+// 16.2 PHIẾU TRẢ HÀNG & HOÀN TIỀN (CUSTOMER RETURN)
 model ReturnOrder {
   id                  String            @id @default(uuid())
-  code                String            @unique // e.g. TH-2026-0001
-  type                String            @default("customer_return") // 'customer_return' | 'supplier_return'
-  originalOrderCode   String?
+  code                String            @unique // TH-2026-0828-001
+  type                String            @default("customer_return")
   originalOrderId     String?
+  originalOrder       Order?            @relation(fields: [originalOrderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  originalOrderCode   String?
   customerId          String?
-  customerName        String?
+  customer            Customer?         @relation(fields: [customerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  customerName        String
   customerPhone       String?
-  supplierId          String?
-  supplierName        String?
   warehouse           String            @default("Kho Chính")
-  refundMethod        String            @default("cash") // 'cash' | 'transfer' | 'debt_deduct' | 'no_refund'
-  refundAmount        Decimal           @db.Decimal(18, 2)
+  
+  subtotal            Decimal           @default(0) @db.Decimal(18, 2)
+  taxAmount           Decimal           @default(0) @db.Decimal(18, 2)
+  restockingFee       Decimal           @default(0) @db.Decimal(18, 2)
+  giftDeductionAmount Decimal           @default(0) @db.Decimal(18, 2)
+  refundAmount        Decimal           @db.Decimal(18, 2) // Tiền thực hoàn cho khách
   totalReturnQuantity Decimal           @db.Decimal(18, 2)
-  reason              String            // 'defective' | 'customer_mind_change' | 'wrong_item' | 'warranty_exchange' | 'other'
-  destinationType     String            @default("restock") // 'restock' | 'faulty_warehouse' | 'supplier_rma'
-  status              String            @default("completed") // 'pending' | 'completed' | 'cancelled'
-  performedBy         String
+  
+  refundMethod        String            @default("cash") // 'cash' | 'transfer' | 'debt_deduct' | 'no_refund'
+  accountingCode      String?           // Mã phiếu chi PC-TH-...
+  stockReceiptCode    String?           // Mã phiếu nhập kho PNK-TH-...
+  reason              String            // 'defective' | 'customer_mind_change' | 'wrong_item' | 'other'
+  
+  status              String            @default("draft") // 'draft' | 'pending_approval' | 'completed' | 'cancelled'
+  idempotencyKey      String            @unique @default("legacy")
+  createdBy           String            @default("system")
+  createdByUser       User?             @relation("ReturnCreatedBy", fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  approvedBy          String?
+  approvedAt          DateTime?
+  cancelledBy         String?
+  cancelledAt         DateTime?
+  cancelReason        String?           @db.NVarChar(Max)
   notes               String?           @db.NVarChar(Max)
   createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  
   items               ReturnOrderItem[]
 
+  @@index([customerId])
+  @@index([originalOrderCode])
+  @@index([createdAt])
+  @@index([status])
   @@map("PhieuTraHang")
 }
 
 model ReturnOrderItem {
-  id              String      @id @default(uuid())
-  returnOrderId   String
-  returnOrder     ReturnOrder @relation(fields: [returnOrderId], references: [id], onDelete: Cascade)
-  productId       String
-  productName     String
-  sku             String
-  unit            String
-  ratioToBase     Decimal     @default(1) @db.Decimal(18, 4)
-  quantity        Decimal     @db.Decimal(18, 2)
-  unitPrice       Decimal     @db.Decimal(18, 2)
-  refundUnitPrice Decimal     @db.Decimal(18, 2)
-  totalRefund     Decimal     @db.Decimal(18, 2)
-  serialNumber    String?
-  condition       String      @default("normal") // 'normal' | 'damaged' | 'unopened'
+  id                  String              @id @default(uuid())
+  returnOrderId       String
+  returnOrder         ReturnOrder         @relation(fields: [returnOrderId], references: [id], onDelete: Cascade)
+  originalOrderItemId String?
+  originalOrderItem   OrderItem?          @relation(fields: [originalOrderItemId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  productId           String
+  product             Product             @relation(fields: [productId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  productName         String
+  sku                 String
+  unit                String              @default("Cái")
+  ratioToBase         Decimal             @default(1) @db.Decimal(18, 4)
+  quantity            Decimal             @db.Decimal(18, 2)
+  costPrice           Decimal             @default(0) @db.Decimal(18, 2) // GIÁ VỐN NHẬP LẠI KHO
+  unitPrice           Decimal             @db.Decimal(18, 2)
+  refundUnitPrice     Decimal             @db.Decimal(18, 2)
+  taxRate             Decimal             @default(0) @db.Decimal(5, 2)
+  taxAmount           Decimal             @default(0) @db.Decimal(18, 2)
+  subtotal            Decimal             @default(0) @db.Decimal(18, 2)
+  totalRefund         Decimal             @db.Decimal(18, 2)
+  condition           String              @default("normal") // 'normal' | 'damaged' | 'unopened'
+  destinationType     String              @default("restock") // 'restock' | 'faulty_warehouse'
+  warehouseId         String?
+  warehouse           MasterWarehouse?    @relation(fields: [warehouseId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  warehouseName       String              @default("Kho Chính")
+  storageLocation     String?
+  specifications      String?             @db.NVarChar(Max)
+  color               String?
+  brand               String?
+  notes               String?
+  serials             ReturnItemSerial[]
 
+  @@index([originalOrderItemId])
+  @@index([productId])
+  @@index([returnOrderId])
   @@map("ChiTietPhieuTraHang")
+}
+
+model ReturnItemSerial {
+  id           String          @id @default(uuid())
+  returnItemId String
+  returnItem   ReturnOrderItem @relation(fields: [returnItemId], references: [id], onDelete: Cascade)
+  serialNumber String
+
+  @@index([serialNumber])
+  @@map("ChiTietSerialTraHang")
+}
+
+// 16.3 PHIẾU ĐỔI HÀNG 2 CHIỀU (PRODUCT EXCHANGE)
+model ProductExchange {
+  id                  String                    @id @default(uuid())
+  code                String                    @unique // DH-2026-0828-001
+  originalOrderId     String?
+  originalOrder       Order?                    @relation(fields: [originalOrderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  originalOrderCode   String?
+  customerId          String?
+  customer            Customer?                 @relation(fields: [customerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  customerName        String
+  customerPhone       String?
+  customerAddress     String?
+  warehouseName       String                    @default("Kho Chính")
+  
+  inboundSubtotal     Decimal                   @db.Decimal(18, 2)
+  inboundTaxAmount    Decimal                   @default(0) @db.Decimal(18, 2)
+  inboundTotalAmount  Decimal                   @db.Decimal(18, 2) // V_nhap
+  
+  outboundSubtotal    Decimal                   @db.Decimal(18, 2)
+  outboundTaxAmount   Decimal                   @default(0) @db.Decimal(18, 2)
+  outboundTotalAmount Decimal                   @db.Decimal(18, 2) // V_xuat
+  
+  restockingFee       Decimal                   @default(0) @db.Decimal(18, 2)
+  giftDeductionAmount Decimal                   @default(0) @db.Decimal(18, 2)
+  differenceAmount    Decimal                   @db.Decimal(18, 2) // V_xuat - V_nhap + restockingFee + giftDeductionAmount
+  
+  paymentAction       String                    @default("even") // 'collect_difference' | 'refund_difference' | 'even'
+  paymentMethod       String                    @default("cash") // 'cash' | 'transfer' | 'debt_adjust'
+  accountingCode      String?                   // PT-DH-... / PC-DH-...
+  inboundReceiptCode  String?                   // PNK-DH-...
+  outboundIssueCode   String?                   // PXK-DH-...
+  
+  status              String                    @default("draft") // 'draft' | 'pending_approval' | 'completed' | 'cancelled'
+  idempotencyKey      String                    @unique // Bắt buộc NOT NULL
+  createdBy           String                    @default("system")
+  createdByUser       User?                     @relation("ExchangeCreatedBy", fields: [createdBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  approvedBy          String?
+  approvedAt          DateTime?
+  cancelledBy         String?
+  cancelledAt         DateTime?
+  cancelReason        String?                   @db.NVarChar(Max)
+  reason              String                    @default("other") // 'defective_exchange' | 'upgrade_model' | 'color_size_change' | 'other'
+  notes               String?                   @db.NVarChar(Max)
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+  
+  inItems             ProductExchangeInItem[]
+  outItems            ProductExchangeOutItem[]
+
+  @@index([customerId])
+  @@index([originalOrderCode])
+  @@index([createdAt])
+  @@index([status])
+  @@map("PhieuDoiHang")
+}
+
+model ProductExchangeInItem {
+  id                  String                      @id @default(uuid())
+  exchangeId          String
+  exchange            ProductExchange             @relation(fields: [exchangeId], references: [id], onDelete: Cascade)
+  originalOrderItemId String?
+  originalOrderItem   OrderItem?                  @relation(fields: [originalOrderItemId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  productId           String
+  product             Product                     @relation(fields: [productId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  productName         String
+  sku                 String
+  unit                String                      @default("Cái")
+  ratioToBase         Decimal                     @default(1) @db.Decimal(18, 4)
+  quantity            Decimal                     @db.Decimal(18, 2)
+  costPrice           Decimal                     @db.Decimal(18, 2) // Giá vốn nhập lại kho
+  returnUnitPrice     Decimal                     @db.Decimal(18, 2)
+  taxRate             Decimal                     @default(0) @db.Decimal(5, 2)
+  taxAmount           Decimal                     @default(0) @db.Decimal(18, 2)
+  subtotal            Decimal                     @db.Decimal(18, 2)
+  totalAmount         Decimal                     @db.Decimal(18, 2)
+  condition           String                      @default("normal") // 'normal' | 'damaged' | 'unopened'
+  destinationType     String                      @default("restock") // 'restock' | 'faulty_warehouse'
+  warehouseId         String?
+  warehouse           MasterWarehouse?            @relation(fields: [warehouseId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  warehouseName       String                      @default("Kho Chính")
+  storageLocation     String?
+  specifications      String?                     @db.NVarChar(Max)
+  color               String?
+  brand               String?
+  notes               String?
+  serials             ProductExchangeInSerial[]
+
+  @@index([originalOrderItemId])
+  @@index([productId])
+  @@index([exchangeId])
+  @@map("ChiTietDoiHangNhan")
+}
+
+model ProductExchangeInSerial {
+  id           String                @id @default(uuid())
+  inItemId     String
+  inItem       ProductExchangeInItem @relation(fields: [inItemId], references: [id], onDelete: Cascade)
+  serialNumber String
+
+  @@index([serialNumber])
+  @@map("ChiTietSerialDoiHangNhan")
+}
+
+model ProductExchangeOutItem {
+  id                String                       @id @default(uuid())
+  exchangeId        String
+  exchange          ProductExchange              @relation(fields: [exchangeId], references: [id], onDelete: Cascade)
+  productId         String
+  product           Product                      @relation(fields: [productId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  productName       String
+  sku               String
+  unit              String                       @default("Cái")
+  ratioToBase       Decimal                      @default(1) @db.Decimal(18, 4)
+  quantity          Decimal                      @db.Decimal(18, 2)
+  costPrice         Decimal                      @db.Decimal(18, 2)
+  exchangeUnitPrice Decimal                      @db.Decimal(18, 2)
+  taxRate           Decimal                      @default(0) @db.Decimal(5, 2)
+  taxAmount         Decimal                      @default(0) @db.Decimal(18, 2)
+  subtotal          Decimal                      @db.Decimal(18, 2)
+  totalAmount       Decimal                      @db.Decimal(18, 2)
+  warehouseId       String?
+  warehouse         MasterWarehouse?             @relation(fields: [warehouseId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  warehouseName     String                       @default("Kho Chính")
+  warrantyMonths    Int?                         @default(12)
+  specifications    String?                      @db.NVarChar(Max)
+  color             String?
+  brand             String?
+  notes             String?
+  serials           ProductExchangeOutSerial[]
+
+  @@index([productId])
+  @@index([exchangeId])
+  @@map("ChiTietDoiHangXuat")
+}
+
+model ProductExchangeOutSerial {
+  id           String                 @id @default(uuid())
+  outItemId    String
+  outItem      ProductExchangeOutItem @relation(fields: [outItemId], references: [id], onDelete: Cascade)
+  serialNumber String
+
+  @@index([serialNumber])
+  @@map("ChiTietSerialDoiHangXuat")
+}
+
+// 16.4 SỔ LỊCH SỬ CÔNG NỢ & SERIAL
+model CustomerDebtLog {
+  id             String   @id @default(uuid())
+  customerId     String
+  customer       Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerPhone  String?
+  customerName   String
+  sourceType     String   // 'sale_order' | 'return_order' | 'exchange_order' | 'debt_payment' | 'cancel_return' | 'cancel_exchange'
+  sourceId       String?
+  sourceCode     String
+  changeAmount   Decimal  @db.Decimal(18, 2)
+  oldDebt        Decimal  @db.Decimal(18, 2)
+  newDebt        Decimal  @db.Decimal(18, 2)
+  reason         String   @db.NVarChar(Max)
+  performedBy    String
+  createdAt      DateTime @default(now())
+
+  @@index([customerId])
+  @@index([sourceCode])
+  @@index([createdAt])
+  @@map("NhatKyCongNoKhachHang")
+}
+
+model SerialHistory {
+  id             String   @id @default(uuid())
+  serialNumber   String
+  productId      String?
+  productName    String
+  sku            String
+  action         String   // 'inbound' | 'sold' | 'returned' | 'exchanged_in' | 'exchanged_out' | 'refurbished' | 'cancelled_rollback'
+  fromStatus     String
+  toStatus       String
+  docType        String   // 'PNK' | 'PXK' | 'TH' | 'DH'
+  docCode        String
+  customerName   String?
+  customerPhone  String?
+  warehouseName  String?
+  notes          String?  @db.NVarChar(Max)
+  performedBy    String
+  timestamp      DateTime @default(now())
+
+  @@index([serialNumber])
+  @@index([timestamp])
+  @@map("NhatKySerialThietBi")
 }
 
 // 17. CHUYỂN KHO NỘI BỘ (INTER-BRANCH STOCK TRANSFERS)
@@ -933,16 +1244,42 @@ model JobPosition {
   @@map("ChucVu")
 }
 
+// 18.3.0 DANH MỤC KHO HÀNG MASTER
+model MasterWarehouse {
+  id            String   @id @default(uuid())
+  code          String   @unique // e.g. 'KHO-CHINH', 'KHO-SHOWROOM', 'KHO-HCM', 'KHO-BINHDUONG', 'KHO-BAOHANH'
+  name          String   // e.g. 'Kho Chính Gia Phúc Computer', 'Kho Kỹ Thuật & Showroom'
+  type          String   @default("general") // 'general' | 'showroom' | 'rma' | 'transit' | 'branch'
+  address       String?  // Địa chỉ kho
+  managerName   String?  // Thủ kho / Quản lý phụ trách
+  phone         String?  // SĐT liên hệ
+  capacity      Int      @default(1000) // Sức chứa ước tính (SKU / Sản phẩm)
+  status        String   @default("active") // 'active' | 'inactive' | 'maintenance'
+  isDefault     Boolean  @default(false)
+  description   String?  @db.NVarChar(Max)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  returnItems      ReturnOrderItem[]
+  exchangeInItems  ProductExchangeInItem[]
+  exchangeOutItems ProductExchangeOutItem[]
+
+  @@map("DanhMucKhoHang")
+}
+
 // 18.3 VỊ TRÍ LƯU KHO & Ô KỆ
 model WarehouseLocation {
   id            String   @id @default(uuid())
   code          String   @unique
   name          String
+  barcode       String?  // Mã vạch quét vị trí ô kệ
+  warehouseId   String?  // ID Kho trực thuộc
+  warehouseCode String?  // Mã Kho trực thuộc
   warehouseName String   @default("Kho Tổng")
-  zone          String?
-  shelf         String?
-  tier          String?
-  bin           String?
+  zone          String?  // Phân khu (Khu A, Khu B, Khu Linh Kiện...)
+  shelf         String?  // Kệ (Kệ 01, Kệ 02...)
+  tier          String?  // Tầng (Tầng 1, Tầng 2, Tầng 3...)
+  bin           String?  // Ô / Khay (Ô A1, Ô A2...)
   capacity      Int      @default(100)
   currentUsage  Int      @default(0)
   status        String   @default("active") // 'active' | 'maintenance' | 'full'
@@ -1016,6 +1353,37 @@ model MasterProductCategory {
   updatedAt   DateTime @updatedAt
 
   @@map("DanhMucNganhHang")
+}
+
+// 18.5.1 DANH MỤC MÀU SẮC SẢN PHẨM MASTER
+model MasterColor {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  hexCode     String   @default("#000000") // Mã màu HEX (VD: #1e293b, #ef4444)
+  description String?  @db.NVarChar(Max)
+  status      String   @default("active") // 'active' | 'inactive'
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("DanhMucMauSac")
+}
+
+// 18.5.2 DANH MỤC QUY CÁCH SẢN PHẨM MASTER
+model MasterSpecification {
+  id              String   @id @default(uuid())
+  code            String   @unique
+  name            String
+  category        String?  // Phân loại quy cách (VD: 'Đóng gói & Hộp', 'Chiều dài & Kích thước', 'Khối lượng & Đóng bao'...)
+  standardValue   String?  // Giá trị tiêu chuẩn (VD: '10 Cái/Hộp', '305 Mét/Cuộn', '50 Cái/Vỉ'...)
+  description     String?  @db.NVarChar(Max)
+  status          String   @default("active") // 'active' | 'inactive'
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("DanhMucQuyCach")
 }
 
 // 18.6 NHÓM KHÁCH HÀNG

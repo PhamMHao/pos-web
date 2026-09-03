@@ -311,6 +311,14 @@ export interface StoreSettings {
   defaultShowVietQR?: boolean;
   defaultShowLogo?: boolean;
   defaultDeliveryTerms?: string;
+  // Return & Exchange Print Customization
+  defaultReturnTerms?: string[];
+  defaultReturnTermsText?: string;
+  defaultReturnFooterNote?: string;
+  defaultExchangeTerms?: string[];
+  defaultExchangeTermsText?: string;
+  defaultExchangeFooterNote?: string;
+  showReturnLegalND123Header?: boolean;
   // Per-form custom configurations
   printDocConfigs?: Partial<Record<PrintDocType, PrintDocConfig>>;
   // Hardware Printer & Cash Drawer
@@ -331,6 +339,7 @@ export interface StoreSettings {
   eInvoiceTemplate?: string; // e.g. '1/001'
   eInvoiceLookupUrl?: string; // e.g. 'https://hoadondientu.gdt.gov.vn'
   certProvider?: string; // e.g. 'VIETTEL-CA'
+  eInvoiceDesignConfig?: EInvoiceDesignConfig;
   // Barcode & QR Code Label Customization
   labelPrintSettings?: LabelPrintSettings;
   // Labor Contract specifics
@@ -340,6 +349,46 @@ export interface StoreSettings {
   companyIdCardDate?: string;
   companyIdCardPlace?: string;
   companyNationality?: string;
+}
+
+export type TaxRiskLevel = 'safe' | 'warning' | 'high_risk' | 'closed';
+
+export interface TaxRiskAssessmentResult {
+  taxCode: string;
+  companyName: string;
+  internationalName?: string;
+  shortName?: string;
+  address: string;
+  representative?: string;
+  phone?: string;
+  email?: string;
+  establishedDate?: string;
+  operatingStatus: string;
+  taxAuthority?: string;
+  riskLevel: TaxRiskLevel;
+  riskBadge: string;
+  riskScore: number; // 0 - 100
+  riskReasons: string[];
+  verifiedBadges: string[];
+  isClosedOrRunaway: boolean;
+}
+
+export type EInvoiceTemplateStyle = 'standard_classic' | 'modern_minimalist' | 'premium_executive';
+
+export interface EInvoiceDesignConfig {
+  templateStyle: EInvoiceTemplateStyle;
+  primaryColor: string; // e.g. '#1e3a8a', '#0f766e', '#7c2d12', '#4c1d95', '#0f172a'
+  tableBorderColor: string; // e.g. '#94a3b8', '#cbd5e1', '#1e3a8a'
+  showBilingual: boolean; // Song ngữ Việt - Anh
+  showWatermark: boolean; // "ĐÃ KÝ ĐIỆN TỬ / CQT CẤP MÃ"
+  watermarkText?: string;
+  showVietQR: boolean;
+  showElectronicSeal: boolean; // Con dấu điện tử đỏ
+  invoiceTemplate: string; // e.g. '1/001'
+  invoiceSymbol: string; // e.g. '1C26TGP'
+  bankAccount?: string;
+  bankName?: string;
+  bankAccountHolder?: string;
 }
 
 export interface LabelTargetConfig {
@@ -389,7 +438,11 @@ export type PrintDocType =
   | 'delivery_dispatch' // PHIẾU ĐIỀU PHỐI GIAO HÀNG & THU TIỀN COD
   | 'shipping_label' // TEM VẬN ĐƠN DÁN KIỆN HÀNG (K80 / A5)
   | 'goods_delivery_record' // BIÊN BẢN GIAO NHẬN HÀNG HÓA (Theo Ảnh 1)
-  | 'sales_return'; // PHIẾU HÀNG BÁN TRẢ LẠI MẪU 02-TT TT200 (Theo Ảnh 2)
+  | 'sales_return' // PHIẾU HÀNG BÁN TRẢ LẠI MẪU 02-TT TT200 (Theo Ảnh 2)
+  | 'goods_handover_exchange' // BIÊN BẢN BÀN GIAO - TRAO ĐỔI HÀNG HÓA (THU CŨ ĐỔI MỚI) (Theo Ảnh 1)
+  | 'goods_return_invoice_recall' // BIÊN BẢN TRẢ HÀNG VÀ THU HỒI HOÁ ĐƠN NĐ 123/2020 (Theo Ảnh 2)
+  | 'work_completion_handover' // BIÊN BẢN XÁC NHẬN HOÀN THÀNH CÔNG VIỆC & NGHIỆM THU (Theo Ảnh 3)
+  | 'goods_exchange_invoice_replace'; // BIÊN BẢN ĐỔI HÀNG VÀ THAY ĐỔI HOÁ ĐƠN (Theo Ảnh 4)
 
 export interface PrintDocConfig {
   paperSize: PaperSize;
@@ -470,18 +523,25 @@ export interface PriceQuote {
   customerName: string;
   customerPhone: string;
   customerCompany?: string;
+  customerTaxCode?: string;
+  customerAddress?: string;
+  customerEmail?: string;
   totalAmount: number;
   discountPercent: number;
   finalTotal: number;
   validUntil: string;
   status: QuoteLifecycleStatus;
   items: {
+    productId?: string;
     productName: string;
     sku: string;
     unit: string;
     quantity: number;
     unitPrice: number;
+    discountPercent?: number;
     total: number;
+    warranty?: string;
+    specifications?: string;
   }[];
   createdAt: string;
   notes?: string;
@@ -494,6 +554,7 @@ export interface PriceQuote {
   lockExpiry?: string;
   quoteSnapshot?: any;
   lifecycleHistory?: QuoteLifecycleEvent[];
+  digitalSignature?: DigitalSignatureMetadata;
 }
 
 export interface LoadedQuoteData {
@@ -648,8 +709,19 @@ export interface SerialDeviceRecord {
   productId?: string;
   productName: string;
   sku: string;
+  barcode?: string;
+  brand?: string;
+  color?: string;
+  specifications?: string;
+  accessories?: string;
   status?: SerialInventoryStatus; // Trạng thái tồn kho / bán / bảo hành của số Serial
   warehouseLocation?: string; // Vị trí ngăn kệ trong kho khi status = in_stock
+  warehouseName?: string;
+  storageLocation?: string;
+  receiptCode?: string;
+  receiptDate?: string;
+  costPrice?: number;
+  price?: number;
   soldOrderCode?: string;
   soldDate?: string;
   customerName?: string;
@@ -922,6 +994,15 @@ export interface InboundEInvoice {
     bankName?: string;
     contactPerson?: string;
   };
+  sellerData?: {
+    name?: string;
+    taxCode?: string;
+    address?: string;
+    phone?: string;
+    email?: string;
+    bankAccount?: string;
+    bankName?: string;
+  };
   
   buyer: {
     name: string;
@@ -1105,24 +1186,44 @@ export interface PurchaseOrder {
   createdAt: string;
 }
 
-// 16. Phiếu Trả Hàng & Hoàn Tiền (Customer Return & Supplier RMA)
-export type ReturnReason = 'defective' | 'customer_mind_change' | 'wrong_item' | 'warranty_exchange' | 'other';
+// 16. Phiếu Đổi Hàng & Trả Hàng (Customer Returns & Product Exchanges)
+export type ReturnReason = 'defective' | 'customer_mind_change' | 'wrong_item' | 'warranty_exchange' | 'upgrade_model' | 'other';
 export type ReturnDestination = 'restock' | 'faulty_warehouse' | 'supplier_rma';
 export type RefundMethod = 'cash' | 'transfer' | 'debt_deduct' | 'no_refund';
 
+export interface ReturnPolicyConfig {
+  id: string;
+  returnPeriodDays: number;
+  exchangePeriodDays: number;
+  approvalThresholdAmount: number;
+  restockingFeeDamagedBox: number;
+  restockingFeeUsed: number;
+  allowNoReceiptReturn: boolean;
+  updatedAt?: string;
+}
+
 export interface ReturnOrderItem {
   id?: string;
+  originalOrderItemId?: string | null;
   productId: string;
   productName: string;
   sku: string;
   unit: string;
   ratioToBase: number;
   quantity: number;
+  costPrice: number;
   unitPrice: number;
   refundUnitPrice: number;
+  taxRate?: number;
+  taxAmount?: number;
+  subtotal?: number;
   totalRefund: number;
   serialNumber?: string | null;
+  serials?: string[];
   condition: 'normal' | 'damaged' | 'unopened';
+  destinationType?: 'restock' | 'faulty_warehouse';
+  warehouseName?: string;
+  notes?: string | null;
 }
 
 export interface ReturnOrder {
@@ -1134,19 +1235,131 @@ export interface ReturnOrder {
   customerId?: string | null;
   customerName?: string | null;
   customerPhone?: string | null;
+  customerAddress?: string | null;
   supplierId?: string | null;
   supplierName?: string | null;
   warehouse: string;
-  refundMethod: RefundMethod;
+  subtotal?: number;
+  taxAmount?: number;
+  restockingFee?: number;
+  giftDeductionAmount?: number;
   refundAmount: number;
   totalReturnQuantity: number;
+  refundMethod: RefundMethod;
+  accountingCode?: string | null;
+  stockReceiptCode?: string | null;
   reason: ReturnReason | string;
-  destinationType: ReturnDestination;
-  status: 'completed' | 'pending' | 'cancelled';
-  performedBy: string;
+  destinationType?: ReturnDestination;
+  status: 'draft' | 'pending_approval' | 'completed' | 'cancelled';
+  performedBy?: string;
+  createdBy?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  cancelledBy?: string;
+  cancelledAt?: string;
+  cancelReason?: string | null;
+  idempotencyKey?: string;
   notes?: string | null;
   createdAt: string;
+  updatedAt?: string;
   items: ReturnOrderItem[];
+}
+
+export interface ProductExchangeInItem {
+  id?: string;
+  originalOrderItemId?: string | null;
+  productId: string;
+  productName: string;
+  sku: string;
+  unit: string;
+  ratioToBase: number;
+  quantity: number;
+  costPrice: number;
+  returnUnitPrice: number;
+  taxRate: number;
+  taxAmount: number;
+  subtotal: number;
+  totalAmount: number;
+  condition: 'normal' | 'damaged' | 'unopened';
+  destinationType: 'restock' | 'faulty_warehouse';
+  warehouseId?: string | null;
+  warehouseName: string;
+  storageLocation?: string | null;
+  specifications?: string | null;
+  color?: string | null;
+  brand?: string | null;
+  notes?: string | null;
+  serials?: string[];
+}
+
+export interface ProductExchangeOutItem {
+  id?: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  unit: string;
+  ratioToBase: number;
+  quantity: number;
+  costPrice: number;
+  exchangeUnitPrice: number;
+  taxRate: number;
+  taxAmount: number;
+  subtotal: number;
+  totalAmount: number;
+  warehouseId?: string | null;
+  warehouseName: string;
+  warrantyMonths: number;
+  specifications?: string | null;
+  color?: string | null;
+  brand?: string | null;
+  notes?: string | null;
+  serials?: string[];
+}
+
+export interface ProductExchange {
+  id: string;
+  code: string;
+  originalOrderId?: string | null;
+  originalOrderCode?: string | null;
+  customerId?: string | null;
+  customerName: string;
+  customerPhone?: string | null;
+  customerAddress?: string | null;
+  warehouseName: string;
+  
+  inboundSubtotal: number;
+  inboundTaxAmount: number;
+  inboundTotalAmount: number; // V_nhap
+  
+  outboundSubtotal: number;
+  outboundTaxAmount: number;
+  outboundTotalAmount: number; // V_xuat
+  
+  restockingFee: number;
+  giftDeductionAmount: number;
+  differenceAmount: number; // V_xuat - V_nhap + fee + deduction
+  
+  paymentAction: 'collect_difference' | 'refund_difference' | 'even';
+  paymentMethod: 'cash' | 'transfer' | 'debt_adjust';
+  accountingCode?: string | null;
+  inboundReceiptCode?: string | null;
+  outboundIssueCode?: string | null;
+  
+  status: 'draft' | 'pending_approval' | 'completed' | 'cancelled';
+  idempotencyKey: string;
+  createdBy: string;
+  approvedBy?: string | null;
+  approvedAt?: string | null;
+  cancelledBy?: string | null;
+  cancelledAt?: string | null;
+  cancelReason?: string | null;
+  reason: string;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  
+  inItems: ProductExchangeInItem[];
+  outItems: ProductExchangeOutItem[];
 }
 
 // 17. Chuyển Kho Nội Bộ (Inter-Branch Stock Transfer)
@@ -1371,21 +1584,45 @@ export interface JobPosition {
   createdAt: string;
 }
 
+export interface MasterWarehouse {
+  id: string;
+  code: string; // e.g., 'KHO-CHINH', 'KHO-SHOWROOM', 'KHO-HCM', 'KHO-BINHDUONG', 'KHO-BAOHANH'
+  name: string; // e.g., 'Kho Chính Gia Phúc Computer', 'Kho Kỹ Thuật & Showroom'
+  type: 'general' | 'showroom' | 'rma' | 'transit' | 'branch'; // Loại kho
+  address?: string | null;
+  managerName?: string | null;
+  phone?: string | null;
+  capacity: number; // Sức chứa ước tính (sản phẩm)
+  status: 'active' | 'inactive' | 'maintenance';
+  isDefault?: boolean;
+  description?: string | null;
+  sortOrder?: number;
+  locationCount?: number;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 export interface WarehouseLocation {
   id: string;
-  code: string; // e.g., 'LOC-A1-01', 'LOC-RACK-B2', 'LOC-PALLET-01'
-  name: string; // e.g., 'Kệ A1 - Tầng 1 (Linh Kiện Mainboard/CPU)'
+  code: string; // e.g., 'VT-MAIN-A1', 'LOC-A1-01'
+  name: string; // e.g., 'Kệ A1 - Tầng 1 (CPU & Vi Xử Lý)'
+  barcode?: string | null;
+  warehouseId?: string | null;
+  warehouseCode?: string | null;
   warehouseName: string; // e.g., 'Kho Chính Gia Phúc Computer'
-  zone: string; // Khu A, Khu B, Khu Linh Kiện, Khu Bảo Hành
-  shelf?: string; // Kệ A1, Kệ A2, Tủ 01
-  bin?: string; // Ô 01, Ô 02
-  barcode: string; // Barcode quét vị trí
-  maxCapacity: number; // Sức chứa tối đa (sản phẩm/kg)
+  zone?: string | null; // Khu A, Khu B, Khu Linh Kiện, Khu Bảo Hành
+  shelf?: string | null; // Kệ A1, Kệ A2, Tủ 01
+  tier?: string | null; // Tầng 1, Tầng 2
+  bin?: string | null; // Ô 01, Ô 02
+  capacity?: number;
+  maxCapacity?: number; // Sức chứa tối đa (sản phẩm)
   currentUsage?: number;
-  storageType: 'rack' | 'bin' | 'pallet' | 'bulk' | 'cold' | 'secure';
-  note?: string;
-  status: 'active' | 'inactive';
+  storageType?: 'rack' | 'bin' | 'pallet' | 'bulk' | 'cold' | 'secure';
+  notes?: string | null;
+  note?: string | null;
+  status: 'active' | 'inactive' | 'maintenance' | 'full';
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface UnitOfMeasure {
@@ -1439,6 +1676,31 @@ export interface MasterProductCategory {
   productCount?: number;
   status: 'active' | 'inactive';
   createdAt: string;
+}
+
+export interface MasterColor {
+  id: string;
+  code: string; // e.g., 'CLR-BLACK', 'CLR-SILVER', 'CLR-SPACEGRAY'
+  name: string; // e.g., 'Đen Nhám', 'Bạc Titan', 'Xám Không Gian'
+  hexCode: string; // e.g., '#1e293b', '#cbd5e1'
+  description?: string | null;
+  status: 'active' | 'inactive';
+  sortOrder?: number;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface MasterSpecification {
+  id: string;
+  code: string; // e.g., 'SPEC-BOX10', 'SPEC-ROLL305M'
+  name: string; // e.g., 'Hộp 10 Cái tiêu chuẩn', 'Cuộn Cáp Mạng 305 Mét'
+  category?: string | null; // e.g., 'Đóng gói & Hộp', 'Chiều dài & Cuộn'
+  standardValue?: string | null; // e.g., '10 Cái/Hộp', '305 Mét/Cuộn'
+  description?: string | null;
+  status: 'active' | 'inactive';
+  sortOrder?: number;
+  createdAt: string;
+  updatedAt?: string;
 }
 
 export interface CustomerGroup {

@@ -21,6 +21,7 @@ import { AccountingRecord, Order, Customer, EInvoice, StoreSettings, PaymentMeth
 import { EInvoiceManagerView } from '../invoices/EInvoiceManagerView';
 import { NewAccountingRecordModal } from './NewAccountingRecordModal';
 import { CollectDebtModal } from './CollectDebtModal';
+import { formatVND } from '../../utils/currency';
 
 interface AccountingViewProps {
   records?: AccountingRecord[];
@@ -76,10 +77,6 @@ export const AccountingView: React.FC<AccountingViewProps> = ({
     const matchType = filterType === 'all' || r.type === filterType;
     return matchSearch && matchType;
   });
-
-  const formatVND = (amt: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amt);
-  };
 
   return (
     <div className="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden">

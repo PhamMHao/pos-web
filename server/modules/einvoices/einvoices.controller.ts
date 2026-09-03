@@ -58,4 +58,14 @@ export class EInvoicesController {
       return next(error);
     }
   }
+
+  static async lookupTaxCode(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { taxCode } = req.params;
+      const result = await EInvoicesService.lookupTaxCode(taxCode);
+      return sendSuccess(res, result, "Tra cứu mã số thuế và đánh giá rủi ro thành công");
+    } catch (error) {
+      return next(error);
+    }
+  }
 }

@@ -15,9 +15,11 @@ import {
   ExternalLink,
   Lock,
 } from 'lucide-react';
-import { EInvoice, StoreSettings } from '../../types';
+import { EInvoice, StoreSettings, EInvoiceDesignConfig } from '../../types';
 import { numberToVietnameseWords } from '../../utils/numberToWords';
+import { formatCurrency } from '../../utils/currency';
 import { GiaPhucLogo } from '../common/GiaPhucLogo';
+import { generateVietQRUrl } from '../../utils/vietqr';
 
 interface EInvoicePrintModalProps {
   invoice: EInvoice;
@@ -37,9 +39,30 @@ export const EInvoicePrintModal: React.FC<EInvoicePrintModalProps> = ({
   const [copiedLink, setCopiedLink] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('vi-VN').format(amount) + ' đ';
+  const design: EInvoiceDesignConfig = settings?.eInvoiceDesignConfig || {
+    templateStyle: 'standard_classic',
+    primaryColor: '#1e3a8a',
+    tableBorderColor: '#cbd5e1',
+    showBilingual: true,
+    showWatermark: true,
+    watermarkText: 'ĐÃ KÝ ĐIỆN TỬ / CQT CẤP MÃ',
+    showVietQR: true,
+    showElectronicSeal: true,
+    invoiceTemplate: invoice.invoiceTemplate || '1/001',
+    invoiceSymbol: invoice.invoiceSymbol || '1C26TGP',
+    bankAccount: settings?.bankAccount || '0985862609',
+    bankName: settings?.bankName || 'MBBANK',
+    bankAccountHolder: settings?.bankAccountName || 'PHAM NGOC THOM',
   };
+
+  const vietQrUrl = generateVietQRUrl({
+    bankId: design.bankName || 'MBBANK',
+    accountNo: design.bankAccount || '0985862609',
+    accountName: design.bankAccountHolder || 'PHAM NGOC THOM',
+    amount: invoice.totalAmount,
+    memo: `TT HOADON ${invoice.invoiceSymbol}-${invoice.invoiceNumber}`,
+    template: 'compact',
+  });
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return '';
@@ -266,79 +289,170 @@ export const EInvoicePrintModal: React.FC<EInvoicePrintModalProps> = ({
 
         {/* Printable Official Invoice Content (A4 layout styling) */}
         <div
-          className="p-6 sm:p-10 max-h-[calc(88vh-80px)] overflow-y-auto print:max-h-none print:p-0 print:overflow-visible text-slate-800 font-serif"
-          style={{ fontFamily: '"Tinos", "Noto Serif", "Times New Roman", Times, serif' }}
+          className="p-6 sm:p-10 max-h-[calc(88vh-80px)] overflow-y-auto print:max-h-none print:p-0 print:overflow-visible text-slate-800"
+          style={{
+            fontFamily:
+              design.templateStyle === 'modern_minimalist'
+                ? 'Inter, system-ui, sans-serif'
+                : '"Tinos", "Noto Serif", "Times New Roman", Times, serif',
+          }}
         >
           <div className="border border-slate-300 rounded-xl p-6 sm:p-8 bg-white shadow-sm print:border-0 print:p-2 print:shadow-none relative">
             
-            {/* Watermark for draft status */}
-            {invoice.status === 'draft' && (
+            {/* Watermark */}
+            {invoice.status === 'draft' ? (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10 select-none">
                 <span className="text-7xl sm:text-8xl font-bold text-rose-600 uppercase transform -rotate-45">
                   DỰ THẢO (CHƯA KÝ)
                 </span>
               </div>
+            ) : design.showWatermark ? (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.06] select-none">
+                <span
+                  className="text-5xl sm:text-7xl font-black uppercase transform -rotate-45"
+                  style={{ color: design.primaryColor }}
+                >
+                  {design.watermarkText || 'ĐÃ KÝ ĐIỆN TỬ / CQT CẤP MÃ'}
+                </span>
+              </div>
+            ) : null}
+
+            {/* Template Header Variation */}
+            {design.templateStyle === 'standard_classic' && (
+              <div className="text-center pb-4 border-b-2" style={{ borderColor: design.primaryColor }}>
+                <div className="flex flex-col items-center">
+                  <h4 className="text-xs font-bold uppercase tracking-normal text-slate-600">
+                    CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
+                  </h4>
+                  <p className="text-xs font-semibold text-slate-600">Độc lập - Tự do - Hạnh phúc</p>
+                  <div className="w-24 h-0.5 bg-slate-400 my-1"></div>
+                </div>
+
+                <div className="mt-3">
+                  <h1
+                    className="text-xl sm:text-2xl font-bold uppercase tracking-normal"
+                    style={{ color: design.primaryColor }}
+                  >
+                    HÓA ĐƠN GIÁ TRỊ GIA TĂNG
+                  </h1>
+                  {design.showBilingual && (
+                    <p className="text-xs italic text-slate-500 font-medium">
+                      (VAT INVOICE - HÓA ĐƠN ĐIỆN TỬ)
+                    </p>
+                  )}
+                  <p className="text-xs text-slate-600 mt-1">{formatDate(invoice.issueDate)}</p>
+                </div>
+
+                {/* Invoice Meta Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4 bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-left text-xs">
+                  <div>
+                    <span className="text-slate-500 block">Mẫu số {design.showBilingual && '(Form)'}:</span>
+                    <span className="font-bold text-slate-800 font-mono">{invoice.invoiceTemplate}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block">Ký hiệu {design.showBilingual && '(Symbol)'}:</span>
+                    <span className="font-bold text-slate-800 font-mono">{invoice.invoiceSymbol}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block">Số {design.showBilingual && '(Invoice No)'}:</span>
+                    <span className="font-black text-rose-600 font-mono text-sm">{invoice.invoiceNumber}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block">Mã tra cứu:</span>
+                    <span className="font-bold text-blue-700 font-mono">{invoice.lookupCode}</span>
+                  </div>
+                </div>
+              </div>
             )}
 
-            {/* Header / National Title */}
-            <div className="text-center pb-4 border-b border-slate-200">
-              <div className="flex flex-col items-center">
-                <h4 className="text-xs font-bold uppercase tracking-normal text-slate-600">
-                  CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
-                </h4>
-                <p className="text-xs font-semibold text-slate-600">Độc lập - Tự do - Hạnh phúc</p>
-                <div className="w-24 h-0.5 bg-slate-400 my-1"></div>
-              </div>
+            {design.templateStyle === 'modern_minimalist' && (
+              <div className="pb-4 border-b-2" style={{ borderColor: design.primaryColor }}>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <GiaPhucLogo logoUrl={settings?.logoUrl} className="w-14 h-14" isPrint={true} />
+                    <div>
+                      <h1 className="text-xl sm:text-2xl font-black uppercase tracking-tight" style={{ color: design.primaryColor }}>
+                        HÓA ĐƠN GIÁ TRỊ GIA TĂNG
+                      </h1>
+                      {design.showBilingual && (
+                        <p className="text-xs font-bold text-slate-500">ELECTRONIC VAT INVOICE</p>
+                      )}
+                      <p className="text-xs text-slate-600 mt-0.5">{formatDate(invoice.issueDate)}</p>
+                    </div>
+                  </div>
 
-              <div className="mt-3">
-                <h1 className="text-xl sm:text-2xl font-bold text-blue-900 uppercase tracking-normal">
-                  HÓA ĐƠN GIÁ TRỊ GIA TĂNG
-                </h1>
-                <p className="text-xs italic text-slate-500 font-medium">(HÓA ĐƠN ĐIỆN TỬ)</p>
-                <p className="text-xs text-slate-600 mt-1">{formatDate(invoice.issueDate)}</p>
-              </div>
+                  <div className="text-right space-y-1">
+                    <span className="px-3 py-1 rounded text-white font-mono font-bold text-xs inline-block" style={{ backgroundColor: design.primaryColor }}>
+                      {invoice.invoiceSymbol} - #{invoice.invoiceNumber}
+                    </span>
+                    <div className="text-[11px] text-slate-500 font-mono">Mẫu số: {invoice.invoiceTemplate}</div>
+                  </div>
+                </div>
 
-              {/* Invoice Meta Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4 bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-left text-xs">
-                <div>
-                  <span className="text-slate-500 block">Mẫu số (Form):</span>
-                  <span className="font-bold text-slate-800 font-mono">{invoice.invoiceTemplate}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block">Ký hiệu (Symbol):</span>
-                  <span className="font-bold text-slate-800 font-mono">{invoice.invoiceSymbol}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block">Số (Invoice No):</span>
-                  <span className="font-black text-rose-600 font-mono text-sm">{invoice.invoiceNumber}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block">Mã tra cứu:</span>
-                  <span className="font-bold text-blue-700 font-mono">{invoice.lookupCode}</span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4 bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-left text-xs">
+                  <div>
+                    <span className="text-slate-500 block">Mẫu số:</span>
+                    <span className="font-bold text-slate-800 font-mono">{invoice.invoiceTemplate}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block">Ký hiệu:</span>
+                    <span className="font-bold text-slate-800 font-mono">{invoice.invoiceSymbol}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block">Số HĐ:</span>
+                    <span className="font-black text-rose-600 font-mono text-sm">{invoice.invoiceNumber}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block">Mã tra cứu:</span>
+                    <span className="font-bold text-blue-700 font-mono">{invoice.lookupCode}</span>
+                  </div>
                 </div>
               </div>
+            )}
 
-              {/* Tax Authority Code (Mã CQT) */}
-              <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 bg-emerald-50 rounded-lg border border-emerald-200 text-xs">
-                <div className="flex items-center gap-1.5 text-emerald-800 font-medium">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>Mã của Cơ quan Thuế cấp:</span>
-                  <span className="font-mono font-bold text-emerald-950">
-                    {invoice.cqtCode || 'Chưa cấp mã (HĐ điện tử có mã khởi tạo từ máy tính tiền/hệ thống)'}
-                  </span>
+            {design.templateStyle === 'premium_executive' && (
+              <div className="pb-4 border-b-2" style={{ borderColor: design.primaryColor }}>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-extrabold uppercase tracking-wider" style={{ color: design.primaryColor }}>
+                      HÓA ĐƠN GIÁ TRỊ GIA TĂNG
+                    </h1>
+                    {design.showBilingual && (
+                      <p className="text-xs italic text-slate-500 font-sans tracking-wide">
+                        COMMERCIAL VALUE ADDED TAX INVOICE
+                      </p>
+                    )}
+                    <p className="text-xs text-slate-600 mt-1">{formatDate(invoice.issueDate)}</p>
+                  </div>
+                  <div className="p-2.5 border-2 rounded-lg text-right text-xs bg-slate-50" style={{ borderColor: design.primaryColor }}>
+                    <div>Ký hiệu: <strong className="font-mono text-slate-900">{invoice.invoiceSymbol}</strong></div>
+                    <div>Mẫu số: <strong className="font-mono text-slate-900">{invoice.invoiceTemplate}</strong></div>
+                    <div>Số: <strong className="font-mono text-rose-600 text-sm">{invoice.invoiceNumber}</strong></div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1 text-[11px] text-slate-500">
-                  <span>Tra cứu tại:</span>
-                  <a
-                    href={invoice.lookupUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-blue-600 font-semibold underline flex items-center gap-0.5"
-                  >
-                    hoadondientu.gdt.gov.vn
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
+              </div>
+            )}
+
+            {/* Tax Authority Code (Mã CQT) */}
+            <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 bg-emerald-50 rounded-lg border border-emerald-200 text-xs">
+              <div className="flex items-center gap-1.5 text-emerald-800 font-medium">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>Mã của Cơ quan Thuế cấp:</span>
+                <span className="font-mono font-bold text-emerald-950">
+                  {invoice.cqtCode || 'Chưa cấp mã (HĐ điện tử có mã khởi tạo từ máy tính tiền/hệ thống)'}
+                </span>
+              </div>
+              <div className="flex items-center gap-1 text-[11px] text-slate-500">
+                <span>Tra cứu tại:</span>
+                <a
+                  href={invoice.lookupUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-blue-600 font-semibold underline flex items-center gap-0.5"
+                >
+                  hoadondientu.gdt.gov.vn
+                  <ExternalLink className="w-3 h-3" />
+                </a>
               </div>
             </div>
 
@@ -478,14 +592,38 @@ export const EInvoicePrintModal: React.FC<EInvoicePrintModalProps> = ({
                       <span className="font-semibold not-italic text-slate-700">Ghi chú:</span> {invoice.notes}
                     </p>
                   )}
+                  {/* VietQR or Standard QR */}
                   <div className="flex items-center gap-2 pt-2">
-                    <div className="w-16 h-16 bg-slate-100 border border-slate-300 rounded flex items-center justify-center p-1">
-                      <QrCode className="w-14 h-14 text-slate-800" />
-                    </div>
-                    <div className="text-[11px] text-slate-500">
-                      <p className="font-medium text-slate-700">Quét mã QR để tra cứu</p>
-                      <p className="font-mono text-[10px]">Mã tra cứu: {invoice.lookupCode}</p>
-                    </div>
+                    {design.showVietQR ? (
+                      <div className="flex items-center gap-2.5 p-2 bg-slate-50 border border-slate-300 rounded-lg">
+                        <img
+                          src={vietQrUrl}
+                          alt="VietQR"
+                          className="w-16 h-16 bg-white p-0.5 rounded border border-slate-200 shrink-0"
+                        />
+                        <div className="text-[10px] space-y-0.5">
+                          <p className="font-bold text-slate-800 uppercase" style={{ color: design.primaryColor }}>
+                            Quét VietQR Thanh Toán
+                          </p>
+                          <p className="text-slate-600">
+                            NH: <strong>{design.bankName || 'MBBANK'}</strong>
+                          </p>
+                          <p className="font-mono text-blue-700 font-bold">
+                            STK: {design.bankAccount || '0985862609'}
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <div className="w-16 h-16 bg-slate-100 border border-slate-300 rounded flex items-center justify-center p-1">
+                          <QrCode className="w-14 h-14 text-slate-800" />
+                        </div>
+                        <div className="text-[11px] text-slate-500">
+                          <p className="font-medium text-slate-700">Quét mã QR để tra cứu</p>
+                          <p className="font-mono text-[10px]">Mã tra cứu: {invoice.lookupCode}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -506,9 +644,12 @@ export const EInvoicePrintModal: React.FC<EInvoicePrintModalProps> = ({
                       {formatCurrency(invoice.taxAmount)}
                     </span>
                   </div>
-                  <div className="flex justify-between py-1.5 border-t border-slate-300 text-sm font-bold text-slate-900 bg-slate-50 px-2 rounded">
-                    <span>Tổng tiền thanh toán:</span>
-                    <span className="font-mono text-base text-rose-600 font-black">
+                  <div
+                    className="flex justify-between py-1.5 border-t-2 text-sm font-bold bg-slate-50 px-2 rounded"
+                    style={{ borderColor: design.primaryColor }}
+                  >
+                    <span style={{ color: design.primaryColor }}>Tổng tiền thanh toán:</span>
+                    <span className="font-mono text-base font-black" style={{ color: design.primaryColor }}>
                       {formatCurrency(invoice.totalAmount)}
                     </span>
                   </div>
@@ -517,7 +658,9 @@ export const EInvoicePrintModal: React.FC<EInvoicePrintModalProps> = ({
 
               {/* Amount in words */}
               <div className="mt-3 p-2.5 bg-blue-50/50 rounded-lg border border-blue-100 flex items-start gap-2">
-                <span className="font-bold text-slate-800 shrink-0">Số tiền viết bằng chữ:</span>
+                <span className="font-bold text-slate-800 shrink-0">
+                  Số tiền viết bằng chữ {design.showBilingual && '(In words)'}:
+                </span>
                 <span className="font-semibold text-blue-900 italic">{invoice.amountInWords}</span>
               </div>
             </div>
@@ -526,8 +669,12 @@ export const EInvoicePrintModal: React.FC<EInvoicePrintModalProps> = ({
             <div className="mt-6 pt-4 border-t border-slate-200 grid grid-cols-2 gap-6 text-center text-xs">
               {/* Buyer Signature */}
               <div className="space-y-1">
-                <p className="font-bold text-slate-800 uppercase">NGƯỜI MUA HÀNG (Buyer)</p>
-                <p className="text-[11px] text-slate-500 italic">(Ký, ghi rõ họ tên hoặc xác nhận điện tử)</p>
+                <p className="font-bold text-slate-800 uppercase">
+                  NGƯỜI MUA HÀNG {design.showBilingual && '(BUYER)'}
+                </p>
+                <p className="text-[11px] text-slate-500 italic">
+                  (Ký, ghi rõ họ tên hoặc xác nhận điện tử)
+                </p>
                 <div className="h-24 flex items-center justify-center">
                   <span className="text-slate-400 italic text-[11px]">Đã xác nhận thanh toán điện tử</span>
                 </div>
@@ -535,9 +682,25 @@ export const EInvoicePrintModal: React.FC<EInvoicePrintModalProps> = ({
               </div>
 
               {/* Seller Digital Signature */}
-              <div className="space-y-1">
-                <p className="font-bold text-slate-800 uppercase">NGƯỜI BÁN HÀNG (Seller)</p>
-                <p className="text-[11px] text-slate-500 italic">(Ký số điện tử / Chữ ký số CA)</p>
+              <div className="space-y-1 relative">
+                <p className="font-bold text-slate-800 uppercase">
+                  NGƯỜI BÁN HÀNG {design.showBilingual && '(SELLER)'}
+                </p>
+                <p className="text-[11px] text-slate-500 italic">
+                  (Ký số điện tử / Chữ ký số CA)
+                </p>
+
+                {/* Optional Electronic Seal */}
+                {design.showElectronicSeal && (
+                  <div className="absolute right-4 top-10 w-24 h-24 rounded-full border-2 border-dashed border-rose-600 text-rose-600 flex flex-col items-center justify-center p-1 opacity-80 rotate-[-10deg] pointer-events-none select-none">
+                    <span className="text-[7.5px] font-black uppercase text-center leading-tight">
+                      CÔNG TY GIA PHÚC
+                    </span>
+                    <span className="text-[9px] font-bold my-0.5">★ ĐÃ KÝ ★</span>
+                    <span className="text-[7px] font-mono">DIGITAL SIGNED</span>
+                  </div>
+                )}
+
                 <div className="h-24 flex items-center justify-center">
                   {invoice.status !== 'draft' ? (
                     <div className="border-2 border-emerald-600 bg-emerald-50/80 p-2.5 rounded-lg text-left shadow-sm inline-block max-w-[280px]">

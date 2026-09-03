@@ -16,6 +16,7 @@ import {
 import { ProductCosting, Product } from '../../types';
 import { NewCostingModal } from './NewCostingModal';
 import { AssemblyOrderModal } from './AssemblyOrderModal';
+import { formatVND } from '../../utils/currency';
 
 interface CostingViewProps {
   costingList?: ProductCosting[];
@@ -41,10 +42,6 @@ export const CostingView: React.FC<CostingViewProps> = ({
   const [selectedCosting, setSelectedCosting] = useState<ProductCosting | null>(safeCosting[0] || null);
   const [showNewModal, setShowNewModal] = useState(false);
   const [showAssemblyModal, setShowAssemblyModal] = useState(false);
-
-  const formatVND = (amt: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amt);
-  };
 
   const filteredCosting = safeCosting.filter(
     (c) =>

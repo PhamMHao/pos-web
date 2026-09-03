@@ -2,6 +2,7 @@ import apiClient, { ApiResponse } from "../../../core/api/apiClient";
 import {
   Department,
   JobPosition,
+  MasterWarehouse,
   WarehouseLocation,
   UnitOfMeasure,
   MasterUomGroup,
@@ -12,15 +13,20 @@ import {
   EnterpriseProject,
   Customer,
   Supplier,
+  MasterColor,
+  MasterSpecification,
 } from "../../../types";
 
 export interface AllMasterDataResponse {
   departments: Department[];
   jobPositions: JobPosition[];
+  warehouses: MasterWarehouse[];
   warehouseLocations: WarehouseLocation[];
   unitsOfMeasure: UnitOfMeasure[];
   uomGroups: MasterUomGroup[];
   productCategories: MasterProductCategory[];
+  colors: MasterColor[];
+  specifications: MasterSpecification[];
   customerGroups: CustomerGroup[];
   customerTiers: MasterCustomerTier[];
   supplierCategories: MasterSupplierCategory[];
@@ -72,7 +78,25 @@ export const masterDataApi = {
     return res.data.data;
   },
 
-  // 4. Warehouse Locations
+  // 4. Master Warehouses
+  getWarehouses: async () => {
+    const res = await apiClient.get<ApiResponse<MasterWarehouse[]>>("/master-data/warehouses");
+    return res.data.data;
+  },
+  createWarehouse: async (data: Partial<MasterWarehouse>) => {
+    const res = await apiClient.post<ApiResponse<MasterWarehouse>>("/master-data/warehouses", data);
+    return res.data.data;
+  },
+  updateWarehouse: async (id: string, data: Partial<MasterWarehouse>) => {
+    const res = await apiClient.put<ApiResponse<MasterWarehouse>>(`/master-data/warehouses/${id}`, data);
+    return res.data.data;
+  },
+  deleteWarehouse: async (id: string) => {
+    const res = await apiClient.delete<ApiResponse<any>>(`/master-data/warehouses/${id}`);
+    return res.data.data;
+  },
+
+  // 4.1 Warehouse Locations
   getWarehouseLocations: async () => {
     const res = await apiClient.get<ApiResponse<WarehouseLocation[]>>("/master-data/warehouse-locations");
     return res.data.data;
@@ -213,6 +237,42 @@ export const masterDataApi = {
   },
   deleteUomGroup: async (id: string) => {
     const res = await apiClient.delete<ApiResponse<any>>(`/master-data/uom-groups/${id}`);
+    return res.data.data;
+  },
+
+  // 12. Colors
+  getColors: async () => {
+    const res = await apiClient.get<ApiResponse<MasterColor[]>>("/master-data/colors");
+    return res.data.data;
+  },
+  createColor: async (data: Partial<MasterColor>) => {
+    const res = await apiClient.post<ApiResponse<MasterColor>>("/master-data/colors", data);
+    return res.data.data;
+  },
+  updateColor: async (id: string, data: Partial<MasterColor>) => {
+    const res = await apiClient.put<ApiResponse<MasterColor>>(`/master-data/colors/${id}`, data);
+    return res.data.data;
+  },
+  deleteColor: async (id: string) => {
+    const res = await apiClient.delete<ApiResponse<any>>(`/master-data/colors/${id}`);
+    return res.data.data;
+  },
+
+  // 13. Specifications
+  getSpecifications: async () => {
+    const res = await apiClient.get<ApiResponse<MasterSpecification[]>>("/master-data/specifications");
+    return res.data.data;
+  },
+  createSpecification: async (data: Partial<MasterSpecification>) => {
+    const res = await apiClient.post<ApiResponse<MasterSpecification>>("/master-data/specifications", data);
+    return res.data.data;
+  },
+  updateSpecification: async (id: string, data: Partial<MasterSpecification>) => {
+    const res = await apiClient.put<ApiResponse<MasterSpecification>>(`/master-data/specifications/${id}`, data);
+    return res.data.data;
+  },
+  deleteSpecification: async (id: string) => {
+    const res = await apiClient.delete<ApiResponse<any>>(`/master-data/specifications/${id}`);
     return res.data.data;
   },
 };
