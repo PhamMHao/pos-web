@@ -30,7 +30,9 @@ export const PurchaseOrderPrintModal: React.FC<PurchaseOrderPrintModalProps> = (
   settings,
 }) => {
   const printableRef = useRef<HTMLDivElement>(null);
-  const [codePlacement, setCodePlacement] = useState<'header' | 'footer' | 'both'>('header');
+  const [codePlacement, setCodePlacement] = useState<'header' | 'footer' | 'both' | 'none'>(
+    settings?.defaultPrintCodePlacement || 'header'
+  );
 
   if (!isOpen || !order) return null;
 
@@ -74,35 +76,19 @@ export const PurchaseOrderPrintModal: React.FC<PurchaseOrderPrintModalProps> = (
           </div>
 
           <div className="flex items-center space-x-2">
-            {/* Code Placement toggle */}
-            <div className="flex items-center bg-slate-800 rounded-xl p-0.5 text-xs">
-              <button
-                type="button"
-                onClick={() => setCodePlacement('header')}
-                className={`px-2.5 py-1.5 rounded-lg font-bold text-[10px] transition-all ${
-                  codePlacement === 'header' ? 'bg-amber-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
-                }`}
+            {/* Code Placement Dropdown */}
+            <div className="flex items-center bg-slate-800 rounded-xl px-2.5 py-1 border border-slate-700 text-xs">
+              <span className="text-[10px] text-slate-400 font-bold mr-1.5 whitespace-nowrap">Vị trí mã:</span>
+              <select
+                value={codePlacement}
+                onChange={(e) => setCodePlacement(e.target.value as any)}
+                className="bg-transparent text-amber-300 font-bold text-xs focus:outline-none cursor-pointer"
               >
-                Đầu trang
-              </button>
-              <button
-                type="button"
-                onClick={() => setCodePlacement('footer')}
-                className={`px-2.5 py-1.5 rounded-lg font-bold text-[10px] transition-all ${
-                  codePlacement === 'footer' ? 'bg-amber-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Cuối trang
-              </button>
-              <button
-                type="button"
-                onClick={() => setCodePlacement('both')}
-                className={`px-2.5 py-1.5 rounded-lg font-bold text-[10px] transition-all ${
-                  codePlacement === 'both' ? 'bg-amber-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Cả 2
-              </button>
+                <option value="header" className="bg-slate-900 text-white">Đầu trang (Header)</option>
+                <option value="footer" className="bg-slate-900 text-white">Cuối trang (Footer)</option>
+                <option value="both" className="bg-slate-900 text-white">Cả 2 vị trí</option>
+                <option value="none" className="bg-slate-900 text-white">Không in mã</option>
+              </select>
             </div>
 
             <PrinterSelectDropdown />

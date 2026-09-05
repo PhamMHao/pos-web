@@ -55,7 +55,13 @@ export const ReturnExchangePrintModal: React.FC<Props> = ({
     return doc as ReturnExchangeDocType;
   };
 
-  const [printSize, setPrintSize] = useState<"A4" | "K80">("A4");
+  const [printSize, setPrintSize] = useState<"A4" | "K80" | "K58">(
+    settings?.defaultPrintPaperSize === 'K58'
+      ? 'K58'
+      : settings?.defaultPrintPaperSize === 'K80'
+      ? 'K80'
+      : 'A4'
+  );
   const [activeDoc, setActiveDoc] = useState<ReturnExchangeDocType>(
     initialDocType === "both" ? "summary" : normalizeDocType(initialDocType)
   );
@@ -248,22 +254,18 @@ export const ReturnExchangePrintModal: React.FC<Props> = ({
             </div>
 
             <div className="flex items-center gap-3">
-              {/* Paper Size Selector */}
-              <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setPrintSize("A4")}
-                  className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${printSize === "A4" ? "bg-slate-700 text-white shadow" : "text-slate-400 hover:text-white"}`}
+              {/* Paper Size Dropdown */}
+              <div className="flex items-center bg-slate-950 px-2.5 py-1 rounded-xl border border-slate-800 text-xs">
+                <span className="text-[10px] text-slate-400 font-bold mr-1.5 whitespace-nowrap">Khổ giấy:</span>
+                <select
+                  value={printSize}
+                  onChange={(e) => setPrintSize(e.target.value as any)}
+                  className="bg-transparent text-white font-bold text-xs focus:outline-none cursor-pointer"
                 >
-                  Khổ A4 / A5
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPrintSize("K80")}
-                  className={`px-3 py-1.5 rounded-lg font-semibold transition-all ${printSize === "K80" ? "bg-slate-700 text-white shadow" : "text-slate-400 hover:text-white"}`}
-                >
-                  In Nhiệt K80
-                </button>
+                  <option value="A4" className="bg-slate-900 text-white">Khổ A4 / A5</option>
+                  <option value="K80" className="bg-slate-900 text-white">In Nhiệt K80 (80mm)</option>
+                  <option value="K58" className="bg-slate-900 text-white">In Nhiệt K58 (58mm)</option>
+                </select>
               </div>
 
               {/* Print Button */}
@@ -786,7 +788,7 @@ export const ReturnExchangePrintModal: React.FC<Props> = ({
                   </div>
                 </div>
               ) : (
-                <div className="bg-white text-slate-900 w-[80mm] p-3 shadow-xl text-[11px] leading-tight font-mono rounded-lg print:rounded-none print:m-0 print:p-1 print:w-[80mm]">
+                <div className={`bg-white text-slate-900 ${printSize === 'K58' ? 'w-[58mm] text-[9.5pt] print:w-[58mm]' : 'w-[80mm] text-[11px] print:w-[80mm]'} p-3 shadow-xl leading-tight font-mono rounded-lg print:rounded-none print:m-0 print:p-1`}>
                   <div className="text-center border-b border-dashed border-slate-400 pb-2 mb-2">
                     <h1 className="font-bold text-[12px] uppercase">{storeName}</h1>
                     <p className="text-[9px]">{storeAddress} - ĐT: {storePhone}</p>

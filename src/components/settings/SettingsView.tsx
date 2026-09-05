@@ -1029,17 +1029,31 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <div className="space-y-6">
             {/* Global Print Defaults */}
             <div className="bg-slate-900 p-5 md:p-6 rounded-2xl border border-slate-800 space-y-5 shadow-xl">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <h3 className="text-sm font-bold text-white flex items-center space-x-2">
-                  <Printer className="w-4 h-4 text-emerald-400" />
-                  <span>Cấu Hình In Chung Toàn Hệ Thống</span>
-                </h3>
-                <span className="text-xs text-slate-400">
-                  Áp dụng mặc định cho tất cả biểu mẫu nếu chưa cấu hình riêng.
-                </span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-800 pb-3 gap-3">
+                <div>
+                  <h3 className="text-sm font-bold text-white flex items-center space-x-2">
+                    <Printer className="w-4 h-4 text-emerald-400" />
+                    <span>Cấu Hình In Chung Toàn Hệ Thống</span>
+                  </h3>
+                  <span className="text-xs text-slate-400">
+                    Áp dụng mặc định cho tất cả biểu mẫu & các máy trạm khác nếu chưa cấu hình riêng.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSaveSettings(formData);
+                    setSavedSuccess(true);
+                    setTimeout(() => setSavedSuccess(false), 3000);
+                  }}
+                  className="flex items-center space-x-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition-all shadow-md shadow-emerald-600/20 active:scale-95 cursor-pointer shrink-0"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Lưu Cấu Hình In Mặc Định</span>
+                </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs">
                 <div>
                   <label className="block text-slate-300 font-semibold mb-1">
                     Khổ giấy in mặc định:
@@ -1054,9 +1068,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     }
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold focus:outline-none focus:border-emerald-500"
                   >
-                    <option value="A4">Khổ A4 (210 x 297 mm) - Chuẩn Báo cáo & Hóa đơn</option>
+                    <option value="A4">Khổ A4 (210 x 297 mm) - Báo cáo & Hóa đơn chuẩn</option>
                     <option value="A5">Khổ A5 (148 x 210 mm) - Phiếu giao hàng vừa tay</option>
                     <option value="K80">Khổ K80 (80 mm) - Giấy in nhiệt cuộn POS</option>
+                    <option value="K58">Khổ K58 (58 mm) - Giấy in nhiệt cuộn mini POS</option>
                   </select>
                 </div>
 
@@ -1076,6 +1091,27 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   >
                     <option value="portrait">Dọc (Portrait) - Phổ biến</option>
                     <option value="landscape">Ngang (Landscape) - Bảng nhiều cột</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">
+                    Vị trí mã mặc định (Barcode / QR):
+                  </label>
+                  <select
+                    value={formData.defaultPrintCodePlacement || 'header'}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        defaultPrintCodePlacement: e.target.value as any,
+                      })
+                    }
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold focus:outline-none focus:border-emerald-500"
+                  >
+                    <option value="header">Chỉ đầu trang (Header - Cân đối phiếu)</option>
+                    <option value="footer">Chỉ chân trang (Footer - Cuối phiếu)</option>
+                    <option value="both">Cả đầu trang & chân trang (Cả 2)</option>
+                    <option value="none">Không in mã (Ẩn Barcode & QR)</option>
                   </select>
                 </div>
 

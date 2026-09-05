@@ -1,9 +1,12 @@
 export interface VietQRParams {
-  bankCode: string; // e.g. 'MB', 'VCB', 'TCB', 'ACB', 'VPB'
+  bankCode?: string; // e.g. 'MB', 'VCB', 'TCB', 'ACB', 'VPB'
+  bankId?: string; // alias for bankCode
   accountNo: string;
   accountName: string;
   amount: number;
-  description: string;
+  description?: string;
+  memo?: string; // alias for description
+  template?: string;
 }
 
 export const POPULAR_VIETNAMESE_BANKS = [
@@ -20,11 +23,11 @@ export const POPULAR_VIETNAMESE_BANKS = [
 ];
 
 export function generateVietQRUrl(params: VietQRParams): string {
-  const { bankCode, accountNo, accountName, amount, description } = params;
-  const safeBank = bankCode || 'MB';
+  const { bankCode, bankId, accountNo, accountName, amount, description, memo } = params;
+  const safeBank = bankCode || bankId || 'MB';
   const safeAccount = accountNo || '0988888888';
   const encodedAccountName = encodeURIComponent(accountName || 'STORE OWNER');
-  const encodedDesc = encodeURIComponent(description || 'Thanh toan don hang');
+  const encodedDesc = encodeURIComponent(description || memo || 'Thanh toan don hang');
   const safeAmount = Math.max(0, Math.round(amount || 0));
 
   return `https://img.vietqr.io/image/${safeBank}-${safeAccount}-compact2.png?amount=${safeAmount}&addInfo=${encodedDesc}&accountName=${encodedAccountName}`;

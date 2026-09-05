@@ -35,8 +35,12 @@ export const WarrantyPrintModal: React.FC<WarrantyPrintModalProps> = ({
   settings,
   printMode = 'receipt',
 }) => {
-  const [paperSize, setPaperSize] = useState<PaperSize>('A4');
-  const [codePlacement, setCodePlacement] = useState<'header' | 'footer' | 'both'>('header');
+  const [paperSize, setPaperSize] = useState<PaperSize>(
+    settings?.defaultPrintPaperSize || 'A4'
+  );
+  const [codePlacement, setCodePlacement] = useState<'header' | 'footer' | 'both' | 'none'>(
+    settings?.defaultPrintCodePlacement || 'header'
+  );
 
   if (!isOpen || !ticket) return null;
 
@@ -71,56 +75,34 @@ export const WarrantyPrintModal: React.FC<WarrantyPrintModalProps> = ({
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            <div className="flex items-center bg-slate-800 rounded-xl p-0.5 text-xs">
-              <button
-                type="button"
-                onClick={() => setPaperSize('A4')}
-                className={`px-3 py-1 rounded-lg font-bold transition-all ${
-                  paperSize === 'A4' ? 'bg-cyan-500 text-slate-950' : 'text-slate-400 hover:text-white'
-                }`}
+            {/* Paper Size Dropdown */}
+            <div className="flex items-center bg-slate-800 rounded-xl px-2.5 py-1 border border-slate-700 text-xs">
+              <span className="text-[10px] text-slate-400 font-bold mr-1.5 whitespace-nowrap">Khổ giấy:</span>
+              <select
+                value={paperSize}
+                onChange={(e) => setPaperSize(e.target.value as any)}
+                className="bg-transparent text-cyan-400 font-bold text-xs focus:outline-none cursor-pointer"
               >
-                A4
-              </button>
-              <button
-                type="button"
-                onClick={() => setPaperSize('A5')}
-                className={`px-3 py-1 rounded-lg font-bold transition-all ${
-                  paperSize === 'A5' ? 'bg-cyan-500 text-slate-950' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                A5
-              </button>
+                <option value="A4" className="bg-slate-900 text-white">Khổ A4</option>
+                <option value="A5" className="bg-slate-900 text-white">Khổ A5</option>
+                <option value="K80" className="bg-slate-900 text-white">K80 (80mm)</option>
+                <option value="K58" className="bg-slate-900 text-white">K58 (58mm)</option>
+              </select>
             </div>
 
-            {/* Code Placement toggle */}
-            <div className="flex items-center bg-slate-800 rounded-xl p-0.5 text-xs">
-              <button
-                type="button"
-                onClick={() => setCodePlacement('header')}
-                className={`px-2.5 py-1 rounded-lg font-bold text-[10px] transition-all ${
-                  codePlacement === 'header' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
-                }`}
+            {/* Code Placement Dropdown */}
+            <div className="flex items-center bg-slate-800 rounded-xl px-2.5 py-1 border border-slate-700 text-xs">
+              <span className="text-[10px] text-slate-400 font-bold mr-1.5 whitespace-nowrap">Vị trí mã:</span>
+              <select
+                value={codePlacement}
+                onChange={(e) => setCodePlacement(e.target.value as any)}
+                className="bg-transparent text-white font-bold text-xs focus:outline-none cursor-pointer"
               >
-                Đầu trang
-              </button>
-              <button
-                type="button"
-                onClick={() => setCodePlacement('footer')}
-                className={`px-2.5 py-1 rounded-lg font-bold text-[10px] transition-all ${
-                  codePlacement === 'footer' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Cuối trang
-              </button>
-              <button
-                type="button"
-                onClick={() => setCodePlacement('both')}
-                className={`px-2.5 py-1 rounded-lg font-bold text-[10px] transition-all ${
-                  codePlacement === 'both' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Cả 2
-              </button>
+                <option value="header" className="bg-slate-900 text-white">Đầu trang (Header)</option>
+                <option value="footer" className="bg-slate-900 text-white">Cuối trang (Footer)</option>
+                <option value="both" className="bg-slate-900 text-white">Cả 2 vị trí</option>
+                <option value="none" className="bg-slate-900 text-white">Không in mã</option>
+              </select>
             </div>
 
             <button

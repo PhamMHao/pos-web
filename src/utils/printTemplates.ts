@@ -17,7 +17,7 @@ export const DEFAULT_DOC_TEMPLATES: Record<
     showDocQr: boolean;
     showBankInfo: boolean;
     showLogo: boolean;
-    codePlacement: 'header' | 'footer' | 'both';
+    codePlacement: 'header' | 'footer' | 'both' | 'none';
   }
 > = {
   sales_invoice: {
@@ -509,20 +509,28 @@ export function getEffectivePrintConfig(
   const userConfig = settings?.printDocConfigs?.[docType];
 
   return {
-    paperSize: userConfig?.paperSize || def.defaultSize,
-    orientation: userConfig?.orientation || def.defaultOrientation,
+    paperSize: userConfig?.paperSize || settings?.defaultPrintPaperSize || def.defaultSize,
+    orientation: userConfig?.orientation || settings?.defaultPrintOrientation || def.defaultOrientation,
     emptyRowsCount:
-      userConfig?.emptyRowsCount !== undefined ? userConfig.emptyRowsCount : def.defaultEmptyRows,
-    signatureStyle: userConfig?.signatureStyle || def.signatureStyle,
-    showVietQR: userConfig?.showVietQR !== undefined ? userConfig.showVietQR : def.showVietQR,
+      userConfig?.emptyRowsCount !== undefined
+        ? userConfig.emptyRowsCount
+        : (settings?.defaultEmptyRowsCount !== undefined ? settings.defaultEmptyRowsCount : def.defaultEmptyRows),
+    signatureStyle: userConfig?.signatureStyle || settings?.defaultSignatureStyle || def.signatureStyle,
+    showVietQR:
+      userConfig?.showVietQR !== undefined
+        ? userConfig.showVietQR
+        : (settings?.defaultShowVietQR !== undefined ? settings.defaultShowVietQR : def.showVietQR),
     customTitle: userConfig?.customTitle !== undefined && userConfig.customTitle.trim() !== '' ? userConfig.customTitle : def.title,
     customSubtitle: userConfig?.customSubtitle !== undefined ? userConfig.customSubtitle : (def.subtitle || ''),
     notes: userConfig?.notes && userConfig.notes.length > 0 ? userConfig.notes : [...def.notes],
-    showLogo: userConfig?.showLogo !== undefined ? userConfig.showLogo : def.showLogo,
+    showLogo:
+      userConfig?.showLogo !== undefined
+        ? userConfig.showLogo
+        : (settings?.defaultShowLogo !== undefined ? settings.defaultShowLogo : def.showLogo),
     showBarcode: userConfig?.showBarcode !== undefined ? userConfig.showBarcode : def.showBarcode,
     showDocQr: userConfig?.showDocQr !== undefined ? userConfig.showDocQr : def.showDocQr,
     showBankInfo: userConfig?.showBankInfo !== undefined ? userConfig.showBankInfo : def.showBankInfo,
-    codePlacement: userConfig?.codePlacement || def.codePlacement,
+    codePlacement: userConfig?.codePlacement || settings?.defaultPrintCodePlacement || def.codePlacement,
     signLeftLabel: userConfig?.signLeftLabel || def.signLeft,
     signRightLabel: userConfig?.signRightLabel || def.signRight,
     defaultWarehouse: userConfig?.defaultWarehouse || settings?.defaultWarehouse || 'Gia Phúc',

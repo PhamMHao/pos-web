@@ -24,7 +24,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
   const [paperSize, setPaperSize] = useState<'K80' | 'K58'>(
     settings.defaultPrintPaperSize === 'K58' ? 'K58' : 'K80'
   );
-  const [codePlacement, setCodePlacement] = useState<'header' | 'footer' | 'both'>(
+  const [codePlacement, setCodePlacement] = useState<'header' | 'footer' | 'both' | 'none'>(
     effectiveConfig.codePlacement || 'header'
   );
 
@@ -76,59 +76,31 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
           
           <div className="flex items-center space-x-2">
             {/* Paper Size selector (K80 / K58) */}
-            <div className="flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700 text-xs">
-              <button
-                type="button"
-                onClick={() => setPaperSize('K80')}
-                className={`px-2.5 py-1 rounded-md font-bold transition-all ${
-                  paperSize === 'K80' ? 'bg-emerald-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
-                }`}
+            <div className="flex items-center space-x-1">
+              <span className="text-[11px] text-slate-400 font-medium">Khổ:</span>
+              <select
+                value={paperSize}
+                onChange={(e) => setPaperSize(e.target.value as 'K80' | 'K58')}
+                className="bg-slate-800 text-white text-xs rounded-lg px-2 py-1 border border-slate-700 focus:outline-none focus:border-emerald-500 font-semibold cursor-pointer"
               >
-                K80 (80mm)
-              </button>
-              <button
-                type="button"
-                onClick={() => setPaperSize('K58')}
-                className={`px-2.5 py-1 rounded-md font-bold transition-all ${
-                  paperSize === 'K58' ? 'bg-emerald-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                K58 (58mm)
-              </button>
+                <option value="K80">K80 (80mm)</option>
+                <option value="K58">K58 (58mm)</option>
+              </select>
             </div>
-            
-            {/* Code Placement toggle */}
-            <div className="flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700 text-xs">
-              <button
-                type="button"
-                onClick={() => setCodePlacement('header')}
-                title="Mã vạch & QR ở đầu phiếu"
-                className={`px-2 py-1 rounded-md font-bold text-[10px] transition-all ${
-                  codePlacement === 'header' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-                }`}
+
+            {/* Code Placement selector */}
+            <div className="flex items-center space-x-1">
+              <span className="text-[11px] text-slate-400 font-medium">Mã:</span>
+              <select
+                value={codePlacement}
+                onChange={(e) => setCodePlacement(e.target.value as 'header' | 'footer' | 'both' | 'none')}
+                className="bg-slate-800 text-white text-xs rounded-lg px-2 py-1 border border-slate-700 focus:outline-none focus:border-emerald-500 font-semibold cursor-pointer"
               >
-                Đầu trang
-              </button>
-              <button
-                type="button"
-                onClick={() => setCodePlacement('footer')}
-                title="Mã vạch & QR ở chân trang"
-                className={`px-2 py-1 rounded-md font-bold text-[10px] transition-all ${
-                  codePlacement === 'footer' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Cuối trang
-              </button>
-              <button
-                type="button"
-                onClick={() => setCodePlacement('both')}
-                title="Mã vạch & QR ở cả đầu trang và chân trang"
-                className={`px-2 py-1 rounded-md font-bold text-[10px] transition-all ${
-                  codePlacement === 'both' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Cả 2
-              </button>
+                <option value="header">Đầu trang</option>
+                <option value="footer">Cuối trang</option>
+                <option value="both">Cả 2 vị trí</option>
+                <option value="none">Không in mã</option>
+              </select>
             </div>
 
             <PrinterSelectDropdown

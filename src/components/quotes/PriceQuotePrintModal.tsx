@@ -38,9 +38,15 @@ export const PriceQuotePrintModal: React.FC<PriceQuotePrintModalProps> = ({
   onSaveSettings,
 }) => {
   // 1. Print configuration state
-  const [paperSize, setPaperSize] = useState<PaperSize>('A4');
-  const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
-  const [codePlacement, setCodePlacement] = useState<'header' | 'footer' | 'both'>('header');
+  const [paperSize, setPaperSize] = useState<PaperSize>(
+    settings?.defaultPrintPaperSize || 'A4'
+  );
+  const [orientation, setOrientation] = useState<'portrait' | 'landscape'>(
+    settings?.defaultPrintOrientation || 'portrait'
+  );
+  const [codePlacement, setCodePlacement] = useState<'header' | 'footer' | 'both' | 'none'>(
+    settings?.defaultPrintCodePlacement || 'header'
+  );
   const [showEditor, setShowEditor] = useState<boolean>(false);
   const [savedDefaultToast, setSavedDefaultToast] = useState<boolean>(false);
 
@@ -87,11 +93,14 @@ export const PriceQuotePrintModal: React.FC<PriceQuotePrintModalProps> = ({
   useEffect(() => {
     if (!quote) return;
 
-    // Load custom settings for 'quote' doc type if saved previously
+    // Load custom settings for 'quote' doc type if saved previously, fallback to global settings
     const savedConfig = settings?.printDocConfigs?.['quote'];
     if (savedConfig?.paperSize) setPaperSize(savedConfig.paperSize);
+    else if (settings?.defaultPrintPaperSize) setPaperSize(settings.defaultPrintPaperSize);
     if (savedConfig?.orientation) setOrientation(savedConfig.orientation);
+    else if (settings?.defaultPrintOrientation) setOrientation(settings.defaultPrintOrientation);
     if (savedConfig?.codePlacement) setCodePlacement(savedConfig.codePlacement);
+    else if (settings?.defaultPrintCodePlacement) setCodePlacement(settings.defaultPrintCodePlacement);
     if (savedConfig?.showLogo !== undefined) setShowLogo(savedConfig.showLogo);
     if (savedConfig?.showBarcode !== undefined) setShowBarcode(savedConfig.showBarcode);
     if (savedConfig?.showVietQR !== undefined) setShowVietQR(savedConfig.showVietQR);
@@ -163,6 +172,8 @@ export const PriceQuotePrintModal: React.FC<PriceQuotePrintModalProps> = ({
       printDocConfigs: {
         ...(settings.printDocConfigs || {}),
         quote: {
+          emptyRowsCount: 4,
+          signatureStyle: 'two_blocks',
           ...existing,
           paperSize,
           orientation,
@@ -239,92 +250,52 @@ export const PriceQuotePrintModal: React.FC<PriceQuotePrintModalProps> = ({
 
           {/* Middle: Format & Toolbar Controls */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* Paper Size Picker (A4, A5) */}
-            <div className="flex items-center bg-slate-800 rounded-xl p-0.5 border border-slate-700 text-xs">
-              {(['A4', 'A5'] as const).map((sz) => (
-                <button
-                  key={sz}
-                  type="button"
-                  id={`btn-quote-paper-size-${sz}`}
-                  onClick={() => setPaperSize(sz)}
-                  className={`px-3 py-1.5 rounded-lg font-black transition-all cursor-pointer ${
-                    paperSize === sz
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
-                  }`}
+            {/* Paper Size Dropdown */}
+            <div className="flex items-center bg-slate-800 rounded-xl px-2.5 py-1 border border-slate-700 text-xs">
+              <span className="text-[10px] text-slate-400 font-bold mr-1.5 whitespace-nowrap">Khổ giấy:</span>
+              <select
+                id="select-quote-paper-size"
+                value={paperSize}
+                onChange={(e) => setPaperSize(e.target.value as any)}
+                className="bg-transparent text-white font-bold text-xs focus:outline-none cursor-pointer"
+              >
+                <option value="A4" className="bg-slate-900 text-white">Khổ A4 (210×297)</option>
+                <option value="A5" className="bg-slate-900 text-white">Khổ A5 (148×210)</option>
+                <option value="K80" className="bg-slate-900 text-white">K80 (80mm)</option>
+                <option value="K58" className="bg-slate-900 text-white">K58 (58mm)</option>
+              </select>
+            </div>
+
+            {/* Orientation Dropdown (Portrait / Landscape) */}
+            {paperSize !== 'K80' && paperSize !== 'K58' && (
+              <div className="flex items-center bg-slate-800 rounded-xl px-2 py-1 border border-slate-700 text-xs">
+                <span className="text-[10px] text-slate-400 font-bold mr-1 whitespace-nowrap">Hướng:</span>
+                <select
+                  id="select-quote-orientation"
+                  value={orientation}
+                  onChange={(e) => setOrientation(e.target.value as any)}
+                  className="bg-transparent text-white font-bold text-xs focus:outline-none cursor-pointer"
                 >
-                  {sz}
-                </button>
-              ))}
-            </div>
+                  <option value="portrait" className="bg-slate-900 text-white">Dọc</option>
+                  <option value="landscape" className="bg-slate-900 text-white">Ngang</option>
+                </select>
+              </div>
+            )}
 
-            {/* Orientation (Portrait / Landscape) */}
-            <div className="flex items-center bg-slate-800 rounded-xl p-0.5 border border-slate-700 text-xs">
-              <button
-                type="button"
-                id="btn-quote-orientation-portrait"
-                onClick={() => setOrientation('portrait')}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${
-                  orientation === 'portrait'
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
+            {/* Code Placement Dropdown */}
+            <div className="flex items-center bg-slate-800 rounded-xl px-2.5 py-1 border border-slate-700 text-xs">
+              <span className="text-[10px] text-slate-400 font-bold mr-1.5 whitespace-nowrap">Vị trí mã:</span>
+              <select
+                id="select-quote-code-placement"
+                value={codePlacement}
+                onChange={(e) => setCodePlacement(e.target.value as any)}
+                className="bg-transparent text-white font-bold text-xs focus:outline-none cursor-pointer"
               >
-                Dọc
-              </button>
-              <button
-                type="button"
-                id="btn-quote-orientation-landscape"
-                onClick={() => setOrientation('landscape')}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${
-                  orientation === 'landscape'
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                Ngang
-              </button>
-            </div>
-
-            {/* Code Placement Selector */}
-            <div className="flex items-center bg-slate-800 rounded-xl p-0.5 border border-slate-700 text-xs">
-              <span className="text-[10px] text-slate-400 font-bold px-2">Vị trí mã:</span>
-              <button
-                type="button"
-                onClick={() => setCodePlacement('header')}
-                title="Mã vạch & Mã QR ở đầu trang"
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  codePlacement === 'header'
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                Đầu trang (Cân phiếu)
-              </button>
-              <button
-                type="button"
-                onClick={() => setCodePlacement('footer')}
-                title="Mã vạch & Mã QR ở chân trang"
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  codePlacement === 'footer'
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                Cuối trang (Đẹp)
-              </button>
-              <button
-                type="button"
-                onClick={() => setCodePlacement('both')}
-                title="Hiển thị cả ở đầu trang và chân trang"
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  codePlacement === 'both'
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                Cả 2
-              </button>
+                <option value="header" className="bg-slate-900 text-white">Đầu trang (Header)</option>
+                <option value="footer" className="bg-slate-900 text-white">Chân trang (Footer)</option>
+                <option value="both" className="bg-slate-900 text-white">Cả 2 vị trí</option>
+                <option value="none" className="bg-slate-900 text-white">Không in mã</option>
+              </select>
             </div>
 
             {/* Toggle Editor Drawer */}

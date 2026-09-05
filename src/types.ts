@@ -302,11 +302,14 @@ export interface StoreSettings {
   website?: string; // e.g. 'www.vitinhgiaphuc.com'
   defaultWarehouse?: string; // e.g. 'Kho Chính Gia Phúc Computer'
   defaultCreatorName?: string; // e.g. 'MR. THƠM'
+  representativeName?: string;
+  bankAccounts?: Array<{ bankName: string; accountNumber: string; accountHolder: string }>;
   warehouseList?: string[]; // Danh sách các kho
   storageLocations?: string[]; // Danh sách các vị trí lưu kho kệ/ô
   customCategories?: string[]; // Danh sách nhóm hàng bổ sung
   defaultPrintPaperSize?: PaperSize;
   defaultPrintOrientation?: 'portrait' | 'landscape';
+  defaultPrintCodePlacement?: 'header' | 'footer' | 'both' | 'none';
   defaultEmptyRowsCount?: number;
   defaultSignatureStyle?: 'two_blocks' | 'five_blocks';
   defaultShowVietQR?: boolean;
@@ -460,7 +463,7 @@ export interface PrintDocConfig {
   showBarcode?: boolean; // Bật/Tắt mã vạch số phiếu
   showDocQr?: boolean; // Bật/Tắt mã QR ERP tra cứu
   showBankInfo?: boolean; // Bật/Tắt STK & VietQR ngân hàng
-  codePlacement?: 'header' | 'footer' | 'both'; // Vị trí đặt mã vạch/QR
+  codePlacement?: 'header' | 'footer' | 'both' | 'none'; // Vị trí đặt mã vạch/QR
   signLeftLabel?: string; // Nhãn bên ký trái (VD: "Khách hàng / Người nhận", "Người giao hàng")
   signRightLabel?: string; // Nhãn bên ký phải (VD: "Người lập phiếu", "Đại diện bên bán")
   defaultWarehouse?: string; // Kho mặc định cho mẫu phiếu này

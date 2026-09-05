@@ -29,7 +29,15 @@ export const StockGoodsIssuePrintModal: React.FC<StockGoodsIssuePrintModalProps>
   onClose,
 }) => {
   const printRef = useRef<HTMLDivElement>(null);
-  const [paperSize, setPaperSize] = useState<'A4' | 'A5'>('A4');
+  const [paperSize, setPaperSize] = useState<'A4' | 'A5' | 'K80' | 'K58'>(
+    (settings?.defaultPrintPaperSize as any) || 'A4'
+  );
+
+  React.useEffect(() => {
+    if (settings?.defaultPrintPaperSize) {
+      setPaperSize(settings.defaultPrintPaperSize as any);
+    }
+  }, [settings]);
 
   const handlePrint = () => {
     requestAnimationFrame(() => {
@@ -70,23 +78,18 @@ export const StockGoodsIssuePrintModal: React.FC<StockGoodsIssuePrintModalProps>
           <div className="flex items-center space-x-2">
             <PrinterSelectDropdown />
             
-            <div className="flex items-center bg-slate-200 rounded-lg p-0.5 text-xs font-semibold">
-              <button
-                onClick={() => setPaperSize('A4')}
-                className={`px-2.5 py-1 rounded-md transition-all ${
-                  paperSize === 'A4' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'
-                }`}
+            <div className="flex items-center bg-slate-200 rounded-xl px-2.5 py-1 text-xs">
+              <span className="text-[10px] text-slate-600 font-bold mr-1.5 whitespace-nowrap">Khổ giấy:</span>
+              <select
+                value={paperSize}
+                onChange={(e) => setPaperSize(e.target.value as any)}
+                className="bg-transparent text-blue-800 font-bold text-xs focus:outline-none cursor-pointer"
               >
-                Khổ A4
-              </button>
-              <button
-                onClick={() => setPaperSize('A5')}
-                className={`px-2.5 py-1 rounded-md transition-all ${
-                  paperSize === 'A5' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'
-                }`}
-              >
-                Khổ A5
-              </button>
+                <option value="A4">Khổ A4</option>
+                <option value="A5">Khổ A5</option>
+                <option value="K80">K80 (80mm)</option>
+                <option value="K58">K58 (58mm)</option>
+              </select>
             </div>
 
             <button
@@ -110,8 +113,14 @@ export const StockGoodsIssuePrintModal: React.FC<StockGoodsIssuePrintModalProps>
         <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-100 flex justify-center">
           <div
             ref={printRef}
-            className={`bg-white text-slate-900 p-8 sm:p-10 shadow-lg border border-slate-200 print:shadow-none print:border-none print:p-0 ${
-              paperSize === 'A4' ? 'w-[210mm] min-h-[297mm]' : 'w-[148mm] min-h-[210mm]'
+            className={`bg-white text-slate-900 shadow-lg border border-slate-200 print:shadow-none print:border-none print:p-0 ${
+              paperSize === 'K58'
+                ? 'w-[58mm] min-h-auto p-2 text-[7pt]'
+                : paperSize === 'K80'
+                ? 'w-[80mm] min-h-auto p-3 text-[7.5pt]'
+                : paperSize === 'A4'
+                ? 'w-[210mm] min-h-[297mm] p-8 sm:p-10'
+                : 'w-[148mm] min-h-[210mm] p-6 sm:p-8 text-xs'
             }`}
           >
             {/* Header with Company info & Barcode */}

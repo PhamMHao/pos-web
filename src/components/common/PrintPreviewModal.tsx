@@ -83,19 +83,23 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
   children,
   onPrint,
 }) => {
-  const [paperSize, setPaperSize] = useState<PaperSize>(initialPaperSize);
-  const [orientation, setOrientation] = useState<PaperOrientation>(initialOrientation);
+  const [paperSize, setPaperSize] = useState<PaperSize>(
+    settings?.defaultPrintPaperSize || initialPaperSize || 'A4'
+  );
+  const [orientation, setOrientation] = useState<PaperOrientation>(
+    settings?.defaultPrintOrientation || initialOrientation || 'portrait'
+  );
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const printableRef = useRef<HTMLDivElement | null>(null);
 
   // Reset or initialize on open
   useEffect(() => {
     if (isOpen) {
-      setPaperSize(initialPaperSize);
-      setOrientation(initialOrientation);
+      setPaperSize(settings?.defaultPrintPaperSize || initialPaperSize || 'A4');
+      setOrientation(settings?.defaultPrintOrientation || initialOrientation || 'portrait');
       setZoomLevel(1);
     }
-  }, [isOpen, initialPaperSize, initialOrientation]);
+  }, [isOpen, initialPaperSize, initialOrientation, settings]);
 
   // Keyboard shortcuts (Ctrl+P, Esc, Ctrl +, Ctrl -)
   useEffect(() => {
@@ -249,77 +253,34 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
             </div>
           </div>
 
-          {/* Center: Paper Size & Orientation Toggler */}
-          <div className="flex items-center space-x-2 bg-slate-900 p-1 rounded-xl border border-slate-800">
-            {/* A4 Button */}
-            <button
-              type="button"
-              onClick={() => setPaperSize('A4')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                paperSize === 'A4' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              Khổ A4 (210×297)
-            </button>
-
-            {/* A5 Button */}
-            <button
-              type="button"
-              onClick={() => setPaperSize('A5')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                paperSize === 'A5' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              Khổ A5 (148×210)
-            </button>
-
-            {/* K80 Thermal Bill */}
-            <button
-              type="button"
-              onClick={() => setPaperSize('K80')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1 transition-all cursor-pointer ${
-                paperSize === 'K80' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Receipt className="w-3.5 h-3.5" />
-              <span>K80 (80mm)</span>
-            </button>
-
-            {/* K58 Thermal Bill */}
-            <button
-              type="button"
-              onClick={() => setPaperSize('K58')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1 transition-all cursor-pointer ${
-                paperSize === 'K58' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Receipt className="w-3.5 h-3.5" />
-              <span>K58 (58mm)</span>
-            </button>
+          {/* Center: Paper Size & Orientation Dropdowns */}
+          <div className="flex items-center space-x-2 bg-slate-900 px-2 py-1 rounded-xl border border-slate-800 text-xs">
+            <div className="flex items-center">
+              <span className="text-[11px] text-slate-400 font-bold mr-1.5 whitespace-nowrap">Khổ giấy:</span>
+              <select
+                value={paperSize}
+                onChange={(e) => setPaperSize(e.target.value as PaperSize)}
+                className="bg-transparent text-white font-bold text-xs focus:outline-none cursor-pointer"
+              >
+                <option value="A4" className="bg-slate-900 text-white">Khổ A4 (210×297)</option>
+                <option value="A5" className="bg-slate-900 text-white">Khổ A5 (148×210)</option>
+                <option value="K80" className="bg-slate-900 text-white">K80 (80mm)</option>
+                <option value="K58" className="bg-slate-900 text-white">K58 (58mm)</option>
+              </select>
+            </div>
 
             {/* Orientation Toggler (For A4 & A5 only) */}
             {paperSize !== 'K80' && paperSize !== 'K58' && (
-              <div className="flex items-center space-x-1 pl-2 border-l border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setOrientation('portrait')}
-                  className={`px-2 py-1 rounded text-[11px] font-semibold transition-all cursor-pointer ${
-                    orientation === 'portrait' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-300'
-                  }`}
-                  title="Hướng giấy Dọc"
+              <div className="flex items-center pl-2 border-l border-slate-800">
+                <span className="text-[11px] text-slate-400 font-bold mr-1.5 whitespace-nowrap">Hướng:</span>
+                <select
+                  value={orientation}
+                  onChange={(e) => setOrientation(e.target.value as PaperOrientation)}
+                  className="bg-transparent text-white font-bold text-xs focus:outline-none cursor-pointer"
                 >
-                  Dọc
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setOrientation('landscape')}
-                  className={`px-2 py-1 rounded text-[11px] font-semibold transition-all cursor-pointer ${
-                    orientation === 'landscape' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-300'
-                  }`}
-                  title="Hướng giấy Ngang"
-                >
-                  Ngang
-                </button>
+                  <option value="portrait" className="bg-slate-900 text-white">Dọc</option>
+                  <option value="landscape" className="bg-slate-900 text-white">Ngang</option>
+                </select>
               </div>
             )}
           </div>

@@ -94,7 +94,7 @@ export const PrintTemplateEditorModal: React.FC<PrintTemplateEditorModalProps> =
   const [showLogo, setShowLogo] = useState<boolean>(
     initialConfig?.showLogo !== undefined ? initialConfig.showLogo : defaultTemplate.showLogo
   );
-  const [codePlacement, setCodePlacement] = useState<'header' | 'footer' | 'both'>(
+  const [codePlacement, setCodePlacement] = useState<'header' | 'footer' | 'both' | 'none'>(
     initialConfig?.codePlacement || defaultTemplate.codePlacement
   );
   const [defaultWarehouse, setDefaultWarehouse] = useState<string>(
@@ -486,25 +486,19 @@ export const PrintTemplateEditorModal: React.FC<PrintTemplateEditorModalProps> =
                   <span>Cấu Hình Khổ Giấy & Bố Cục Trang</span>
                 </h4>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-slate-300 font-semibold mb-1">Khổ giấy in:</label>
-                    <div className="flex items-center bg-slate-900 rounded-xl p-1 border border-slate-700">
-                      {(['A4', 'A5', 'K80', 'K58'] as const).map((sz) => (
-                        <button
-                          key={sz}
-                          type="button"
-                          onClick={() => setPaperSize(sz)}
-                          className={`flex-1 py-1.5 rounded-lg font-bold text-xs transition-all ${
-                            paperSize === sz
-                              ? 'bg-blue-600 text-white shadow'
-                              : 'text-slate-400 hover:text-white'
-                          }`}
-                        >
-                          {sz}
-                        </button>
-                      ))}
-                    </div>
+                    <select
+                      value={paperSize}
+                      onChange={(e) => setPaperSize(e.target.value as any)}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold focus:border-blue-500 outline-none"
+                    >
+                      <option value="A4">Khổ A4 (210 x 297 mm)</option>
+                      <option value="A5">Khổ A5 (148 x 210 mm)</option>
+                      <option value="K80">Khổ K80 (80 mm)</option>
+                      <option value="K58">Khổ K58 (58 mm)</option>
+                    </select>
                   </div>
 
                   <div>
@@ -516,6 +510,20 @@ export const PrintTemplateEditorModal: React.FC<PrintTemplateEditorModalProps> =
                     >
                       <option value="portrait">Dọc (Portrait) - Tiêu chuẩn</option>
                       <option value="landscape">Ngang (Landscape) - Bảng rộng</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">Vị trí in Mã vạch / QR:</label>
+                    <select
+                      value={codePlacement}
+                      onChange={(e) => setCodePlacement(e.target.value as any)}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold focus:border-blue-500 outline-none"
+                    >
+                      <option value="header">Chỉ đầu trang (Header)</option>
+                      <option value="footer">Chỉ chân trang (Footer)</option>
+                      <option value="both">Cả đầu trang & chân trang</option>
+                      <option value="none">Không in mã (Ẩn)</option>
                     </select>
                   </div>
 

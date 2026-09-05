@@ -72,6 +72,7 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   ],
   defaultPrintPaperSize: 'A4',
   defaultPrintOrientation: 'portrait',
+  defaultPrintCodePlacement: 'header',
   defaultEmptyRowsCount: 6,
   eInvoiceSymbol: '1C26TGP',
 };

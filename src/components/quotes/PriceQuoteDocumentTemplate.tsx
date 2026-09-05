@@ -21,7 +21,7 @@ export interface PriceQuoteDocumentTemplateProps {
   signature?: DigitalSignatureMetadata | null;
   paperSize?: PaperSize;
   orientation?: 'portrait' | 'landscape';
-  codePlacement?: 'header' | 'footer' | 'both';
+  codePlacement?: 'header' | 'footer' | 'both' | 'none';
   showVietQR?: boolean;
   showBarcode?: boolean;
   showDigitalSignature?: boolean;
@@ -118,12 +118,11 @@ export const PriceQuoteDocumentTemplate: React.FC<PriceQuoteDocumentTemplateProp
   };
 
   const vietQrUrl = generateVietQRUrl({
-    bankId: bankConfig.bankName || 'MBBANK',
+    bankCode: bankConfig.bankName || 'MB',
     accountNo: bankConfig.accountNumber || '0985862609',
     accountName: bankConfig.accountHolder || 'PHAM NGOC THOM',
     amount: finalTotal,
-    memo: `TT BAO GIA ${quote.code}`,
-    template: 'compact',
+    description: `TT BAO GIA ${quote.code}`,
   });
 
   const isLandscape = orientation === 'landscape';

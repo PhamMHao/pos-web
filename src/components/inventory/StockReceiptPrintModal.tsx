@@ -32,9 +32,22 @@ export const StockReceiptPrintModal: React.FC<StockReceiptPrintModalProps> = ({
   onClose,
 }) => {
   const printRef = useRef<HTMLDivElement>(null);
-  const [paperSize, setPaperSize] = useState<'A4' | 'A5'>('A4');
-  const [codePlacement, setCodePlacement] = useState<'header' | 'footer' | 'both'>('header');
+  const [paperSize, setPaperSize] = useState<'A4' | 'A5' | 'K80' | 'K58'>(
+    (settings?.defaultPrintPaperSize as any) || 'A4'
+  );
+  const [codePlacement, setCodePlacement] = useState<'header' | 'footer' | 'both' | 'none'>(
+    settings?.defaultPrintCodePlacement || 'header'
+  );
   const [showGiaPhucModal, setShowGiaPhucModal] = useState<boolean>(false);
+
+  React.useEffect(() => {
+    if (settings?.defaultPrintPaperSize) {
+      setPaperSize(settings.defaultPrintPaperSize as any);
+    }
+    if (settings?.defaultPrintCodePlacement) {
+      setCodePlacement(settings.defaultPrintCodePlacement);
+    }
+  }, [settings]);
 
   const handlePrint = () => {
     requestAnimationFrame(() => {
@@ -101,57 +114,34 @@ export const StockReceiptPrintModal: React.FC<StockReceiptPrintModalProps> = ({
             </div>
 
             <div className="flex items-center space-x-2">
-              {/* Paper Size selector */}
-              <div className="flex items-center bg-slate-200 rounded-xl p-0.5 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setPaperSize('A4')}
-                  className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
-                    paperSize === 'A4' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-                  }`}
+              {/* Paper Size Dropdown */}
+              <div className="flex items-center bg-slate-200 rounded-xl px-2.5 py-1 text-xs">
+                <span className="text-[10px] text-slate-600 font-bold mr-1.5 whitespace-nowrap">Khổ giấy:</span>
+                <select
+                  value={paperSize}
+                  onChange={(e) => setPaperSize(e.target.value as any)}
+                  className="bg-transparent text-emerald-800 font-bold text-xs focus:outline-none cursor-pointer"
                 >
-                  Khổ A4
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaperSize('A5')}
-                  className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
-                    paperSize === 'A5' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Khổ A5
-                </button>
+                  <option value="A4">Khổ A4</option>
+                  <option value="A5">Khổ A5</option>
+                  <option value="K80">K80 (80mm)</option>
+                  <option value="K58">K58 (58mm)</option>
+                </select>
               </div>
 
-              {/* Code Placement Selector */}
-              <div className="flex items-center bg-slate-200 rounded-xl p-0.5 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setCodePlacement('header')}
-                  className={`px-2.5 py-1.5 rounded-lg font-bold text-[10px] transition-all ${
-                    codePlacement === 'header' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
-                  }`}
+              {/* Code Placement Dropdown */}
+              <div className="flex items-center bg-slate-200 rounded-xl px-2.5 py-1 text-xs">
+                <span className="text-[10px] text-slate-600 font-bold mr-1.5 whitespace-nowrap">Vị trí mã:</span>
+                <select
+                  value={codePlacement}
+                  onChange={(e) => setCodePlacement(e.target.value as any)}
+                  className="bg-transparent text-blue-800 font-bold text-xs focus:outline-none cursor-pointer"
                 >
-                  Đầu trang
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCodePlacement('footer')}
-                  className={`px-2.5 py-1.5 rounded-lg font-bold text-[10px] transition-all ${
-                    codePlacement === 'footer' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Cuối trang
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCodePlacement('both')}
-                  className={`px-2.5 py-1.5 rounded-lg font-bold text-[10px] transition-all ${
-                    codePlacement === 'both' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Cả 2
-                </button>
+                  <option value="header">Đầu trang</option>
+                  <option value="footer">Cuối trang</option>
+                  <option value="both">Cả 2 vị trí</option>
+                  <option value="none">Không in mã</option>
+                </select>
               </div>
 
               {/* Open Gia Phuc Excel Print Format */}
@@ -196,7 +186,11 @@ export const StockReceiptPrintModal: React.FC<StockReceiptPrintModalProps> = ({
             <div
               ref={printRef}
               className={`bg-white rounded-xl border border-slate-200 shadow-sm print:border-0 print:shadow-none font-serif text-slate-800 leading-relaxed ${
-                paperSize === 'A5'
+                paperSize === 'K58'
+                  ? 'paper-size-K58 text-[7pt] p-2 max-w-[58mm] mx-auto'
+                  : paperSize === 'K80'
+                  ? 'paper-size-K80 text-[7.5pt] p-3 max-w-[80mm] mx-auto'
+                  : paperSize === 'A5'
                   ? 'paper-size-A5-portrait text-[8pt] p-4 sm:p-6'
                   : 'paper-size-A4-portrait text-xs p-6 sm:p-10'
               }`}
