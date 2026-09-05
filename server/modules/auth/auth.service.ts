@@ -297,9 +297,9 @@ export class AuthService {
   // ===================== RBAC DATABASE OPERATIONS =====================
 
   static async getRoles() {
-    let roles = await prisma.rolePermission.findMany({
-      orderBy: { createdAt: "asc" },
-    });
+    let roles: any[] = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT * FROM [PhanQuyenVaiTro] ORDER BY [createdAt] ASC`
+    ).catch(() => []);
 
     if (roles.length === 0) {
       // Auto seed into database
@@ -311,22 +311,22 @@ export class AuthService {
           VALUES (${id}, ${r.roleKey}, ${r.roleNameVi}, ${r.description}, ${r.badgeColor}, ${r.gradient}, ${r.defaultTab}, ${r.permissions}, ${dt}, ${dt})
         `;
       }
-      roles = await prisma.rolePermission.findMany({
-        orderBy: { createdAt: "asc" },
-      });
+      roles = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT * FROM [PhanQuyenVaiTro] ORDER BY [createdAt] ASC`
+      ).catch(() => []);
     }
 
     return roles.map((r) => ({
       id: r.roleKey,
-      label: r.roleNameVi.split(" (")[0],
-      nameVi: r.roleNameVi,
+      label: r.roleNameVi ? r.roleNameVi.split(" (")[0] : r.roleKey,
+      nameVi: r.roleNameVi || r.roleKey,
       description: r.description || "",
       badgeColor: r.badgeColor || "bg-blue-500/20 text-blue-300 border-blue-500/40",
       gradient: r.gradient || "from-blue-600 to-indigo-600",
       defaultTab: r.defaultTab || "pos",
       permissions: (() => {
         try {
-          return JSON.parse(r.permissions);
+          return typeof r.permissions === 'string' ? JSON.parse(r.permissions) : (r.permissions || []);
         } catch {
           return [];
         }
@@ -335,9 +335,9 @@ export class AuthService {
   }
 
   static async getModules() {
-    let modules = await prisma.systemModule.findMany({
-      orderBy: { orderIndex: "asc" },
-    });
+    let modules: any[] = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT * FROM [DanhMucPhanHe] ORDER BY [orderIndex] ASC`
+    ).catch(() => []);
 
     if (modules.length === 0) {
       const dt = new Date();
@@ -347,9 +347,9 @@ export class AuthService {
           VALUES (${m.id}, ${m.label}, ${m.category}, ${m.description}, ${m.orderIndex}, ${dt}, ${dt})
         `;
       }
-      modules = await prisma.systemModule.findMany({
-        orderBy: { orderIndex: "asc" },
-      });
+      modules = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT * FROM [DanhMucPhanHe] ORDER BY [orderIndex] ASC`
+      ).catch(() => []);
     }
 
     return modules;

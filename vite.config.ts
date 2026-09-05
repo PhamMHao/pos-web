@@ -11,6 +11,9 @@ export default defineConfig(() => {
         '@': path.resolve(__dirname, '.'),
       },
     },
+    optimizeDeps: {
+      include: ['react', 'react-dom', 'lucide-react', 'recharts', 'axios'],
+    },
     server: {
       host: '0.0.0.0',
       allowedHosts: true,
