@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { HrController } from "./hr.controller";
+import { KpiController } from "./kpi.controller";
 import { validateRequest } from "../../core/middlewares/validateRequest";
 import {
   createEmployeeSchema,
@@ -50,5 +51,14 @@ router.put(
   HrController.updateLaborContract
 );
 router.delete("/contracts/:id", authenticate, HrController.deleteLaborContract);
+
+// KPI Evaluations
+router.get("/kpi-evaluations", KpiController.getEvaluations);
+router.get("/kpi-evaluations/:id", KpiController.getEvaluationById);
+router.post("/kpi-evaluations", KpiController.createEvaluation);
+router.put("/kpi-evaluations/:id", KpiController.updateEvaluation);
+router.post("/kpi-evaluations/:id/approve", KpiController.approveEvaluation);
+router.post("/kpi-evaluations/batch-approve", KpiController.batchApprove);
+router.post("/kpi-evaluations/seed", KpiController.seedEvaluations);
 
 export default router;

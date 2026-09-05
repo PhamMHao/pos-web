@@ -127,6 +127,7 @@ model Customer {
   returnOrders   ReturnOrder[]
   exchangeOrders ProductExchange[]
   debtLogs       CustomerDebtLog[]
+  contracts      CustomerContract[]
 
   @@map("KhachHang")
 }
@@ -159,6 +160,7 @@ model Order {
   paidAmount      Decimal     @db.Decimal(18, 2)
   changeAmount    Decimal     @default(0) @db.Decimal(18, 2)
   note            String?     @db.NVarChar(Max)
+  digitalSignature String?     @db.NVarChar(Max) // JSON chữ ký số CA
   shiftId         String?
   createdAt       DateTime    @default(now())
   completedAt     DateTime?
@@ -346,6 +348,7 @@ model PriceQuote {
   status          String           @default("draft") // 'draft'|'sent'|'approved'|'converted_to_order'|'completed'|'rejected'
   createdAt       DateTime         @default(now())
   notes           String?          @db.NVarChar(Max)
+  digitalSignature String?          @db.NVarChar(Max) // JSON chữ ký số CA
   items           PriceQuoteItem[]
 
   @@map("BaoGia")
@@ -671,6 +674,42 @@ model Employee {
   @@map("NhanVien")
 }
 
+model KpiEvaluationRecord {
+  id                     String    @id @default(uuid())
+  employeeId             String
+  employeeCode           String
+  employeeName           String
+  role                   String
+  department             String
+  period                 String    // 'Tháng 02/2026', 'Quý 1/2026'
+  evaluationDate         DateTime  @default(now())
+  criteriaJson           String    @db.NVarChar(Max)
+  selfTotalScore         Decimal   @db.Decimal(5, 2)
+  managerTotalScore      Decimal   @db.Decimal(5, 2)
+  finalScore             Decimal   @db.Decimal(5, 2)
+  rank                   String    // 'A+', 'A', 'B', 'C', 'D'
+  baseSalary             Decimal   @db.Decimal(18, 2)
+  salesRevenue           Decimal   @default(0) @db.Decimal(18, 2)
+  commissionRate         Decimal   @default(0) @db.Decimal(5, 2)
+  commissionAmount       Decimal   @default(0) @db.Decimal(18, 2)
+  performanceBonusRate   Decimal   @default(0) @db.Decimal(5, 2)
+  performanceBonus       Decimal   @default(0) @db.Decimal(18, 2)
+  attendanceBonus        Decimal   @default(0) @db.Decimal(18, 2)
+  initiativeBonus        Decimal   @default(0) @db.Decimal(18, 2)
+  totalGrossPayout       Decimal   @default(0) @db.Decimal(18, 2)
+  employeeStrengths      String?   @db.NVarChar(Max)
+  employeeImprovements   String?   @db.NVarChar(Max)
+  developmentPlan        String?   @db.NVarChar(Max)
+  directorApprovalStatus String    @default("pending") // 'pending' | 'approved' | 'rejected'
+  approvedBy             String?
+  approvedAt             DateTime?
+  digitalSignature       String?   @db.NVarChar(Max)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  @@map("DanhGiaKPI")
+}
+
 // 13. KẾ TOÁN, KHUYẾN MÃI, CẢNH BÁO FRAUD & CÀI ĐẶT
 model AccountingRecord {
   id            String   @id @default(uuid())
@@ -804,6 +843,9 @@ model PurchaseOrder {
   paymentStatus        String              @default("unpaid") // 'unpaid'|'partial'|'paid'
   paymentMethod        String              @default("transfer")
   notes                String?             @db.NVarChar(Max)
+  projectId            String?
+  projectCode          String?
+  projectName          String?
   createdAt            DateTime            @default(now())
   updatedAt            DateTime            @updatedAt
   items                PurchaseOrderItem[]
@@ -1451,6 +1493,17 @@ model EnterpriseProject {
   linkedDeviceCount Int      @default(0)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+  tasks                ProjectTask[]
+  materialTickets      ProjectMaterialTicket[]
+  members              ProjectMember[]
+  budgetItems          ProjectBudgetItem[]
+  actualExpenses       ProjectActualExpense[]
+  billingMilestones    ProjectBillingMilestone[]
+  handoverCertificates ProjectHandoverCertificate[]
+  dailySiteDiaries     ProjectDailySiteDiary[]
+  variationOrders      ProjectVariationOrder[]
+  stockReservations    ProjectStockReservation[]
+  contracts            CustomerContract[]
 
   @@map("DuAnDoanhNghiep")
 }
@@ -1487,3 +1540,699 @@ model EmailTemplate {
 
   @@map("MauEmail")
 }
+
+// ==========================================
+// 19. QUẢN LÝ DỰ ÁN & CÔNG VIỆC THI CÔNG (PROJECT & TASK MANAGEMENT)
+// ==========================================
+
+// 19.1 THÀNH VIÊN BAN DỰ ÁN
+model ProjectMember {
+  id            String            @id @default(uuid())
+  projectId     String
+  project       EnterpriseProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  employeeId    String
+  employeeName  String
+  roleInProject String           // 'Chỉ huy trưởng' | 'Giám sát kỹ thuật' | 'Kỹ thuật viên' | 'Kế toán công trình'
+  phone         String?
+  assignedDate  DateTime          @default(now())
+
+  @@map("ThanhVienDuAn")
+}
+
+// 19.2 CÔNG VIỆC DỰ ÁN / CÔNG TRÌNH
+model ProjectTask {
+  id               String                 @id @default(uuid())
+  code             String                 @unique // e.g. CV-2026-0001
+  projectId        String
+  project          EnterpriseProject      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parentTaskId     String?
+  parentTask       ProjectTask?           @relation("SubTasks", fields: [parentTaskId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  subTasks         ProjectTask[]          @relation("SubTasks")
+  
+  title            String
+  description      String?                @db.NVarChar(Max)
+  phase            String?                // 'Khảo sát' | 'Thi công thô' | 'Kéo cáp & Lắp đặt' | 'Cấu hình & Test' | 'Nghiệm thu'
+  priority         String                 @default("normal") // 'low' | 'normal' | 'high' | 'urgent'
+  status           String                 @default("todo")   // 'todo' | 'assigned' | 'in_progress' | 'review' | 'completed' | 'blocked' | 'cancelled'
+  progressPercent  Int                    @default(0) // 0 -> 100
+  
+  // Phân quyền & Nhân sự phụ trách
+  assignerId       String?
+  assignerName     String?                // Người giao việc
+  assigneeId       String?
+  assigneeName     String?                // Người phụ trách chính
+  collaborators    String?                @db.NVarChar(Max) // JSON Array các nhân sự phối hợp
+  departmentId     String?
+  departmentName   String?                // Phòng ban / Tổ đội
+  
+  // Tiến độ trọng số & Sửa chữa (Rework)
+  weightedSteps    String?                @db.NVarChar(Max) // JSON Array các bước trọng số [{ id, name, weight, isCompleted, completedAt }]
+  reworkReason     String?                @db.NVarChar(Max) // Lý do KCS / PM từ chối yêu cầu sửa chữa
+  reworkNotes      String?                @db.NVarChar(Max) // Báo cáo giải trình khắc phục của kỹ thuật viên
+  
+  // Kế hoạch thời gian
+  startDate        DateTime?
+  dueDate          DateTime?              // Hạn chót
+  completedDate    DateTime?
+  estimatedHours   Decimal?               @db.Decimal(8, 2)
+  actualHours      Decimal?               @db.Decimal(8, 2)
+  reminderSetting  String?                @default("before_due_1d") // 'none' | 'daily' | 'before_due_1d' | 'before_due_2h'
+  isMilestone      Boolean                @default(false)
+  isCriticalPath   Boolean                @default(false)
+  
+  // Quan hệ
+  progressLogs     TaskProgressLog[]
+  approvals        TaskApproval[]
+  materialDemands  TaskMaterialDemand[]
+  materialTickets  ProjectMaterialTicket[]
+  dependencies     TaskDependency[]       @relation("TaskDependsOn")
+  dependentTasks   TaskDependency[]       @relation("TaskPrerequisites")
+
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  @@index([projectId])
+  @@index([status])
+  @@index([assigneeId])
+  @@map("CongViecDuAn")
+}
+
+// 19.3 NHẬT KÝ BÁO CÁO TIẾN ĐỘ THI CÔNG
+model TaskProgressLog {
+  id              String      @id @default(uuid())
+  taskId          String
+  task            ProjectTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  updatedBy       String
+  previousPercent Int
+  newPercent      Int
+  statusChange    String?     // Trạng thái mới nếu có thay đổi
+  workLogContent  String      @db.NVarChar(Max) // Nội dung công việc đã làm
+  issuesFaced     String?     @db.NVarChar(Max) // Khó khăn / vướng mắc công trường
+  attachments     String?     @db.NVarChar(Max) // JSON Array link ảnh/tài liệu công trường
+  createdAt       DateTime    @default(now())
+
+  @@index([taskId])
+  @@map("NhatKyTienDoCongViec")
+}
+
+// 19.4 BIÊN BẢN NGHIỆM THU & KÝ DUYỆT (HIERARCHICAL RBAC 4 CẤP)
+model TaskApproval {
+  id                   String      @id @default(uuid())
+  taskId               String
+  task                 ProjectTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  approvalCode         String      @unique // e.g. NT-2026-0001
+  level                Int         @default(2) // 2: Giám sát KCS (Hạng 30) | 3: Chỉ huy trưởng (Hạng 60) | 4: Giám đốc (Hạng 100)
+  levelName            String?     // 'Cấp 2 - Giám sát KCS' | 'Cấp 3 - Chỉ huy trưởng' | 'Cấp 4 - Giám đốc'
+  reviewerId           String?
+  reviewerName         String      // Người kiểm tra / nghiệm thu
+  reviewerRole         String      // 'Giám sát KCS / QA-QC' | 'Quản lý dự án / Chỉ huy trưởng' | 'Giám đốc / Ban Lãnh Đạo'
+  status               String      @default("pending") // 'pending' | 'approved' | 'rejected'
+  qualityRating        Int?        @default(5) // 1 - 5 sao
+  reviewNotes          String?     @db.NVarChar(Max)
+  punchList            String?     @db.NVarChar(Max) // Các điểm cần sửa lại nếu reject
+  signatureData        String?     @db.NVarChar(Max) // Chữ ký số Base64 (nếu vẽ)
+  approvalMethod       String?     @default("pin") // 'pin' | 'pki_ca' | 'drawing'
+  pinCodeVerified      Boolean?    @default(false)
+  pkiCertificateSerial String?     // Serial chứng thư số PKI
+  pkiSignatureHash     String?     // Mã băm SHA-256 bảo mật
+  signedAt             DateTime?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  @@index([taskId])
+  @@index([level])
+  @@map("BienBanNghiemThuCongViec")
+}
+
+// 19.5 ĐỊNH MỨC NGUYÊN VẬT LIỆU CẦN CHO CÔNG VIỆC (BOM DỰ ÁN)
+model TaskMaterialDemand {
+  id                 String      @id @default(uuid())
+  taskId             String
+  task               ProjectTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  productId          String
+  productSku         String
+  productName        String
+  unit               String
+  estimatedQuantity  Decimal     @db.Decimal(18, 2)
+  actualUsedQuantity Decimal     @default(0) @db.Decimal(18, 2)
+  unitPrice          Decimal     @db.Decimal(18, 2)
+  note               String?     @db.NVarChar(Max)
+
+  @@index([taskId])
+  @@map("DinhMucVatTuCongViec")
+}
+
+// 19.6 PHIẾU ĐIỀU ĐỘNG VẬT TƯ CÔNG TRÌNH (MƯỢN - TRẢ - QUYẾT TOÁN BÁN HÀNG)
+model ProjectMaterialTicket {
+  id                 String                      @id @default(uuid())
+  code               String                      @unique // e.g. VT-DA-2026-0001
+  projectId          String
+  project            EnterpriseProject           @relation(fields: [projectId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  taskId             String?
+  task               ProjectTask?                @relation(fields: [taskId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ticketType         String                      // 'borrow' (Mượn đi thi công) | 'return' (Hoàn trả thừa/thu hồi) | 'settle_sale' (Quyết toán bán hàng)
+  warehouseId        String?
+  warehouseName      String                      @default("Kho Chính")
+  requesterName      String                      // Nhân viên kỹ thuật nhận vật tư
+  requesterId        String?
+  approverName       String?                     // Thủ kho / Quản lý duyệt
+  status             String                      @default("pending") // 'pending' | 'approved' | 'in_use' | 'returned' | 'converted_order' | 'cancelled'
+  linkedOrderCode    String?                     // Mã đơn hàng POS nếu đã chuyển đổi quyết toán
+  totalItems         Int                         @default(0)
+  totalCost          Decimal                     @default(0) @db.Decimal(18, 2)
+  totalAmount        Decimal                     @default(0) @db.Decimal(18, 2)
+  borrowDate         DateTime                    @default(now())
+  expectedReturnDate DateTime?
+  actualReturnDate   DateTime?
+  notes              String?                     @db.NVarChar(Max)
+  createdAt          DateTime                    @default(now())
+  updatedAt          DateTime                    @updatedAt
+  items              ProjectMaterialTicketItem[]
+
+  @@index([projectId])
+  @@index([ticketType])
+  @@index([status])
+  @@map("PhieuVatTuCongTrinh")
+}
+
+model ProjectMaterialTicketItem {
+  id            String                @id @default(uuid())
+  ticketId      String
+  ticket        ProjectMaterialTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  productId     String
+  sku           String
+  name          String
+  unit          String
+  requestedQty  Decimal               @db.Decimal(18, 2)
+  dispatchedQty Decimal               @default(0) @db.Decimal(18, 2)
+  returnedQty   Decimal               @default(0) @db.Decimal(18, 2)
+  installedQty  Decimal               @default(0) @db.Decimal(18, 2) // Số lượng đã lắp đặt chính thức
+  costPrice     Decimal               @db.Decimal(18, 2)
+  salePrice     Decimal               @db.Decimal(18, 2)
+  serials       String?               @db.NVarChar(Max) // JSON Array Serial/IMEI thiết bị
+
+  @@map("ChiTietVatTuCongTrinh")
+}
+
+// ==========================================
+// 19.7 PHỤ THUỘC TIẾN ĐỘ CÔNG VIỆC (TASK DEPENDENCIES / CPM GANTT)
+// ==========================================
+model TaskDependency {
+  id              String      @id @default(uuid())
+  taskId          String
+  task            ProjectTask @relation("TaskDependsOn", fields: [taskId], references: [id], onDelete: Cascade)
+  dependsOnTaskId String
+  dependsOnTask   ProjectTask @relation("TaskPrerequisites", fields: [dependsOnTaskId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  type            String      @default("FS") // 'FS' | 'SS' | 'FF' | 'SF'
+  lagDays         Int         @default(0)
+  createdAt       DateTime    @default(now())
+
+  @@index([taskId])
+  @@index([dependsOnTaskId])
+  @@map("PhuThuocCongViec")
+}
+
+// ==========================================
+// 19.8 DỰ TOÁN CHI PHÍ ĐA YẾU TỐ (COST BREAKDOWN STRUCTURE - CBS)
+// ==========================================
+model ProjectBudgetItem {
+  id                 String                 @id @default(uuid())
+  projectId          String
+  project            EnterpriseProject      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  category           String                 // 'material' | 'labor' | 'machinery' | 'subcontractor' | 'overheads'
+  itemName           String
+  unit               String                 @default("Cái")
+  estimatedQty       Decimal                @default(1) @db.Decimal(18, 2)
+  unitRate           Decimal                @default(0) @db.Decimal(18, 2)
+  totalEstimatedCost Decimal                @default(0) @db.Decimal(18, 2)
+  notes              String?                @db.NVarChar(Max)
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  actualExpenses     ProjectActualExpense[]
+
+  @@index([projectId])
+  @@index([category])
+  @@map("DuAnDuToanChiPhi")
+}
+
+// ==========================================
+// 19.9 CHI PHÍ PHÁT SINH THỰC TẾ DỰ ÁN (PROJECT ACTUAL EXPENSES)
+// ==========================================
+model ProjectActualExpense {
+  id           String             @id @default(uuid())
+  projectId    String
+  project      EnterpriseProject  @relation(fields: [projectId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  budgetItemId String?
+  budgetItem   ProjectBudgetItem? @relation(fields: [budgetItemId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  expenseCode  String             @unique // CP-DA-2026-0001
+  category     String             // 'material' | 'labor' | 'machinery' | 'subcontractor' | 'overheads'
+  amount       Decimal            @db.Decimal(18, 2)
+  spentDate    DateTime           @default(now())
+  payee        String             // Người thụ hưởng / Nhà cung cấp
+  invoiceRef   String?            // Số hóa đơn / phiếu chi tham chiếu
+  description  String             @db.NVarChar(Max)
+  recordedBy   String
+  createdAt    DateTime           @default(now())
+
+  @@index([projectId])
+  @@index([category])
+  @@map("DuAnChiPhiThucTe")
+}
+
+// ==========================================
+// 19.10 GIỮ HÀNG KHO ĐÍCH DANH DỰ ÁN (PROJECT STOCK RESERVATION)
+// ==========================================
+model ProjectStockReservation {
+  id          String            @id @default(uuid())
+  projectId   String
+  project     EnterpriseProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  productId   String
+  sku         String
+  productName String
+  reservedQty Decimal           @db.Decimal(18, 2)
+  status      String            @default("reserved") // 'reserved' | 'dispatched' | 'cancelled'
+  notes       String?           @db.NVarChar(Max)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([projectId])
+  @@map("GiuHangKhoDuAn")
+}
+
+// ==========================================
+// 19.11 TIẾN ĐỘ THU TIỀN THEO ĐỢT & BẢO HÀNH (BILLING SCHEDULE & RETENTION)
+// ==========================================
+model ProjectBillingMilestone {
+  id                   String            @id @default(uuid())
+  projectId            String
+  project              EnterpriseProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  milestoneCode        String            // MS-01
+  milestoneName        String            // 'Tạm ứng 30%' | 'Nghiệm thu Đợt 1 40%' | 'Bàn giao 25%' | 'Bảo hành 5%'
+  percentage           Decimal           @db.Decimal(5, 2) // 30.00
+  plannedAmount        Decimal           @db.Decimal(18, 2)
+  actualInvoicedAmount Decimal           @default(0) @db.Decimal(18, 2)
+  paidAmount           Decimal           @default(0) @db.Decimal(18, 2)
+  dueDate              DateTime?
+  status               String            @default("pending") // 'pending' | 'invoiced' | 'paid' | 'overdue'
+  isRetention          Boolean           @default(false)
+  retentionReleaseDate DateTime?
+  notes                String?           @db.NVarChar(Max)
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  @@index([projectId])
+  @@map("TienDoThanhToanDuAn")
+}
+
+// ==========================================
+// 19.12 BIÊN BẢN NGHIỆM THU KHỐI LƯỢNG A-B (HANDOVER CERTIFICATES)
+// ==========================================
+model ProjectHandoverCertificate {
+  id                   String            @id @default(uuid())
+  projectId            String
+  project              EnterpriseProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  certificateCode      String            @unique // BB-AB-2026-0001
+  title                String
+  handoverDate         DateTime          @default(now())
+  partyARepresentative String            // Đại diện Chủ đầu tư / Khách hàng
+  partyAPosition       String?
+  partyBRepresentative String            // Đại diện Nhà thầu GP-ERP
+  partyBPosition       String?
+  content              String            @db.NVarChar(Max)
+  acceptedValue        Decimal           @db.Decimal(18, 2)
+  status               String            @default("approved") // 'draft' | 'signed' | 'approved'
+  signatureA           String?           @db.NVarChar(Max)
+  signatureB           String?           @db.NVarChar(Max)
+  notes                String?           @db.NVarChar(Max)
+  createdAt            DateTime          @default(now())
+
+  @@index([projectId])
+  @@map("BienBanNghiemThuAB")
+}
+
+// ==========================================
+// 19.13 NHẬT KÝ CÔNG TRƯỜNG HÀNG NGÀY (DAILY SITE DIARY)
+// ==========================================
+model ProjectDailySiteDiary {
+  id                String            @id @default(uuid())
+  projectId         String
+  project           EnterpriseProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  diaryDate         DateTime          @default(now())
+  weather           String            @default("Nắng ráo") // 'Nắng ráo' | 'Mưa gián đoạn' | 'Mưa lớn ngừng thi công' | 'Âm u'
+  temperature       String?           // '32°C'
+  workforceCount    Int               @default(1) // Số lượng thợ
+  machineryOnSite   String?           @db.NVarChar(Max) // Máy móc thiết bị
+  tasksExecuted     String            @db.NVarChar(Max) // Hạng mục đã triển khai
+  issuesFaced       String?           @db.NVarChar(Max) // Khó khăn hiện trường
+  safetyHseStatus   String            @default("An toàn 100%")
+  photos            String?           @db.NVarChar(Max) // JSON Array ảnh công trường
+  recordedBy        String
+  createdAt         DateTime          @default(now())
+
+  @@index([projectId])
+  @@index([diaryDate])
+  @@map("NhatKyCongTruong")
+}
+
+// ==========================================
+// 19.14 QUẢN LÝ PHÁT SINH NGOÀI HỢP ĐỒNG (VARIATION ORDERS - VO)
+// ==========================================
+model ProjectVariationOrder {
+  id                 String            @id @default(uuid())
+  projectId          String
+  project            EnterpriseProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  voCode             String            @unique // VO-2026-0001
+  title              String
+  reason             String            @db.NVarChar(Max)
+  requestedBy        String            // 'Chủ đầu tư Bên A' | 'Tư vấn giám sát'
+  costAdjustment     Decimal           @db.Decimal(18, 2) // Giá trị phát sinh (+ tăng, - giảm)
+  timeAdjustmentDays Int               @default(0) // Số ngày gia hạn thêm
+  status             String            @default("submitted") // 'draft' | 'submitted' | 'approved' | 'rejected'
+  approvedDate       DateTime?
+  approvedBy         String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  @@index([projectId])
+  @@map("PhatSinhCongTrinhVO")
+}
+
+// 22. CẤU HÌNH CỔNG CHỮ KÝ SỐ CA (VIETTEL, VNPT, FPT, MISA, USB TOKEN)
+model CaGatewayConfigRecord {
+  id                 String   @id @default(uuid())
+  provider           String   @unique // 'viettel_smartca' | 'vnpt_smartca' | 'fpt_esign' | 'misa_esign' | 'bkav_ca' | 'usb_token'
+  name               String
+  tagline            String?
+  endpointUrl        String
+  clientId           String?
+  clientSecretMasked String?
+  clientSecret       String?
+  taxCode            String?
+  environment        String   @default("sandbox") // 'sandbox' | 'production'
+  isActive           Boolean  @default(true)
+  pingLatencyMs      Int      @default(35)
+  lastPingStatus     String   @default("online")
+  lastPingAt         DateTime @default(now())
+  description        String?  @db.NVarChar(Max)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("CauHinhCongCA")
+}
+
+// ==========================================
+// 23. QUY TRÌNH PHÊ DUYỆT TUẦN TỰ LIÊN PHÒNG BAN (SEQUENTIAL MULTI-TIER APPROVAL WORKFLOW)
+// ==========================================
+
+// 23.1 MẪU QUY TRÌNH PHÊ DUYỆT CHUẨN
+model ApprovalWorkflowTemplate {
+  id          String                         @id @default(uuid())
+  code        String                         @unique // e.g. 'WF-PR', 'WF-PO', 'WF-GRN', 'WF-ISSUE', 'WF-PROD', 'WF-DELIVERY', 'WF-ACC', 'WF-CASH'
+  name        String                         // e.g. 'Quy Trình Duyệt Đơn Mua Hàng PO'
+  moduleType  String                         // 'purchase_request' | 'purchase_order' | 'goods_receipt' | 'goods_issue' | 'work_order' | 'delivery' | 'accounting_audit' | 'cash_settlement'
+  department  String?                        // e.g. 'Phòng Mua Hàng & Cung Ứng'
+  description String?                        @db.NVarChar(Max)
+  isActive    Boolean                        @default(true)
+  createdAt   DateTime                       @default(now())
+  updatedAt   DateTime                       @updatedAt
+  steps       ApprovalWorkflowTemplateStep[]
+  processes   SequentialApprovalProcess[]
+
+  @@map("MauQuyTrinhPheDuyet")
+}
+
+// 23.2 CÁC BƯỚC CỦA MẪU QUY TRÌNH
+model ApprovalWorkflowTemplateStep {
+  id               String                   @id @default(uuid())
+  templateId       String
+  template         ApprovalWorkflowTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  stepOrder        Int                      // 1, 2, 3...
+  stepName         String                   // e.g. 'Bước 1: Trưởng Bộ Phận Xác Nhận'
+  requiredRole     String                   // 'manager' | 'accountant' | 'warehouse' | 'admin' | 'technician' | 'sales'
+  assignedUserName String?                  // Tên chức danh / Nhân sự mặc định
+  minAmount        Decimal?                 @default(0) @db.Decimal(18, 2) // Hạn mức tối thiểu kích hoạt bước
+  maxAmount        Decimal?                 @db.Decimal(18, 2)
+  slaHours         Int                      @default(24) // Thời hạn cam kết hoàn thành (giờ)
+  canDelegate      Boolean                  @default(true)
+  signMethod       String                   @default("pin") // 'pin' | 'pki_ca' | 'drawing' | 'any'
+  description      String?                  @db.NVarChar(Max)
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  @@index([templateId])
+  @@map("CacBuocMauQuyTrinh")
+}
+
+// 23.3 PHIẾU TRÌNH KÝ PHÊ DUYỆT THỰC TẾ
+model SequentialApprovalProcess {
+  id                String                    @id @default(uuid())
+  processCode       String                    @unique // e.g. 'TK-2026-0001'
+  templateId        String?
+  template          ApprovalWorkflowTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  moduleType        String                    // 'purchase_request' | 'purchase_order' | 'goods_receipt' | 'goods_issue' | 'work_order' | 'delivery' | 'accounting_audit' | 'cash_settlement'
+  title             String                    // Tiêu đề phiếu trình ký
+  referenceDocId    String?                   // ID chứng từ liên quan nếu có
+  referenceDocCode  String                    // Mã chứng từ (PR-001, PO-2026-01, PNK-002, XK-003, LSX-001, VC-005, KT-008, PC-009)
+  departmentName    String                    // Phòng ban trình duyệt
+  requesterId       String?                   // ID người lập
+  requesterName     String                    // Tên người lập tờ trình
+  totalAmount       Decimal                   @default(0) @db.Decimal(18, 2) // Giá trị tài chính nếu có
+  priority          String                    @default("normal") // 'low' | 'normal' | 'high' | 'urgent'
+  currentStepNumber Int                       @default(1) // Bước đang active (1, 2, 3...)
+  totalSteps        Int                       @default(2) // Tổng số bước cần duyệt
+  status            String                    @default("in_progress") // 'in_progress' | 'approved' | 'rejected' | 'rework' | 'cancelled'
+  urgencyReason     String?                   @db.NVarChar(Max) // Lý do gấp nếu khẩn cấp
+  summaryNotes      String?                   @db.NVarChar(Max) // Tóm tắt nội dung thẩm định
+  attachedFiles     String?                   @db.NVarChar(Max) // JSON Array link tài liệu/file đính kèm
+  slaDeadline       DateTime?                 // Hạn chót toàn bộ quy trình
+  isOverdue         Boolean                   @default(false)
+  completedAt       DateTime?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  steps             SequentialApprovalStep[]
+  auditLogs         ApprovalAuditLog[]
+
+  @@index([moduleType])
+  @@index([status])
+  @@index([referenceDocCode])
+  @@index([createdAt])
+  @@map("PhieuTrinhKyPheDuyet")
+}
+
+// 23.4 TỪNG BƯỚC DUYỆT TUẦN TỰ CỦA PHIẾU
+model SequentialApprovalStep {
+  id                   String                    @id @default(uuid())
+  processId            String
+  process              SequentialApprovalProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+  stepOrder            Int                       // 1, 2, 3...
+  stepName             String                    // Tên bước duyệt
+  requiredRole         String                    // Vai trò cần duyệt ('manager' | 'accountant' | 'warehouse' | 'admin' | 'technician' | 'sales')
+  assignedUserId       String?
+  assignedUserName     String                    // Người có thẩm quyền duyệt
+  delegatedToId        String?                   // Người được ủy quyền
+  delegatedToName      String?
+  status               String                    @default("locked") // 'locked' | 'waiting' | 'approved' | 'rejected' | 'rework'
+  slaHours             Int                       @default(24) // Thời hạn xử lý bước (giờ)
+  slaDeadline          DateTime?                 // Hạn chót của riêng bước này
+  isOverdue            Boolean                   @default(false)
+  actedAt              DateTime?                 // Thời điểm ký/duyệt
+  actedBy              String?                   // Tên người thực tế đã ký
+  decision             String?                   // 'approved' | 'rejected' | 'rework'
+  reviewNotes          String?                   @db.NVarChar(Max) // Ý kiến phê duyệt / thẩm tra
+  reworkRequirements   String?                   @db.NVarChar(Max) // Yêu cầu giải trình/sửa đổi nếu trả về
+  signMethod           String?                   @default("pin") // 'pin' | 'pki_ca' | 'drawing'
+  signatureData        String?                   @db.NVarChar(Max) // Chữ ký vẽ Base64 hoặc chuỗi chữ ký số
+  pkiCertificateSerial String?                   // Số serial chứng thư số
+  pkiSignatureHash     String?                   // Mã băm SHA-256
+  caProvider           String?                   // 'viettel_smartca' | 'vnpt_smartca' | 'fpt_esign' | 'usb_token'
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+
+  @@index([processId])
+  @@index([stepOrder])
+  @@index([status])
+  @@map("ChiTietBuocPheDuyet")
+}
+
+// 23.5 NHẬT KÝ KIỂM TOÁN VẾT PHÊ DUYỆT (AUDIT TRAIL)
+model ApprovalAuditLog {
+  id          String                    @id @default(uuid())
+  processId   String
+  process     SequentialApprovalProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+  action      String                    // 'create' | 'step_unlocked' | 'approve' | 'reject' | 'rework' | 'remind' | 'delegate'
+  stepOrder   Int?
+  actorName   String
+  actorRole   String?
+  note        String?                   @db.NVarChar(Max)
+  ipAddress   String?                   @default("127.0.0.1")
+  timestamp   DateTime                  @default(now())
+
+  @@index([processId])
+  @@index([timestamp])
+  @@map("NhatKyPheDuyet")
+}
+
+// ==========================================
+// 24. HỢP ĐỒNG KINH TẾ KHÁCH HÀNG & DOANH NGHIỆP (CUSTOMER ECONOMIC CONTRACTS)
+// ==========================================
+
+model CustomerContract {
+  id                     String                      @id @default(uuid())
+  contractNumber         String                      @unique // e.g. HĐKT-2026/GP-0001
+  title                  String
+  contractType           String                      @default("commercial_goods") // 'commercial_goods' | 'turnkey_project' | 'maintenance_service'
+  
+  // Bên A: Khách hàng / Doanh nghiệp đối tác
+  customerId             String?
+  customer               Customer?                   @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customerName           String
+  customerTaxCode        String?
+  customerRepresentative String?
+  customerPosition       String?
+  customerAddress        String?
+  customerPhone          String?
+  customerEmail          String?
+  customerBankName       String?
+  customerBankAccount    String?
+  
+  // Bên B: Đại diện công ty GP-ERP
+  companyRepresentative  String?                     @default("Phạm Ngọc Thơm")
+  companyPosition        String?                     @default("Tổng Giám Đốc")
+  
+  // Liên kết Báo giá & Dự án
+  quoteId                String?
+  quoteCode              String?
+  projectId              String?
+  project                EnterpriseProject?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  projectCode            String?
+  
+  // Giá trị tài chính & Thuế
+  totalAmount            Decimal                     @db.Decimal(18, 2)
+  discountPercent        Decimal                     @default(0) @db.Decimal(5, 2)
+  taxRate                Decimal                     @default(10) @db.Decimal(5, 2)
+  taxAmount              Decimal                     @default(0) @db.Decimal(18, 2)
+  finalTotal             Decimal                     @db.Decimal(18, 2)
+  depositAmount          Decimal                     @default(0) @db.Decimal(18, 2) // Tạm ứng
+  paidAmount             Decimal                     @default(0) @db.Decimal(18, 2) // Lũy kế đã thu
+  remainingAmount        Decimal                     @default(0) @db.Decimal(18, 2) // Còn lại
+  
+  // Thời hạn & Bảo hành
+  signedDate             DateTime?
+  effectiveDate          DateTime?
+  expiryDate             DateTime?
+  warrantyMonths         Int                         @default(12)
+  termsAndConditions     String?                     @db.NVarChar(Max)
+  
+  // Trạng thái dòng đời hợp đồng
+  status                 String                      @default("draft") // 'draft' | 'internal_review' | 'sent_to_customer' | 'active' | 'in_delivery' | 'accepted' | 'liquidated' | 'completed' | 'cancelled'
+  approvalLevel          Int                         @default(1) // 1 (<50tr), 2 (50-200tr), 3 (>200tr)
+  approvalStatus         String                      @default("pending") // 'pending' | 'approved' | 'rejected'
+  
+  // Ký số điện tử (Bên A & Bên B)
+  digitalSignatureA      String?                     @db.NVarChar(Max) // Chữ ký Bên A
+  digitalSignatureB      String?                     @db.NVarChar(Max) // Chữ ký Bên B
+  signatureBDetails      String?                     @db.NVarChar(Max) // JSON Metadata chữ ký số CA (Serial, Hash, TSA RFC 3161)
+  
+  // Bàn giao & Nghiệm thu & Hóa đơn
+  handoverDate           DateTime?
+  liquidationDate        DateTime?
+  einvoiceCode           String?
+  notes                  String?                     @db.NVarChar(Max)
+  
+  createdAt              DateTime                    @default(now())
+  updatedAt              DateTime                    @updatedAt
+  
+  items                  CustomerContractItem[]
+  milestones             CustomerContractMilestone[]
+  handovers              ContractHandoverNote[]
+  liquidation            ContractLiquidation?
+  
+  @@index([contractNumber])
+  @@index([status])
+  @@index([customerId])
+  @@index([projectId])
+  @@map("HopDongKinhTe")
+}
+
+model CustomerContractItem {
+  id              String           @id @default(uuid())
+  contractId      String
+  contract        CustomerContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  productId       String?
+  sku             String
+  productName     String
+  unit            String           @default("Cái")
+  quantity        Decimal          @db.Decimal(18, 2)
+  unitPrice       Decimal          @db.Decimal(18, 2)
+  discountPercent Decimal          @default(0) @db.Decimal(5, 2)
+  total           Decimal          @db.Decimal(18, 2)
+  notes           String?          @db.NVarChar(Max)
+
+  @@index([contractId])
+  @@map("ChiTietHopDongKinhTe")
+}
+
+model CustomerContractMilestone {
+  id             String           @id @default(uuid())
+  contractId     String
+  contract       CustomerContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  milestoneOrder Int              @default(1) // 1, 2, 3...
+  milestoneName  String           // 'Tạm ứng 30%', 'Giao hàng 50%', 'Nghiệm thu thanh lý 20%'
+  percentage     Decimal          @db.Decimal(5, 2)
+  plannedAmount  Decimal          @db.Decimal(18, 2)
+  dueDate        DateTime?
+  status         String           @default("pending") // 'pending' | 'paid' | 'overdue'
+  paidAmount     Decimal          @default(0) @db.Decimal(18, 2)
+  paidDate       DateTime?
+  invoiceCode    String?
+  notes          String?          @db.NVarChar(Max)
+
+  @@index([contractId])
+  @@map("TienDoThanhToanHopDong")
+}
+
+model ContractHandoverNote {
+  id                 String           @id @default(uuid())
+  handoverCode       String           @unique // BG-HĐ-2026-0001
+  contractId         String
+  contract           CustomerContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  handoverDate       DateTime         @default(now())
+  handoverLocation   String?
+  delivererName      String           // Đại diện Bên B giao hàng
+  receiverName       String           // Đại diện Bên A nhận bàn giao
+  content            String           @db.NVarChar(Max)
+  status             String           @default("signed") // 'draft' | 'signed'
+  signatureDeliverer String?          @db.NVarChar(Max)
+  signatureReceiver  String?          @db.NVarChar(Max)
+  notes              String?          @db.NVarChar(Max)
+  createdAt          DateTime         @default(now())
+
+  @@index([contractId])
+  @@map("PhieuBanGiaoHopDong")
+}
+
+model ContractLiquidation {
+  id                  String           @id @default(uuid())
+  liquidationCode     String           @unique // TL-HĐ-2026-0001
+  contractId          String           @unique
+  contract            CustomerContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  liquidationDate     DateTime         @default(now())
+  originalAmount      Decimal          @db.Decimal(18, 2)
+  actualAmount        Decimal          @db.Decimal(18, 2)
+  paidAmount          Decimal          @db.Decimal(18, 2)
+  penaltyOrAdjustment Decimal          @default(0) @db.Decimal(18, 2)
+  finalPaymentAmount  Decimal          @db.Decimal(18, 2)
+  warrantyCommitment  String           @db.NVarChar(Max)
+  conclusion          String           @db.NVarChar(Max)
+  status              String           @default("completed") // 'draft' | 'signed' | 'completed'
+  signatureA          String?          @db.NVarChar(Max)
+  signatureB          String?          @db.NVarChar(Max)
+  createdAt           DateTime         @default(now())
+
+  @@index([contractId])
+  @@map("ThanhLyHopDongKinhTe")
+}
+
+
+
+

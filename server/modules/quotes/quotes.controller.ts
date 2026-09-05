@@ -48,6 +48,17 @@ export class QuotesController {
     }
   }
 
+  static async signQuote(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { signature } = req.body;
+      const quote = await QuotesService.signQuote(id, signature || req.body);
+      return sendSuccess(res, quote, "Ký số điện tử CA duyệt báo giá thành công");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
   static async deleteQuote(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;

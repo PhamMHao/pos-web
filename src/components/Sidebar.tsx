@@ -25,6 +25,8 @@ import {
   UserCog,
   LogOut,
   Database,
+  HardHat,
+  GitMerge,
 } from 'lucide-react';
 import { Order, Product } from '../types';
 import { useAuth } from '../core/contexts/AuthContext';
@@ -84,6 +86,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: FileSpreadsheet,
     },
     {
+      id: 'projects',
+      label: 'Dự Án & Thi Công',
+      icon: HardHat,
+    },
+    {
       id: 'suppliers',
       label: 'Nhà Cung Ứng & Mua Hàng',
       icon: Truck,
@@ -122,6 +129,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'contracts',
       label: 'Hợp Đồng Lao Động Online',
       icon: FileSignature,
+    },
+    {
+      id: 'approvals',
+      label: 'Ký Duyệt & Trình Ký Đa Cấp',
+      icon: GitMerge,
     },
     {
       id: 'orders',

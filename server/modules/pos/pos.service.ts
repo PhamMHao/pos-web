@@ -238,6 +238,10 @@ export class PosService {
       profit: Number(o.profit),
       paidAmount: Number(o.paidAmount),
       changeAmount: Number(o.changeAmount),
+      digitalSignature: (() => {
+        if (!o.digitalSignature) return null;
+        try { return JSON.parse(o.digitalSignature); } catch { return o.digitalSignature; }
+      })(),
       items: (o.items || []).map((i) => ({
         ...i,
         ratioToBase: Number(i.ratioToBase),
@@ -294,6 +298,10 @@ export class PosService {
       profit: Number(order.profit),
       paidAmount: Number(order.paidAmount),
       changeAmount: Number(order.changeAmount),
+      digitalSignature: (() => {
+        if (!order.digitalSignature) return null;
+        try { return JSON.parse(order.digitalSignature); } catch { return order.digitalSignature; }
+      })(),
       items: (order.items || []).map((i) => ({
         ...i,
         ratioToBase: Number(i.ratioToBase),
@@ -312,6 +320,23 @@ export class PosService {
           }
         : null,
     };
+  }
+
+  static async signOrder(id: string, signature: any) {
+    const orders = await prisma.order.findMany({ where: { id } });
+    if (orders.length === 0) {
+      throw new NotFoundError(`Không tìm thấy đơn hàng với ID: ${id}`);
+    }
+
+    const signatureStr = typeof signature === "string" ? signature : JSON.stringify(signature);
+    await prisma.order.updateMany({
+      where: { id },
+      data: {
+        digitalSignature: signatureStr,
+      },
+    });
+
+    return this.getOrderById(id);
   }
 
   static async updateOrderStatus(id: string, input: UpdateOrderStatusInput) {

@@ -27,6 +27,10 @@ import returnsRoutes from "./server/modules/returns/returns.routes";
 import exchangesRoutes from "./server/modules/exchanges/exchanges.routes";
 import transfersRoutes from "./server/modules/transfers/transfers.routes";
 import masterDataRoutes from "./server/modules/master-data/master-data.routes";
+import projectsRoutes from "./server/modules/projects/projects.routes";
+import signaturesRoutes from "./server/modules/signatures/signatures.routes";
+import approvalsRoutes from "./server/modules/approvals/approvals.routes";
+import contractsRoutes from "./server/modules/contracts/contracts.routes";
 import { errorHandler } from "./server/core/middlewares/errorHandler";
 
 dotenv.config();
@@ -71,6 +75,10 @@ async function startServer() {
   app.use("/api/exchanges", exchangesRoutes);
   app.use("/api/transfers", transfersRoutes);
   app.use("/api/master-data", masterDataRoutes);
+  app.use("/api/projects", projectsRoutes);
+  app.use("/api/signatures", signaturesRoutes);
+  app.use("/api/approvals", approvalsRoutes);
+  app.use("/api/contracts", contractsRoutes);
 
   // Helper for lazy initialized Gemini
   let aiClient: GoogleGenAI | null = null;

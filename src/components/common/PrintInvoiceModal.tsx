@@ -2197,41 +2197,75 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
                       </div>
                     ) : signatureStyle === 'two_blocks' ? (
                       /* 2 Blocks Signature Mode (Default) */
-                      <div
-                        className={`grid grid-cols-2 gap-4 text-center border-t border-gray-400 pt-1 ${
-                          paperSize === 'A5' ? 'text-[7.5pt]' : 'text-[8.5pt]'
-                        }`}
-                      >
-                        {/* 1. Khách hàng / Người nhận */}
-                        <div className="flex flex-col items-center justify-between min-h-[70px]">
-                          <div>
-                            <div className="font-bold text-black">
-                              {getEffectivePrintConfig(settings, docType).signLeftLabel ||
-                                DEFAULT_DOC_TEMPLATES[docType]?.signLeft ||
-                                'Khách hàng / Người nhận'}
+                      <>
+                        {order?.digitalSignature && (
+                          <div className="mb-2 p-2 border-2 border-emerald-600 rounded-lg bg-emerald-50 text-left flex items-start space-x-2">
+                            <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                            <div className="text-[7pt] text-emerald-950 font-sans leading-tight">
+                              <div className="font-bold uppercase text-emerald-800">
+                                ĐÃ KÝ SỐ ĐIỆN TỬ CA HỢP CHUẨN PHÁP QUY (PAdES B-LT)
+                              </div>
+                              <div>
+                                Đơn vị chứng thực:{' '}
+                                <strong>
+                                  {order.digitalSignature.providerName || order.digitalSignature.provider}
+                                </strong>
+                              </div>
+                              <div>
+                                Người ký:{' '}
+                                <strong>
+                                  {order.digitalSignature.signerName || 'Đại diện Doanh Nghiệp'}
+                                </strong>{' '}
+                                ({order.digitalSignature.signerPosition || 'Tổng Giám Đốc'})
+                              </div>
+                              <div className="font-mono text-[6.5pt] text-emerald-700 truncate max-w-sm">
+                                Mã băm: {order.digitalSignature.sha256Hash}
+                              </div>
+                              <div className="text-[6.5pt] text-gray-500">
+                                Thời gian:{' '}
+                                {order.digitalSignature.signedAt
+                                  ? new Date(order.digitalSignature.signedAt).toLocaleString('vi-VN')
+                                  : '---'}
+                              </div>
                             </div>
-                            <div className="text-[7pt] text-gray-600 italic">(Ký và ghi rõ họ tên)</div>
                           </div>
-                          <div className="font-bold text-black text-[8pt] pt-8">
-                            {recipientName || customerName}
+                        )}
+                        <div
+                          className={`grid grid-cols-2 gap-4 text-center border-t border-gray-400 pt-1 ${
+                            paperSize === 'A5' ? 'text-[7.5pt]' : 'text-[8.5pt]'
+                          }`}
+                        >
+                          {/* 1. Khách hàng / Người nhận */}
+                          <div className="flex flex-col items-center justify-between min-h-[70px]">
+                            <div>
+                              <div className="font-bold text-black">
+                                {getEffectivePrintConfig(settings, docType).signLeftLabel ||
+                                  DEFAULT_DOC_TEMPLATES[docType]?.signLeft ||
+                                  'Khách hàng / Người nhận'}
+                              </div>
+                              <div className="text-[7pt] text-gray-600 italic">(Ký và ghi rõ họ tên)</div>
+                            </div>
+                            <div className="font-bold text-black text-[8pt] pt-8">
+                              {recipientName || customerName}
+                            </div>
                           </div>
-                        </div>
 
-                        {/* 2. Người lập phiếu / Thủ kho */}
-                        <div className="flex flex-col items-center justify-between min-h-[70px]">
-                          <div>
-                            <div className="font-bold text-black">
-                              {getEffectivePrintConfig(settings, docType).signRightLabel ||
-                                DEFAULT_DOC_TEMPLATES[docType]?.signRight ||
-                                'Người lập phiếu'}
+                          {/* 2. Người lập phiếu / Thủ kho */}
+                          <div className="flex flex-col items-center justify-between min-h-[70px]">
+                            <div>
+                              <div className="font-bold text-black">
+                                {getEffectivePrintConfig(settings, docType).signRightLabel ||
+                                  DEFAULT_DOC_TEMPLATES[docType]?.signRight ||
+                                  'Người lập phiếu'}
+                              </div>
+                              <div className="text-[7pt] text-gray-600 italic">(Ký và ghi rõ họ tên)</div>
                             </div>
-                            <div className="text-[7pt] text-gray-600 italic">(Ký và ghi rõ họ tên)</div>
-                          </div>
-                          <div className="font-bold text-black text-[8pt] pt-8">
-                            {creator}
+                            <div className="font-bold text-black text-[8pt] pt-8">
+                              {creator}
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      </>
                     ) : (
                       /* 5 Blocks Signature Mode */
                       <div

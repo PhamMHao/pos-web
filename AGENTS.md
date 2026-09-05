@@ -45,3 +45,15 @@ Khi được yêu cầu phát triển hoặc bổ sung một chức năng mới:
   * `npx prisma generate`: Tạo Prisma client.
   * `npx prisma db push`: Đồng bộ schema vào DB.
   * `npm run prisma:seed`: Nạp dữ liệu seed vào DB.
+
+---
+
+## 🧩 5. NGUYÊN TẮC MODULE HÓA & TÁCH NHỎ COMPONENT (MODULAR COMPONENT ARCHITECTURE)
+* **BẮT BUỘC CHIA NHỎ COMPONENT**: Tuyệt đối **KHÔNG** dồn toàn bộ UI, logic, biểu đồ, bảng biểu, modal vào một file duy nhất quá lớn (tránh các file monolithic vượt quá 500 dòng code).
+* **CẤU TRÚC THƯ MỤC RÕ RÀNG**: Khi xây dựng màn hình hoặc chức năng (như Dashboard, Báo cáo, Quản lý đơn hàng, Dự án...):
+  * Tạo thư mục chuyên biệt cho module đó (ví dụ: `src/components/<feature>/`).
+  * Tách riêng file định nghĩa Types & Interfaces: `<feature>.types.ts` hoặc `types.ts`.
+  * Tách riêng file xử lý tiện ích/hàm xuất dữ liệu nặng: `export<Feature>Excel.ts` hoặc `<feature>Utils.ts`.
+  * Tách nhỏ từng phần giao diện thành các subcomponent độc lập (ví dụ: `<Feature>Controls.tsx`, `<Feature>KpiCards.tsx`, `<Feature>Chart.tsx`, `<Feature>Table.tsx`, `<Feature>Modal.tsx`...).
+  * File chính (`<Feature>View.tsx`) chỉ đóng vai trò điều phối (Orchestrator): quản lý state tập trung, fetch dữ liệu, xử lý nghiệp vụ chung, và ghép nối các subcomponent mạch lạc.
+* **MỤC TIÊU**: Đảm bảo code sạch (Clean Code), dễ đọc hiểu, dễ kiểm soát lỗi (review & debug), thuận tiện bảo trì và mở rộng trong tương lai.

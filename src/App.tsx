@@ -17,6 +17,7 @@ const AccountingView = lazy(() => import('./components/accounting/AccountingView
 const HrView = lazy(() => import('./components/hr/HrView').then((m) => ({ default: m.HrView })));
 const EInvoiceManagerView = lazy(() => import('./components/invoices/EInvoiceManagerView').then((m) => ({ default: m.EInvoiceManagerView })));
 const LaborContractManagerView = lazy(() => import('./components/contracts/LaborContractManagerView').then((m) => ({ default: m.LaborContractManagerView })));
+const ContractsManagementHubView = lazy(() => import('./components/contracts/ContractsManagementHubView').then((m) => ({ default: m.ContractsManagementHubView })));
 const QuotesView = lazy(() => import('./components/quotes/QuotesView').then((m) => ({ default: m.QuotesView })));
 const CostingView = lazy(() => import('./components/costing/CostingView').then((m) => ({ default: m.CostingView })));
 const AssetsView = lazy(() => import('./components/assets/AssetsView').then((m) => ({ default: m.AssetsView })));
@@ -24,6 +25,8 @@ const WarrantyView = lazy(() => import('./components/warranty/WarrantyView').the
 const SuppliersView = lazy(() => import('./components/suppliers/SuppliersView').then((m) => ({ default: m.SuppliersView })));
 const AccountsManagerView = lazy(() => import('./components/accounts/AccountsManagerView').then((m) => ({ default: m.AccountsManagerView })));
 const MasterDataManagerView = lazy(() => import('./components/masterdata/MasterDataManagerView').then((m) => ({ default: m.MasterDataManagerView })));
+const ProjectsManagerView = lazy(() => import('./components/projects/ProjectsManagerView').then((m) => ({ default: m.ProjectsManagerView })));
+const ApprovalsView = lazy(() => import('./components/approvals/ApprovalsView').then((m) => ({ default: m.ApprovalsView })));
 
 // Lazy-loaded Modals & Drawers (Chỉ tải khi mở)
 const FraudModal = lazy(() => import('./components/ai/FraudModal').then((m) => ({ default: m.FraudModal })));
@@ -160,6 +163,8 @@ export function App() {
     | 'settings'
     | 'einvoices'
     | 'contracts'
+    | 'projects'
+    | 'approvals'
   >('pos');
 
   // Redirection when user switches to a role without permission to current tab
@@ -1735,7 +1740,7 @@ export function App() {
                 )}
 
                 {activeTab === 'contracts' && (
-                  <LaborContractManagerView
+                  <ContractsManagementHubView
                     laborContracts={laborContracts}
                     setLaborContracts={setLaborContracts}
                     employees={employees}
@@ -1780,6 +1785,20 @@ export function App() {
                     onOpenDocOcrScanner={(mode) => handleOpenDocOcrScanner(mode || 'customer_quote')}
                     onNavigateTab={setActiveTab}
                   />
+                )}
+
+                {activeTab === 'projects' && (
+                  <ProjectsManagerView
+                    products={products}
+                    customers={customers}
+                    employees={employees}
+                    onNavigateTab={setActiveTab}
+                    onRefreshGlobalData={fetchFreshDataFromDb}
+                  />
+                )}
+
+                {activeTab === 'approvals' && (
+                  <ApprovalsView />
                 )}
 
                 {activeTab === 'suppliers' && (
@@ -1885,6 +1904,7 @@ export function App() {
                     assets={assets}
                     settings={settings}
                     onNavigate={(tab: any) => setActiveTab(tab)}
+                    onOpenPO={() => setActiveTab('suppliers')}
                   />
                 )}
 

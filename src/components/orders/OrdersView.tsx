@@ -33,6 +33,7 @@ import {
   AlertTriangle,
   RotateCcw,
   FileCheck,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   Order,
@@ -45,6 +46,7 @@ import {
   PaymentMethod,
   ReturnOrder,
   SerialDeviceRecord,
+  DigitalSignatureMetadata,
 } from '../../types';
 import { formatVND } from '../../utils/vietqr';
 import { sounds } from '../../utils/soundEffects';
@@ -52,6 +54,7 @@ import { ReceiptModal } from '../pos/ReceiptModal';
 import { PrintInvoiceModal, PrintItem } from '../common/PrintInvoiceModal';
 import { CreateReturnModal } from './CreateReturnModal';
 import { ReturnsHistoryModal } from './ReturnsHistoryModal';
+import { DocumentSignerModal } from '../signatures/DocumentSignerModal';
 
 interface OrdersViewProps {
   orders: Order[];
@@ -179,6 +182,26 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
     order: Order;
     docType: 'delivery_dispatch' | 'shipping_label' | 'delivery_note' | 'sales_invoice' | 'goods_delivery_record' | 'sales_return';
   } | null>(null);
+
+  const [signingOrder, setSigningOrder] = useState<Order | null>(null);
+
+  const handleOrderSignSuccess = async (sig: DigitalSignatureMetadata) => {
+    if (!signingOrder) return;
+    const updatedOrder: Order = { ...signingOrder, digitalSignature: sig };
+    if (onSaveOrder) {
+      onSaveOrder(updatedOrder);
+    }
+    try {
+      await fetch(`/api/pos/orders/${signingOrder.id}/sign`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ signature: sig }),
+      });
+    } catch (err) {
+      console.warn('Backend order sign sync error:', err);
+    }
+    setSigningOrder(null);
+  };
 
   const [barcodeScanInput, setBarcodeScanInput] = useState('');
 
@@ -914,6 +937,19 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
                             title="In Bill Nhiệt K80"
                           >
                             <ShoppingBag className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSigningOrder(order)}
+                            className={`px-2 py-1 text-[11px] font-bold border rounded-lg transition-colors flex items-center space-x-1 cursor-pointer ${
+                              order.digitalSignature
+                                ? 'text-emerald-300 bg-emerald-950/60 hover:bg-emerald-900/80 border-emerald-700/60'
+                                : 'text-amber-300 bg-amber-950/60 hover:bg-amber-900/80 border-amber-700/60'
+                            }`}
+                            title={order.digitalSignature ? 'Đã ký số CA hợp chuẩn (Bấm để ký lại hoặc thẩm tra)' : 'Ký số điện tử CA duyệt đơn hàng (Viettel/VNPT/USB Token)'}
+                          >
+                            <ShieldCheck className="w-3.5 h-3.5" />
+                            <span>{order.digitalSignature ? 'Đã Ký CA' : 'Ký Số CA'}</span>
                           </button>
                         </div>
                       </td>
@@ -2094,6 +2130,29 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
             setReturnPreSelectedOrder(null);
             setShowCreateReturnModal(true);
           }}
+        />
+      )}
+
+      {/* Modal Ký Số Điện Tử CA Cho Đơn Hàng (Viettel / VNPT / USB Token) */}
+      {signingOrder && (
+        <DocumentSignerModal
+          document={{
+            id: signingOrder.id,
+            code: signingOrder.code,
+            title: `Đơn Hàng Thương Mại ${signingOrder.code} - Kênh ${signingOrder.channel}`,
+            type: 'order',
+            typeLabel: 'Đơn Hàng Bán',
+            createdAt: signingOrder.createdAt,
+            totalAmount: signingOrder.total,
+            creatorName: 'Thu ngân POS / Quản trị đơn',
+            recipientName: signingOrder.customer?.name || signingOrder.customerName || 'Khách lẻ',
+            status: signingOrder.digitalSignature ? 'signed' : 'pending',
+            legalStandard: 'PAdES B-LT (Luật Giao dịch điện tử 2023)',
+            signature: signingOrder.digitalSignature,
+          }}
+          settings={settings}
+          onClose={() => setSigningOrder(null)}
+          onSignSuccess={handleOrderSignSuccess}
         />
       )}
     </div>

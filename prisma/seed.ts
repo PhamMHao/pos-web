@@ -20,6 +20,8 @@ import {
   INITIAL_ORDERS,
 } from "./seedData";
 
+import { seedApprovals } from "./seedApprovals";
+
 const prisma = new PrismaClient();
 
 function safeDate(d: any, fallback = new Date()): Date {
@@ -104,6 +106,16 @@ async function main() {
       email: "kythuat@vitinhgiaphuc.com",
       phone: "0933888999",
       role: "Kỹ Thuật",
+      status: "active",
+      passwordHash: defaultPasswordHash,
+    },
+    {
+      id: "usr-kcs-01",
+      username: "kcs01",
+      fullName: "Lê Văn Tuấn (Giám Sát KCS)",
+      email: "kcs@vitinhgiaphuc.com",
+      phone: "0933777888",
+      role: "Giám Sát KCS",
       status: "active",
       passwordHash: defaultPasswordHash,
     },
@@ -1323,7 +1335,290 @@ async function main() {
     }
   }
 
-  console.log("🎉 SEED THÀNH CÔNG: Toàn bộ 27 danh mục dữ liệu mẫu & Phân quyền RBAC đã được nạp vĩnh viễn vào SQL Server!");
+  // 28. Quản Lý Dự Án, Công Việc Thi Công & Vật Tư Công Trình
+  console.log("28. Seeding Project Tasks, Progress Logs, Approvals & Material Tickets...");
+  
+  // 28.1 Thành viên dự án
+  const existingMembers = await prisma.projectMember.findMany({ where: { projectId: "proj-2026-01" } });
+  if (existingMembers.length === 0) {
+    const mDate = new Date("2026-02-10");
+    await prisma.$executeRaw`
+      INSERT INTO [ThanhVienDuAn] (id, projectId, employeeId, employeeName, roleInProject, phone, assignedDate)
+      VALUES 
+      ('pm-01', 'proj-2026-01', 'emp-01', N'Trần Quốc Bảo', N'Chỉ huy trưởng', '0918123456', ${mDate}),
+      ('pm-02', 'proj-2026-01', 'emp-02', N'Trần Văn Hưng', N'Kỹ thuật viên chính', '0909888777', ${mDate}),
+      ('pm-03', 'proj-2026-01', 'emp-03', N'Nguyễn Văn Minh', N'Thủ kho phụ trách vật tư', '0988776655', ${mDate})
+    `;
+  }
+
+  // 28.2 Công việc dự án (Project Tasks)
+  const existingTask1 = await prisma.projectTask.findMany({ where: { code: "CV-2026-001" } });
+  const task1Steps = JSON.stringify([
+    { id: "s1", name: "Khảo sát mặt bằng & phòng máy", weight: 30, isCompleted: true, completedAt: "2026-02-15" },
+    { id: "s2", name: "Lập sơ đồ đi dây & vị trí switch", weight: 40, isCompleted: true, completedAt: "2026-02-20" },
+    { id: "s3", name: "Họp thống nhất ban quản lý FPT", weight: 30, isCompleted: true, completedAt: "2026-02-25" },
+  ]);
+  const task2Steps = JSON.stringify([
+    { id: "s1", name: "Kéo dây mạng luồn ống gen trần", weight: 40, isCompleted: true, completedAt: "2026-03-01" },
+    { id: "s2", name: "Bấm đầu RJ45 & đấu nối Patch Panel", weight: 35, isCompleted: true, completedAt: "2026-03-03" },
+    { id: "s3", name: "Đo kiểm thông mạch & dán nhãn port", weight: 25, isCompleted: false },
+  ]);
+
+  if (existingTask1.length === 0) {
+    const d1 = new Date("2026-02-12T08:00:00");
+    const d2 = new Date("2026-02-25T17:00:00");
+    await prisma.$executeRaw`
+      INSERT INTO [CongViecDuAn] (id, code, projectId, parentTaskId, title, description, phase, priority, status, progressPercent, assignerId, assignerName, assigneeId, assigneeName, collaborators, departmentId, departmentName, weightedSteps, reworkReason, reworkNotes, startDate, dueDate, estimatedHours, actualHours, reminderSetting, createdAt, updatedAt)
+      VALUES ('task-01', 'CV-2026-001', 'proj-2026-01', NULL, N'Khảo sát mặt bằng & thiết kế sơ đồ cáp mạng phòng Lab AI', N'Đo đạc khoảng cách dây mạng Cat6A, vị trí đặt switch 10G Cisco và 40 vị trí bàn máy tính', N'Khảo sát', 'high', 'completed', 100, 'emp-01', N'Trần Quốc Bảo', 'emp-02', N'Trần Văn Hưng', N'["Nguyễn Văn Minh"]', 'dept-03', N'Phòng Kỹ Thuật & Triển Khai', ${task1Steps}, NULL, NULL, ${d1}, ${d2}, 16, 15, 'before_due_1d', ${d1}, ${d2})
+    `;
+
+    // Nhật ký tiến độ Task 1
+    await prisma.$executeRaw`
+      INSERT INTO [NhatKyTienDoCongViec] (id, taskId, updatedBy, previousPercent, newPercent, statusChange, workLogContent, issuesFaced, attachments, createdAt)
+      VALUES ('log-01', 'task-01', N'Trần Văn Hưng', 0, 100, 'completed', N'Hoàn thành bản vẽ sơ đồ mạng, chốt với ban quản lý FPT vị trí tủ rack trung tâm', NULL, N'["https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800"]', ${d2})
+    `;
+
+    // Nghiệm thu Task 1 - Cấp 2 (KCS), Cấp 3 (Chỉ huy trưởng), Cấp 4 (Giám đốc)
+    await prisma.$executeRaw`
+      INSERT INTO [BienBanNghiemThuCongViec] (id, taskId, approvalCode, level, levelName, reviewerId, reviewerName, reviewerRole, status, qualityRating, reviewNotes, punchList, signatureData, approvalMethod, pinCodeVerified, pkiCertificateSerial, pkiSignatureHash, signedAt, createdAt, updatedAt)
+      VALUES 
+      ('app-01', 'task-01', 'NT-2026-001-KCS', 2, N'Cấp 2 - Giám sát KCS', 'emp-kcs', N'Lê Văn Tuấn', N'Giám sát KCS / QA-QC', 'approved', 5, N'Đã kiểm tra chất lượng bản vẽ khảo sát, đạt chuẩn kỹ thuật thi công', NULL, NULL, 'pin', 1, NULL, NULL, ${d2}, ${d2}, ${d2}),
+      ('app-02', 'task-01', 'NT-2026-001-PM', 3, N'Cấp 3 - Chỉ huy trưởng', 'emp-01', N'Trần Quốc Bảo', N'Quản lý dự án / Chỉ huy trưởng', 'approved', 5, N'Kỹ thuật tổng thể đạt chuẩn, phê duyệt hoàn tất giai đoạn 1', NULL, NULL, 'pki_ca', 1, 'PKI-GP-2026-8899', 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', ${d2}, ${d2}, ${d2}),
+      ('app-03', 'task-01', 'NT-2026-001-DIR', 4, N'Cấp 4 - Giám đốc', 'emp-dir', N'Nguyễn Hoàng Nam', N'Giám đốc / Ban Lãnh Đạo', 'approved', 5, N'Phê duyệt nghiệm thu hoàn thành toàn diện giai đoạn khảo sát thiết kế', NULL, NULL, 'pin', 1, NULL, NULL, ${d2}, ${d2}, ${d2})
+    `;
+  } else {
+    await prisma.projectTask.updateMany({
+      where: { code: "CV-2026-001" },
+      data: {
+        weightedSteps: task1Steps,
+        title: "Khảo sát mặt bằng & thiết kế sơ đồ cáp mạng phòng Lab AI",
+        description: "Đo đạc khoảng cách dây mạng Cat6A, vị trí đặt switch 10G Cisco và 40 vị trí bàn máy tính",
+      },
+    });
+  }
+
+  const existingTask2 = await prisma.projectTask.findMany({ where: { code: "CV-2026-002" } });
+  if (existingTask2.length === 0) {
+    const d1 = new Date("2026-02-26T08:00:00");
+    const d2 = new Date("2026-03-15T17:00:00");
+    const nowDt = new Date();
+    await prisma.$executeRaw`
+      INSERT INTO [CongViecDuAn] (id, code, projectId, parentTaskId, title, description, phase, priority, status, progressPercent, assignerId, assignerName, assigneeId, assigneeName, collaborators, departmentId, departmentName, weightedSteps, reworkReason, reworkNotes, startDate, dueDate, estimatedHours, actualHours, reminderSetting, createdAt, updatedAt)
+      VALUES ('task-02', 'CV-2026-002', 'proj-2026-01', NULL, N'Thi công kéo cáp mạng Cat6A & bấm patch panel tủ rack', N'Kéo 40 line mạng Cat6A AMP Commscope, đấu nối vào Patch panel 48 port và đánh số dây mạng', N'Kéo cáp & Lắp đặt', 'urgent', 'in_progress', 75, 'emp-01', N'Trần Quốc Bảo', 'emp-02', N'Trần Văn Hưng', N'["Lê Hoàng Long", "Phạm Quốc Dũng"]', 'dept-03', N'Phòng Kỹ Thuật & Triển Khai', ${task2Steps}, NULL, NULL, ${d1}, ${d2}, 32, 24, 'before_due_1d', ${d1}, ${nowDt})
+    `;
+
+    // Định mức vật tư Task 2
+    await prisma.$executeRaw`
+      INSERT INTO [DinhMucVatTuCongViec] (id, taskId, productId, productSku, productName, unit, estimatedQuantity, actualUsedQuantity, unitPrice, note)
+      VALUES 
+      ('dmm-01', 'task-02', 'prod-gp-ssd-500', 'CAB-CAT6-COMMSCOPE', N'Thùng Cáp Mạng Commscope Cat6 UTP 305m', N'Thùng', 3, 2, 2850000, N'Đã kéo xong 2 thùng 610m, đang kéo thùng thứ 3'),
+      ('dmm-02', 'task-02', 'prod-gp-ram-16g', 'CON-RJ45-AMP', N'Hộp Hạt Mạng RJ45 AMP Cat6 Chân Mạ Vàng', N'Hộp', 2, 1, 350000, N'100 hạt/hộp')
+    `;
+
+    // Nhật ký tiến độ Task 2
+    await prisma.$executeRaw`
+      INSERT INTO [NhatKyTienDoCongViec] (id, taskId, updatedBy, previousPercent, newPercent, statusChange, workLogContent, issuesFaced, attachments, createdAt)
+      VALUES ('log-02', 'task-02', N'Trần Văn Hưng', 50, 75, 'in_progress', N'Đã kéo xong 30/40 line mạng trên trần thạch cao, bấm xong nửa patch panel', N'Trần thạch cao phòng lab có nhiều ống điều hòa cần luồn dây cẩn thận', N'["https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800"]', ${nowDt})
+    `;
+  } else {
+    await prisma.projectTask.updateMany({
+      where: { code: "CV-2026-002" },
+      data: {
+        weightedSteps: task2Steps,
+        title: "Thi công kéo cáp mạng Cat6A & bấm patch panel tủ rack",
+        description: "Kéo 40 line mạng Cat6A AMP Commscope, đấu nối vào Patch panel 48 port và đánh số dây mạng",
+      },
+    });
+  }
+
+  // Task 3: Chờ nhận việc (assigned)
+  const existingTask3 = await prisma.projectTask.findMany({ where: { code: "CV-2026-003" } });
+  if (existingTask3.length === 0) {
+    const dStart = new Date();
+    const dDue = new Date(Date.now() + 3 * 86400000);
+    const steps3 = JSON.stringify([
+      { id: "s1", name: "Khảo sát nguồn điện & đường cáp PoE", weight: 25, isCompleted: false },
+      { id: "s2", name: "Kéo 16 line cáp mạng ngoài trời", weight: 35, isCompleted: false },
+      { id: "s3", name: "Lắp đặt 16 camera ColorVu & căn góc quan sát", weight: 25, isCompleted: false },
+      { id: "s4", name: "Cấu hình đầu ghi NVR và mở port xem qua mạng", weight: 15, isCompleted: false },
+    ]);
+    await prisma.$executeRaw`
+      INSERT INTO [CongViecDuAn] (id, code, projectId, parentTaskId, title, description, phase, priority, status, progressPercent, assignerId, assignerName, assigneeId, assigneeName, collaborators, departmentId, departmentName, weightedSteps, reworkReason, reworkNotes, startDate, dueDate, estimatedHours, actualHours, reminderSetting, createdAt, updatedAt)
+      VALUES ('task-03', 'CV-2026-003', 'proj-2026-01', NULL, N'Lắp đặt 16 camera ColorVu & cấu hình Switch PoE', N'Lắp đặt hệ thống camera giám sát phòng Lab AI và kết nối mạng nội bộ', N'Kéo cáp & Lắp đặt', 'high', 'assigned', 0, 'emp-01', N'Trần Quốc Bảo', 'emp-02', N'Trần Văn Hưng', N'["Lê Văn Tuấn"]', 'dept-03', N'Đội Kỹ Thuật 1', ${steps3}, NULL, NULL, ${dStart}, ${dDue}, 24, NULL, 'before_due_1d', ${dStart}, ${dStart})
+    `;
+    await prisma.$executeRaw`
+      INSERT INTO [DinhMucVatTuCongViec] (id, taskId, productId, productSku, productName, unit, estimatedQuantity, actualUsedQuantity, unitPrice, note)
+      VALUES 
+      ('dmm-03', 'task-03', 'prod-gp-ssd-500', 'CAM-COLORVU-4MP', N'Camera IP Thân Trụ ColorVu 4MP Hikvision', N'Chiếc', 16, 0, 1450000, N'Lắp trần và tường bao quanh phòng máy'),
+      ('dmm-04', 'task-03', 'prod-gp-ram-16g', 'SW-POE-16P', N'Switch PoE Gigabit 16 Port Hikvision 250W', N'Chiếc', 1, 0, 3850000, N'Cấp nguồn PoE cho 16 camera')
+    `;
+  }
+
+  // Task 4: Bị tạm dừng vướng mặt bằng (blocked) & Quá hạn 2 ngày
+  const existingTask4 = await prisma.projectTask.findMany({ where: { code: "CV-2026-004" } });
+  if (existingTask4.length === 0) {
+    const dStart = new Date(Date.now() - 5 * 86400000);
+    const dDue = new Date(Date.now() - 2 * 86400000);
+    const steps4 = JSON.stringify([
+      { id: "s1", name: "Định vị vị trí đặt tủ điện phân phối", weight: 30, isCompleted: true, completedAt: "2026-03-01" },
+      { id: "s2", name: "Đấu nối CB tổng 3 pha 100A", weight: 40, isCompleted: false },
+      { id: "s3", name: "Đấu nối UPS 10kVA và ắc quy dự phòng", weight: 30, isCompleted: false },
+    ]);
+    await prisma.$executeRaw`
+      INSERT INTO [CongViecDuAn] (id, code, projectId, parentTaskId, title, description, phase, priority, status, progressPercent, assignerId, assignerName, assigneeId, assigneeName, collaborators, departmentId, departmentName, weightedSteps, reworkReason, reworkNotes, startDate, dueDate, estimatedHours, actualHours, reminderSetting, createdAt, updatedAt)
+      VALUES ('task-04', 'CV-2026-004', 'proj-2026-01', NULL, N'Đấu nối tủ điện phân phối phòng server & cài đặt UPS 10kVA', N'Đấu nối hệ thống cấp nguồn sạch chuyên dụng cho tủ Rack và máy chủ Lab', N'Thi công thô', 'urgent', 'blocked', 30, 'emp-01', N'Trần Quốc Bảo', 'emp-03', N'Lê Hoàng Long', N'["Trần Văn Hưng"]', 'dept-02', N'Đội Cơ Điện MEP', ${steps4}, NULL, NULL, ${dStart}, ${dDue}, 16, 6, 'daily', ${dStart}, ${dStart})
+    `;
+    await prisma.$executeRaw`
+      INSERT INTO [NhatKyTienDoCongViec] (id, taskId, updatedBy, previousPercent, newPercent, statusChange, workLogContent, issuesFaced, attachments, createdAt)
+      VALUES ('log-04', 'task-04', N'Lê Hoàng Long', 30, 30, 'blocked', N'[TẠM DỪNG THI CÔNG] Tạm dừng do ban quản lý tòa nhà chưa bàn giao nguồn điện tổng 3 pha', N'Chờ ban quản lý tòa nhà ngắt điện nguồn tổng và bàn giao tủ hạ thế', NULL, ${dStart})
+    `;
+  }
+
+  // Task 5: Chờ KCS duyệt (review_pending) - Đạt 100%
+  const existingTask5 = await prisma.projectTask.findMany({ where: { code: "CV-2026-005" } });
+  if (existingTask5.length === 0) {
+    const dStart = new Date(Date.now() - 4 * 86400000);
+    const dDue = new Date(Date.now() + 1 * 86400000);
+    const steps5 = JSON.stringify([
+      { id: "s1", name: "Đo thông mạch 40 line mạng bằng máy Fluke", weight: 40, isCompleted: true, completedAt: "2026-03-03" },
+      { id: "s2", name: "Đo suy hao tín hiệu và crosstalk NEXT", weight: 30, isCompleted: true, completedAt: "2026-03-03" },
+      { id: "s3", name: "Xuất file báo cáo PDF đo kiểm chuẩn ISO", weight: 30, isCompleted: true, completedAt: "2026-03-04" },
+    ]);
+    await prisma.$executeRaw`
+      INSERT INTO [CongViecDuAn] (id, code, projectId, parentTaskId, title, description, phase, priority, status, progressPercent, assignerId, assignerName, assigneeId, assigneeName, collaborators, departmentId, departmentName, weightedSteps, reworkReason, reworkNotes, startDate, dueDate, estimatedHours, actualHours, reminderSetting, createdAt, updatedAt)
+      VALUES ('task-05', 'CV-2026-005', 'proj-2026-01', NULL, N'Kiểm thử thông lượng mạng 10Gbps & đo kiểm chứng chỉ Fluke', N'Sử dụng máy Fluke DSX-8000 đo kiểm chứng chỉ 40 nút mạng Cat6A đạt tiêu chuẩn TIA-568', N'Cấu hình & Test', 'normal', 'review_pending', 100, 'emp-01', N'Trần Quốc Bảo', 'emp-02', N'Trần Văn Hưng', NULL, 'dept-03', N'Phòng Kỹ Thuật & Triển Khai', ${steps5}, NULL, NULL, ${dStart}, ${dDue}, 12, 11, 'before_due_1d', ${dStart}, ${dStart})
+    `;
+    await prisma.$executeRaw`
+      INSERT INTO [NhatKyTienDoCongViec] (id, taskId, updatedBy, previousPercent, newPercent, statusChange, workLogContent, issuesFaced, attachments, createdAt)
+      VALUES ('log-05', 'task-05', N'Trần Văn Hưng', 70, 100, 'review_pending', N'Đã hoàn thành đo kiểm 40/40 node đạt tiêu chuẩn PASS, nộp hồ sơ xin nghiệm thu KCS Cấp 2', NULL, NULL, ${dStart})
+    `;
+  }
+
+  // Task 6: Yêu cầu sửa chữa (rework_required)
+  const existingTask6 = await prisma.projectTask.findMany({ where: { code: "CV-2026-006" } });
+  if (existingTask6.length === 0) {
+    const dStart = new Date(Date.now() - 3 * 86400000);
+    const dDue = new Date(Date.now() + 2 * 86400000);
+    const steps6 = JSON.stringify([
+      { id: "s1", name: "In nhãn dán nhiệt Brother cho 48 port", weight: 30, isCompleted: true, completedAt: "2026-03-02" },
+      { id: "s2", name: "Dán nhãn định danh từng cổng mạng", weight: 35, isCompleted: false },
+      { id: "s3", name: "Bó gọn dây mạng khay cáp tủ Rack", weight: 35, isCompleted: false },
+    ]);
+    const reworkReason = "KCS kiểm tra phát hiện 6 port switch chưa dán nhãn số và dây mạng chưa buộc thít theo tiêu chuẩn ISO. Yêu cầu làm lại trước khi bàn giao.";
+    await prisma.$executeRaw`
+      INSERT INTO [CongViecDuAn] (id, code, projectId, parentTaskId, title, description, phase, priority, status, progressPercent, assignerId, assignerName, assigneeId, assigneeName, collaborators, departmentId, departmentName, weightedSteps, reworkReason, reworkNotes, startDate, dueDate, estimatedHours, actualHours, reminderSetting, createdAt, updatedAt)
+      VALUES ('task-06', 'CV-2026-006', 'proj-2026-01', NULL, N'Khắc phục dán nhãn port và cố định dây mạng khay cáp tủ Rack A2', N'Chỉnh sửa và dán nhãn cổng mạng tủ rack theo yêu cầu biên bản KCS', N'Cấu hình & Test', 'high', 'rework_required', 30, 'emp-01', N'Trần Quốc Bảo', 'emp-02', N'Trần Văn Hưng', NULL, 'dept-03', N'Phòng Kỹ Thuật & Triển Khai', ${steps6}, ${reworkReason}, NULL, ${dStart}, ${dDue}, 8, 4, 'before_due_1d', ${dStart}, ${dStart})
+    `;
+    await prisma.$executeRaw`
+      INSERT INTO [BienBanNghiemThuCongViec] (id, taskId, approvalCode, level, levelName, reviewerId, reviewerName, reviewerRole, status, qualityRating, reviewNotes, punchList, signatureData, approvalMethod, pinCodeVerified, pkiCertificateSerial, pkiSignatureHash, signedAt, createdAt, updatedAt)
+      VALUES ('app-06', 'task-06', 'NT-2026-006-KCS', 2, N'Cấp 2 - Giám sát KCS', 'emp-kcs', N'Lê Văn Tuấn', N'Giám sát KCS / QA-QC', 'rejected', 2, N'Chưa đạt tiêu chuẩn thẩm mỹ và định danh hạ tầng', ${reworkReason}, NULL, 'pin', 1, NULL, NULL, ${dStart}, ${dStart}, ${dStart})
+    `;
+  }
+
+  // 28.3 Phiếu Vật Tư Công Trình (Phiếu Mượn & Xuất Thi Công)
+  const existingTicket1 = await prisma.projectMaterialTicket.findMany({ where: { code: "VT-DA-2026-001" } });
+  if (existingTicket1.length === 0) {
+    const tDate = new Date("2026-02-26T08:30:00");
+    const retDate = new Date("2026-03-20T17:00:00");
+    await prisma.$executeRaw`
+      INSERT INTO [PhieuVatTuCongTrinh] (id, code, projectId, taskId, ticketType, warehouseId, warehouseName, requesterName, requesterId, approverName, status, linkedOrderCode, totalItems, totalCost, totalAmount, borrowDate, expectedReturnDate, actualReturnDate, notes, createdAt, updatedAt)
+      VALUES ('vt-01', 'VT-DA-2026-001', 'proj-2026-01', 'task-02', 'borrow', 'wh-main', N'Kho Chính Gia Phúc Computer', N'Trần Văn Hưng (Kỹ Thuật)', 'emp-02', N'Nguyễn Văn Minh (Thủ Kho)', 'in_use', NULL, 2, 6400000, 7150000, ${tDate}, ${retDate}, NULL, N'Xuất mượn dây mạng và switch phụ kiện thi công phòng Lab FPT', ${tDate}, ${tDate})
+    `;
+
+    await prisma.$executeRaw`
+      INSERT INTO [ChiTietVatTuCongTrinh] (id, ticketId, productId, sku, name, unit, requestedQty, dispatchedQty, returnedQty, installedQty, costPrice, salePrice, serials)
+      VALUES 
+      ('vti-01', 'vt-01', 'prod-gp-ssd-500', 'CAB-CAT6-COMMSCOPE', N'Thùng Cáp Mạng Commscope Cat6 UTP 305m', N'Thùng', 3, 3, 0, 2, 2500000, 2850000, N'["CUON-COMM-2026-01", "CUON-COMM-2026-02", "CUON-COMM-2026-03"]'),
+      ('vti-02', 'vt-01', 'prod-gp-ram-16g', 'CON-RJ45-AMP', N'Hộp Hạt Mạng RJ45 AMP Cat6 Chân Mạ Vàng', N'Hộp', 2, 2, 0, 1, 280000, 350000, NULL)
+    `;
+  }
+
+  // 28.4 Dữ liệu ERP Dự Án Mở Rộng: Dự Toán (CBS), Chi Phí Thực Tế, Phụ Thuộc Gantt, Tiến Độ Thu Tiền, Nhật Ký Công Trường & Phát Sinh VO
+  console.log("28.4 Seeding ERP Project Extensions (CBS, Gantt, Billing Milestones, Site Diary, VO)...");
+  
+  // 1. Dự toán chi phí CBS (proj-2026-01)
+  const existingBudget = await prisma.projectBudgetItem.findMany({ where: { projectId: "proj-2026-01" } });
+  if (existingBudget.length === 0) {
+    const dt = new Date();
+    await prisma.$executeRaw`
+      INSERT INTO [DuAnDuToanChiPhi] (id, projectId, category, itemName, unit, estimatedQty, unitRate, totalEstimatedCost, notes, createdAt, updatedAt)
+      VALUES 
+      ('cbs-01', 'proj-2026-01', 'material', N'40 Bộ Máy Workstation Core i7-14700K / 32GB / RTX 4070 Ti', N'Bộ', 40, 12000000, 480000000, N'Cấu hình tiêu chuẩn Lab AI đồ họa', ${dt}, ${dt}),
+      ('cbs-02', 'proj-2026-01', 'material', N'Hệ Thống Dây Mạng Cat6 Commscope & Switch Quản Trị 10Gbps', N'Hệ thống', 1, 45000000, 45000000, N'Tủ Rack 27U + 2 Switch Cisco Gigabit PoE', ${dt}, ${dt}),
+      ('cbs-03', 'proj-2026-01', 'labor', N'Nhân công kỹ thuật lắp ráp, kéo cáp âm sàn & cấu hình mạng', N'Công', 30, 600000, 18000000, N'Đội thi công Gia Phúc 4 kỹ thuật viên', ${dt}, ${dt}),
+      ('cbs-04', 'proj-2026-01', 'machinery', N'Thuê máy hàn cáp quang & Máy đo kiểm Fluke Networks OTDR', N'Gói', 1, 12000000, 12000000, N'Đo chứng chỉ suy hao đường truyền tiêu chuẩn quốc tế', ${dt}, ${dt}),
+      ('cbs-05', 'proj-2026-01', 'overheads', N'Chi phí vận chuyển, vật tư phụ (ốc vít, nẹp) & giám sát công trường', N'Gói', 1, 5000000, 5000000, N'Chi phí quản lý chung công trình', ${dt}, ${dt})
+    `;
+  }
+
+  // 2. Chi phí thực tế đã phát sinh
+  const existingExpenses = await prisma.projectActualExpense.findMany({ where: { projectId: "proj-2026-01" } });
+  if (existingExpenses.length === 0) {
+    const dSpent = new Date("2026-02-20T10:00:00");
+    await prisma.$executeRaw`
+      INSERT INTO [DuAnChiPhiThucTe] (id, projectId, budgetItemId, expenseCode, category, amount, spentDate, payee, invoiceRef, description, recordedBy, createdAt)
+      VALUES 
+      ('exp-01', 'proj-2026-01', 'cbs-01', 'CP-DA-2026-001', 'material', 320000000, ${dSpent}, N'Công Ty Synnex FPT', 'HD-VAT-88992', N'Thanh toán đợt 1 mua 25 bộ linh kiện Workstation', N'Trần Quốc Bảo (PM)', ${dSpent}),
+      ('exp-02', 'proj-2026-01', 'cbs-03', 'CP-DA-2026-002', 'labor', 10000000, ${dSpent}, N'Đội Kỹ Thuật Gia Phúc', 'PC-LƯƠNG-02', N'Tạm ứng công thợ thi công kéo cáp tuần 1 & 2', N'Trần Quốc Bảo (PM)', ${dSpent}),
+      ('exp-03', 'proj-2026-01', 'cbs-04', 'CP-DA-2026-003', 'machinery', 12000000, ${dSpent}, N'Công Ty Viễn Thông Á Châu', 'HD-FLUKE-771', N'Thuê máy đo kiểm mạng Fluke Networks chứng nhận đường truyền', N'Trần Quốc Bảo (PM)', ${dSpent})
+    `;
+  }
+
+  // 3. Tiến độ thu tiền thanh toán theo hợp đồng (Billing Schedule)
+  const existingMilestones = await prisma.projectBillingMilestone.findMany({ where: { projectId: "proj-2026-01" } });
+  if (existingMilestones.length === 0) {
+    const dt = new Date();
+    const dDue1 = new Date("2026-02-15T00:00:00");
+    const dDue2 = new Date("2026-03-20T00:00:00");
+    const dDue3 = new Date("2026-04-30T00:00:00");
+    const dDueRet = new Date("2027-04-30T00:00:00");
+    await prisma.$executeRaw`
+      INSERT INTO [TienDoThanhToanDuAn] (id, projectId, milestoneCode, milestoneName, percentage, plannedAmount, actualInvoicedAmount, paidAmount, dueDate, status, isRetention, retentionReleaseDate, notes, createdAt, updatedAt)
+      VALUES 
+      ('ms-01', 'proj-2026-01', 'MS-01', N'Đợt 1: Tạm ứng ngay khi ký Hợp đồng kinh tế', 30.00, 204000000, 204000000, 204000000, ${dDue1}, 'paid', 0, NULL, N'Đã nhận chuyển khoản Vietcombank', ${dt}, ${dt}),
+      ('ms-02', 'proj-2026-01', 'MS-02', N'Đợt 2: Nghiệm thu hoàn thành lắp đặt hệ thống cáp & thiết bị mạng', 40.00, 272000000, 272000000, 0, ${dDue2}, 'invoiced', 0, NULL, N'Đã xuất HĐĐT số 000123, đang chờ FPT giải ngân', ${dt}, ${dt}),
+      ('ms-03', 'proj-2026-01', 'MS-03', N'Đợt 3: Nghiệm thu bàn giao tổng thể & chuyển giao tài liệu', 25.00, 170000000, 0, 0, ${dDue3}, 'pending', 0, NULL, N'Thanh toán sau khi ký Biên bản nghiệm thu A-B', ${dt}, ${dt}),
+      ('ms-04', 'proj-2026-01', 'MS-04', N'Đợt 4: Tiền giữ lại bảo hành 12 tháng (Retention Money 5%)', 5.00, 34000000, 0, 0, ${dDueRet}, 'pending', 1, ${dDueRet}, N'Bảo lãnh thực hiện bảo hành sau 1 năm hết hạn', ${dt}, ${dt})
+    `;
+  }
+
+  // 4. Biên bản nghiệm thu khối lượng A-B mẫu
+  const existingCert = await prisma.projectHandoverCertificate.findMany({ where: { certificateCode: "BB-AB-2026-FPT-01" } });
+  if (existingCert.length === 0) {
+    const dt = new Date("2026-03-01T15:00:00");
+    await prisma.$executeRaw`
+      INSERT INTO [BienBanNghiemThuAB] (id, projectId, certificateCode, title, handoverDate, partyARepresentative, partyAPosition, partyBRepresentative, partyBPosition, content, acceptedValue, status, signatureA, signatureB, notes, createdAt)
+      VALUES 
+      ('cert-01', 'proj-2026-01', 'BB-AB-2026-FPT-01', N'Biên Bản Nghiệm Thu Khối Lượng Hoàn Thành Giai Đoạn 1 (Hệ Thống Cáp & Hạ Tầng Mạng 10Gbps)', ${dt}, N'ThS. Lê Hữu Tuấn', N'Trưởng Ban Quản Trị Cơ Sở Vật Chất ĐH FPT', N'Kỹ Sư Trần Quốc Bảo', N'Chỉ Huy Trưởng Công Trình - GP-ERP', N'Hai bên đã tiến hành kiểm tra đo kiểm thực tế 40 nút mạng Cat6, 02 Switch Cisco PoE 10Gbps, tủ Rack NOC trung tâm. Đạt 100% tiêu chuẩn chất lượng kỹ thuật theo thiết kế.', 272000000, 'approved', N'Lê Hữu Tuấn (Đã ký số Token FPT)', N'Trần Quốc Bảo (Đã ký điện tử GP-ERP)', N'Đủ điều kiện xuất hóa đơn thanh toán Đợt 2', ${dt})
+    `;
+  }
+
+  // 5. Nhật ký công trường hàng ngày
+  const existingDiary = await prisma.projectDailySiteDiary.findMany({ where: { projectId: "proj-2026-01" } });
+  if (existingDiary.length === 0) {
+    const dDiary = new Date("2026-03-04T17:30:00");
+    await prisma.$executeRaw`
+      INSERT INTO [NhatKyCongTruong] (id, projectId, diaryDate, weather, temperature, workforceCount, machineryOnSite, tasksExecuted, issuesFaced, safetyHseStatus, photos, recordedBy, createdAt)
+      VALUES 
+      ('diary-01', 'proj-2026-01', ${dDiary}, N'Nắng ráo, thoáng mát', '31°C', 5, N'Máy bấm đầu mạng Fluke, thang nhôm chữ A, máy khoan bê tông Bosch', N'Kéo xong 800m dây mạng Cat6 âm sàn kỹ thuật; Đấu nối patch panel tại tủ Rack tầng 3; Đánh nhãn số thứ tự từ Node 01 đến Node 40.', N'Không có vướng mắc kỹ thuật. Phòng học lầu 3 bàn giao đúng tiến độ.', N'Đạt chuẩn an toàn lao động (HSE 100%), có biển cảnh báo thi công', N'["https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=500", "https://images.unsplash.com/photo-1541888946425-d0fbb186156a?w=500"]', N'Trần Văn Hưng (Kỹ thuật trưởng)', ${dDiary})
+    `;
+  }
+
+  // 6. Hạng mục phát sinh ngoài hợp đồng (Variation Order - VO)
+  const existingVO = await prisma.projectVariationOrder.findMany({ where: { voCode: "VO-2026-001" } });
+  if (existingVO.length === 0) {
+    const dVO = new Date("2026-02-28T14:00:00");
+    await prisma.$executeRaw`
+      INSERT INTO [PhatSinhCongTrinhVO] (id, projectId, voCode, title, reason, requestedBy, costAdjustment, timeAdjustmentDays, status, approvedDate, approvedBy, createdAt, updatedAt)
+      VALUES 
+      ('vo-01', 'proj-2026-01', 'VO-2026-001', N'Bổ sung 02 đường truyền cáp quang nội bộ OM3 và 01 bộ lưu điện UPS Online 3kVA', N'Khoa Trọng Điểm AI yêu cầu dự phòng nguồn điện sạch chống sập nguồn cho máy chủ huấn luyện mô hình Deep Learning', N'ThS. Lê Hữu Tuấn (ĐH FPT Bên A)', 18500000, 2, 'approved', ${dVO}, N'Nguyễn Hoàng Nam (Ban Giám Đốc GP-ERP)', ${dVO}, ${dVO})
+    `;
+  }
+
+  // 29. Quy trình phê duyệt tuần tự liên phòng ban (Sequential Approval Workflow)
+  await seedApprovals();
+
+  console.log("🎉 SEED THÀNH CÔNG: Toàn bộ 28 danh mục dữ liệu mẫu & Phân quyền RBAC đã được nạp vĩnh viễn vào SQL Server!");
 }
 
 main()

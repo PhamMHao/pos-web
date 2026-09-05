@@ -294,6 +294,23 @@ export class EInvoicesService {
     return this.getInvoiceById(id);
   }
 
+  static async signInvoice(id: string, signature: any) {
+    await this.getInvoiceById(id);
+
+    const signatureStr = typeof signature === "string" ? signature : JSON.stringify(signature);
+    const signDate = new Date();
+    await prisma.eInvoice.updateMany({
+      where: { id },
+      data: {
+        status: "signed",
+        signDate,
+        digitalSignature: signatureStr,
+      },
+    });
+
+    return this.getInvoiceById(id);
+  }
+
   static async deleteInvoice(id: string) {
     await this.getInvoiceById(id);
     await prisma.eInvoiceItem.deleteMany({

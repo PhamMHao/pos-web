@@ -164,6 +164,7 @@ export interface Order {
   paidAmount: number;
   changeAmount: number;
   note?: string;
+  digitalSignature?: DigitalSignatureMetadata;
   createdAt: string;
   completedAt?: string;
 }
@@ -1461,6 +1462,7 @@ export type DocSigningType =
   | 'contract' // Hợp đồng lao động (PAdES B-LT)
   | 'quote' // Báo giá dự án (PAdES B-LT)
   | 'purchase_order' // Đơn đặt hàng mua PO (PAdES B-LT)
+  | 'order' // Đơn hàng bán lẻ / bán sỉ POS (PAdES B-LT)
   | 'kpi_decision'; // Quyết định khen thưởng KPI (PAdES B-LT)
 
 export interface DigitalCertificateX509 {
@@ -1513,6 +1515,9 @@ export interface CaGatewayConfig {
   endpointUrl: string;
   clientId: string;
   clientSecretMasked: string;
+  clientSecret?: string;
+  taxCode?: string;
+  environment?: 'sandbox' | 'production';
   isActive: boolean;
   pingLatencyMs?: number;
   lastPingStatus?: 'online' | 'degraded' | 'offline';
@@ -1814,5 +1819,174 @@ export interface PasswordResetRequest {
   tempPassword?: string;
   adminNote?: string;
 }
+
+// ==========================================
+// QUẢN LÝ DỰ ÁN & CÔNG VIỆC THI CÔNG (PROJECT & TASK MANAGEMENT)
+// ==========================================
+
+export type ProjectTaskStatus =
+  | 'todo'
+  | 'assigned'
+  | 'in_progress'
+  | 'review_pending'
+  | 'rework_required'
+  | 'resubmitted'
+  | 'approved'
+  | 'completed'
+  | 'blocked'
+  | 'cancelled';
+
+export type ProjectTaskPriority = 'low' | 'normal' | 'high' | 'urgent';
+
+export interface WeightedTaskStep {
+  id: string;
+  name: string;
+  weight: number; // 0 - 100%
+  isCompleted: boolean;
+  completedAt?: string;
+}
+
+export interface ProjectMember {
+  id: string;
+  projectId: string;
+  employeeId: string;
+  employeeName: string;
+  roleInProject: string; // 'Chỉ huy trưởng' | 'Giám sát kỹ thuật' | 'Kỹ thuật viên' | 'Kế toán công trình'
+  phone?: string;
+  assignedDate: string;
+}
+
+export interface TaskProgressLog {
+  id: string;
+  taskId: string;
+  updatedBy: string;
+  previousPercent: number;
+  newPercent: number;
+  statusChange?: string;
+  workLogContent: string;
+  issuesFaced?: string;
+  attachments?: string; // JSON array string
+  createdAt: string;
+}
+
+export interface TaskApproval {
+  id: string;
+  taskId: string;
+  approvalCode: string; // e.g. NT-2026-0001
+  level: number; // 2: KCS (Hạng 30) | 3: PM (Hạng 60) | 4: Giám đốc (Hạng 100)
+  levelName?: string;
+  reviewerId?: string;
+  reviewerName: string;
+  reviewerRole: string;
+  status: 'pending' | 'approved' | 'rejected';
+  qualityRating?: number; // 1 - 5
+  reviewNotes?: string;
+  punchList?: string;
+  signatureData?: string; // Base64 signature
+  approvalMethod?: 'pin' | 'pki_ca' | 'drawing';
+  pinCodeVerified?: boolean;
+  pkiCertificateSerial?: string;
+  pkiSignatureHash?: string;
+  signedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TaskMaterialDemand {
+  id: string;
+  taskId: string;
+  productId: string;
+  productSku: string;
+  productName: string;
+  unit: string;
+  estimatedQuantity: number;
+  actualUsedQuantity: number;
+  unitPrice: number;
+  note?: string;
+}
+
+export interface ProjectTask {
+  id: string;
+  code: string; // e.g. CV-2026-0001
+  projectId: string;
+  project?: EnterpriseProject;
+  parentTaskId?: string;
+  subTasks?: ProjectTask[];
+  title: string;
+  description?: string;
+  phase?: string; // 'Khảo sát' | 'Thi công thô' | 'Kéo cáp & Lắp đặt' | 'Cấu hình & Test' | 'Nghiệm thu'
+  priority: ProjectTaskPriority;
+  status: ProjectTaskStatus;
+  progressPercent: number; // 0 - 100
+  weightedSteps?: string; // JSON Array WeightedTaskStep[]
+  reworkReason?: string; // Lý do từ chối nếu rework
+  reworkNotes?: string; // Báo cáo giải trình kỹ thuật viên
+  assignerId?: string;
+  assignerName?: string;
+  assigneeId?: string;
+  assigneeName?: string;
+  collaborators?: string; // JSON array of string names
+  departmentId?: string;
+  departmentName?: string;
+  startDate?: string;
+  dueDate?: string;
+  completedDate?: string;
+  estimatedHours?: number;
+  actualHours?: number;
+  reminderSetting?: string;
+  progressLogs?: TaskProgressLog[];
+  approvals?: TaskApproval[];
+  materialDemands?: TaskMaterialDemand[];
+  materialTickets?: ProjectMaterialTicket[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type MaterialTicketType = 'borrow' | 'return' | 'settle_sale';
+export type MaterialTicketStatus = 'pending' | 'approved' | 'in_use' | 'returned' | 'converted_order' | 'cancelled';
+
+export interface ProjectMaterialTicketItem {
+  id: string;
+  ticketId: string;
+  productId: string;
+  sku: string;
+  name: string;
+  unit: string;
+  requestedQty: number;
+  dispatchedQty: number;
+  returnedQty: number;
+  installedQty: number;
+  costPrice: number;
+  salePrice: number;
+  serials?: string; // JSON array of string serials
+}
+
+export interface ProjectMaterialTicket {
+  id: string;
+  code: string; // e.g. VT-DA-2026-0001
+  projectId: string;
+  project?: EnterpriseProject;
+  taskId?: string;
+  task?: ProjectTask;
+  ticketType: MaterialTicketType;
+  warehouseId?: string;
+  warehouseName: string;
+  requesterName: string;
+  requesterId?: string;
+  approverName?: string;
+  status: MaterialTicketStatus;
+  linkedOrderCode?: string;
+  totalItems: number;
+  totalCost: number;
+  totalAmount: number;
+  borrowDate: string;
+  expectedReturnDate?: string;
+  actualReturnDate?: string;
+  notes?: string;
+  items: ProjectMaterialTicketItem[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 
 

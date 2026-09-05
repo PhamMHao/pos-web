@@ -39,6 +39,7 @@ import {
   InventoryLog,
   AccountingRecord,
   StockGoodsReceipt,
+  DigitalSignatureMetadata,
 } from '../../types';
 import { EInvoicePrintModal } from './EInvoicePrintModal';
 import { InboundEInvoiceModal } from './InboundEInvoiceModal';
@@ -49,6 +50,7 @@ import { TaxRiskBadge } from './TaxRiskBadge';
 import { numberToVietnameseWords } from '../../utils/numberToWords';
 import { formatCurrency } from '../../utils/currency';
 import { einvoicesApi } from '../../features/einvoices/api/einvoicesApi';
+import { DocumentSignerModal } from '../signatures/DocumentSignerModal';
 
 interface EInvoiceManagerViewProps {
   eInvoices: EInvoice[];
@@ -90,6 +92,7 @@ export const EInvoiceManagerView: React.FC<EInvoiceManagerViewProps> = ({
   const [showDesignerModal, setShowDesignerModal] = useState(false);
   const [showInboundModal, setShowInboundModal] = useState(false);
   const [selectedStockReceipt, setSelectedStockReceipt] = useState<StockGoodsReceipt | null>(null);
+  const [signingInvoice, setSigningInvoice] = useState<EInvoice | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const pendingInboundCount = (inboundInvoices || []).filter((i) => i.status === 'pending_review').length;
@@ -151,21 +154,33 @@ export const EInvoiceManagerView: React.FC<EInvoiceManagerViewProps> = ({
   }, [safeInvoices, searchTerm, statusFilter]);
 
   // Actions
-  const handleSignInvoice = async (invoiceId: string) => {
+  const handleSignInvoice = (invoiceId: string) => {
+    const target = safeInvoices.find((i) => i.id === invoiceId);
+    if (target) {
+      setSigningInvoice(target);
+    }
+  };
+
+  const handleInvoiceSignSuccess = async (sig: DigitalSignatureMetadata) => {
+    if (!signingInvoice) return;
+    const invoiceId = signingInvoice.id;
+    const signTime = sig.signedAt
+      ? new Date(sig.signedAt).toISOString().replace('T', ' ').substring(0, 19)
+      : new Date().toISOString().replace('T', ' ').substring(0, 19);
+
     setEInvoices((prev) =>
       prev.map((inv) => {
         if (inv.id === invoiceId) {
-          const signTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
           return {
             ...inv,
             status: 'signed',
-            signDate: new Date().toISOString(),
+            signDate: sig.signedAt || new Date().toISOString(),
             digitalSignature: {
               ...inv.digitalSignature,
-              signedBy: settings.storeName || 'CÔNG TY CP GP-ERP VIỆT NAM',
-              serialNumber: '54:01:01:82:91:02:93:84:71:0A:99:BC:12',
+              signedBy: sig.signerName || settings.storeName || 'CÔNG TY CP GP-ERP VIỆT NAM',
+              serialNumber: sig.certificateSerial || '54:01:01:82:91:02:93:84:71:0A:99:BC:12',
               signTime,
-              certProvider: 'VIETTEL-CA (Bộ Thông Tin & Truyền Thông cấp phép)',
+              certProvider: `${sig.providerName} (Bộ Thông Tin & Truyền Thông cấp phép)`,
               isVerified: true,
             },
           };
@@ -180,19 +195,32 @@ export const EInvoiceManagerView: React.FC<EInvoiceManagerViewProps> = ({
           ? {
               ...prev,
               status: 'signed',
-              signDate: new Date().toISOString(),
+              signDate: sig.signedAt || new Date().toISOString(),
+              digitalSignature: {
+                ...prev.digitalSignature,
+                signedBy: sig.signerName || settings.storeName || 'CÔNG TY CP GP-ERP VIỆT NAM',
+                serialNumber: sig.certificateSerial || '54:01:01:82:91:02:93:84:71:0A:99:BC:12',
+                signTime,
+                certProvider: `${sig.providerName} (Bộ Thông Tin & Truyền Thông cấp phép)`,
+                isVerified: true,
+              },
             }
           : null
       );
     }
 
     try {
-      await einvoicesApi.updateInvoiceStatus(invoiceId, 'signed');
+      await fetch(`/api/einvoices/${invoiceId}/sign`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ signature: sig }),
+      });
     } catch (err: any) {
       console.warn('API sync warning:', err.message);
     }
 
-    showToast(`Đã ký số điện tử thành công cho Hóa đơn #${invoiceId}!`);
+    showToast(`Đã ký số điện tử thành công qua ${sig.providerName} cho Hóa đơn #${invoiceId}!`);
+    setSigningInvoice(null);
   };
 
   const handleSendCqt = async (invoiceId: string) => {
@@ -584,6 +612,28 @@ export const EInvoiceManagerView: React.FC<EInvoiceManagerViewProps> = ({
           receipt={selectedStockReceipt}
           settings={settings}
           onClose={() => setSelectedStockReceipt(null)}
+        />
+      )}
+
+      {/* Modal Ký Số Điện Tử CA Đa Nhà Cung Cấp (Viettel / VNPT / FPT / Token) */}
+      {signingInvoice && (
+        <DocumentSignerModal
+          document={{
+            id: signingInvoice.id,
+            code: signingInvoice.invoiceCode,
+            title: `Hóa Đơn GTGT (Mẫu ${signingInvoice.invoiceTemplate} - Ký hiệu ${signingInvoice.invoiceSymbol})`,
+            type: 'einvoice',
+            typeLabel: 'Hóa Đơn Điện Tử',
+            createdAt: signingInvoice.issueDate,
+            totalAmount: signingInvoice.totalAmount,
+            creatorName: 'Bộ phận Kế toán',
+            recipientName: signingInvoice.buyer?.buyerName || signingInvoice.buyer?.companyName || 'Khách hàng',
+            status: 'pending',
+            legalStandard: 'XML-DSig (Nghị định 123/2020/NĐ-CP & Thông tư 78/2021/TT-BTC)',
+          }}
+          settings={settings}
+          onClose={() => setSigningInvoice(null)}
+          onSignSuccess={handleInvoiceSignSuccess}
         />
       )}
     </div>

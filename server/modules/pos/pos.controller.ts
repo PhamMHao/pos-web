@@ -49,6 +49,17 @@ export class PosController {
     }
   }
 
+  static async signOrder(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { signature } = req.body;
+      const order = await PosService.signOrder(id, signature || req.body);
+      return sendSuccess(res, order, "Ký số điện tử CA cho đơn hàng thành công");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
   // --- CASH SHIFTS ---
   static async openShift(req: Request, res: Response, next: NextFunction) {
     try {

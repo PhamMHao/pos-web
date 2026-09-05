@@ -578,6 +578,11 @@ export const QuotesView: React.FC<QuotesViewProps> = ({
             };
             setQuoteSignatures((prev) => ({ ...prev, [selectedQuote.id]: sig }));
             handleUpdateQuote(updatedQuote);
+            fetch(`/api/quotes/${selectedQuote.id}/sign`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ signature: sig }),
+            }).catch((err) => console.warn('Sync quote signature to backend warning:', err));
             setShowSignerModal(false);
           }}
         />

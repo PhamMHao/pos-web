@@ -49,6 +49,17 @@ export class EInvoicesController {
     }
   }
 
+  static async signInvoice(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { signature } = req.body;
+      const invoice = await EInvoicesService.signInvoice(id, signature || req.body);
+      return sendSuccess(res, invoice, "Ký số điện tử phát hành hóa đơn thành công");
+    } catch (error) {
+      return next(error);
+    }
+  }
+
   static async deleteInvoice(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;

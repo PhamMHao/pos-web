@@ -88,6 +88,10 @@ export class QuotesService {
       totalAmount: Number(q.totalAmount),
       discountPercent: Number(q.discountPercent),
       finalTotal: Number(q.finalTotal),
+      digitalSignature: (() => {
+        if (!q.digitalSignature) return null;
+        try { return JSON.parse(q.digitalSignature); } catch { return q.digitalSignature; }
+      })(),
       items: (q.items || []).map((i) => ({
         ...i,
         quantity: Number(i.quantity),
@@ -125,6 +129,10 @@ export class QuotesService {
       totalAmount: Number(quote.totalAmount),
       discountPercent: Number(quote.discountPercent),
       finalTotal: Number(quote.finalTotal),
+      digitalSignature: (() => {
+        if (!quote.digitalSignature) return null;
+        try { return JSON.parse(quote.digitalSignature); } catch { return quote.digitalSignature; }
+      })(),
       items: (quote.items || []).map((i) => ({
         ...i,
         quantity: Number(i.quantity),
@@ -132,6 +140,21 @@ export class QuotesService {
         total: Number(i.total),
       })),
     };
+  }
+
+  static async signQuote(id: string, signature: any) {
+    await this.getQuoteById(id);
+    const signatureStr = typeof signature === "string" ? signature : JSON.stringify(signature);
+
+    await prisma.priceQuote.updateMany({
+      where: { id },
+      data: {
+        digitalSignature: signatureStr,
+        status: "approved",
+      },
+    });
+
+    return this.getQuoteById(id);
   }
 
   static async updateQuote(id: string, input: UpdatePriceQuoteInput) {

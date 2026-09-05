@@ -24,6 +24,7 @@ router.put(
   validateRequest({ body: updatePriceQuoteSchema }),
   QuotesController.updateQuote
 );
+router.put("/:id/sign", QuotesController.signQuote);
 router.delete("/:id", authenticate, QuotesController.deleteQuote);
 
 export default router;

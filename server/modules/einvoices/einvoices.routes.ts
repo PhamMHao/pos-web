@@ -19,6 +19,7 @@ router.post(
   EInvoicesController.createInvoice
 );
 router.put("/:id/status", authenticate, EInvoicesController.updateInvoiceStatus);
+router.put("/:id/sign", EInvoicesController.signInvoice);
 router.delete("/:id", authenticate, EInvoicesController.deleteInvoice);
 
 export default router;

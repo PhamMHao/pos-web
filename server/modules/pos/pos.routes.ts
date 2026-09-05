@@ -22,6 +22,7 @@ router.put(
   validateRequest({ body: updateOrderStatusSchema }),
   PosController.updateOrderStatus
 );
+router.put("/orders/:id/sign", PosController.signOrder);
 
 // Cash Shift routes
 router.get("/shifts/current", PosController.getCurrentShift);

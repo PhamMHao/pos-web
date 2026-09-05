@@ -14,6 +14,7 @@ import {
   Sparkles,
   QrCode,
   DollarSign,
+  Briefcase,
 } from 'lucide-react';
 import { PriceQuote, StoreSettings, DigitalSignatureMetadata } from '../../types';
 import { formatVND } from '../../utils/currency';
@@ -262,6 +263,35 @@ export const QuoteConversionNextStepsModal: React.FC<QuoteConversionNextStepsMod
                 </div>
               </div>
               <ArrowRight className="w-5 h-5 text-slate-500 group-hover:text-purple-400 transition-colors" />
+            </div>
+
+            {/* Action 6: Lập Hợp Đồng Kinh Tế B2B */}
+            <div
+              onClick={() => {
+                onClose();
+                if (onNavigateTab) {
+                  onNavigateTab('contracts');
+                }
+              }}
+              className="p-3.5 bg-gradient-to-r from-blue-950/40 via-slate-800 to-cyan-950/40 hover:from-blue-900/60 hover:to-cyan-900/60 border border-cyan-500/40 hover:border-cyan-400 rounded-2xl flex items-center justify-between cursor-pointer transition-all group shadow-md"
+            >
+              <div className="flex items-center space-x-3.5">
+                <div className="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <Briefcase className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-white group-hover:text-cyan-300 transition-colors flex items-center space-x-1.5">
+                    <span>6. Lập Hợp Đồng Kinh Tế B2B (CLM)</span>
+                    <span className="px-2 py-0.2 text-[10px] rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                      Tự động hóa
+                    </span>
+                  </h4>
+                  <p className="text-xs text-slate-400">
+                    Khởi tạo hợp đồng kinh tế pháp lý, ký số SmartCA/Token PKI và kích hoạt vòng đời bàn giao
+                  </p>
+                </div>
+              </div>
+              <ArrowRight className="w-5 h-5 text-cyan-400 group-hover:translate-x-1 transition-all" />
             </div>
           </div>
 
