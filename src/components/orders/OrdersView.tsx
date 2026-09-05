@@ -68,6 +68,7 @@ interface OrdersViewProps {
   onSaveReturn?: (returnOrder: ReturnOrder) => Promise<void>;
   onDeleteReturn?: (id: string) => Promise<void>;
   settings: StoreSettings;
+  onSaveSettings?: (updated: StoreSettings) => void;
 }
 
 const STATUS_CONFIG: Record<
@@ -99,7 +100,7 @@ const STATUS_CONFIG: Record<
     border: 'border-purple-500/30',
   },
   completed: {
-    label: 'Hoàn tất',
+    label: 'Hoàn thành',
     bg: 'bg-emerald-500/10',
     text: 'text-emerald-400',
     border: 'border-emerald-500/30',
@@ -149,6 +150,7 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
   onSaveReturn,
   onDeleteReturn,
   settings,
+  onSaveSettings,
 }) => {
   const [activeTab, setActiveTab] = useState<'all' | 'need_stock_issue' | 'delivery_dispatch' | 'completed'>('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -2046,6 +2048,7 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
           order={printA4Order}
           settings={settings}
           onClose={() => setPrintA4Order(null)}
+          onSaveSettings={onSaveSettings}
         />
       )}
 
@@ -2091,6 +2094,7 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
           creatorName="Thủ Kho / Điều Phối Viên Gia Phúc"
           warehouseName="Kho Hàng Hóa Gia Phúc Computer"
           settings={settings}
+          onSaveSettings={onSaveSettings}
         />
       )}
 

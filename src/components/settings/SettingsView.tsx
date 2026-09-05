@@ -400,15 +400,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   // Helper for per-doc-type configuration update
   const handleUpdateDocConfig = (
     type: PrintDocType,
-    field: 'paperSize' | 'orientation' | 'emptyRowsCount' | 'signatureStyle' | 'showVietQR',
+    field: 'paperSize' | 'orientation' | 'emptyRowsCount' | 'signatureStyle' | 'showVietQR' | 'codePlacement',
     value: any
   ) => {
+    const meta = DOC_TYPE_LABELS[type];
     const currentDocConfig = formData.printDocConfigs?.[type] || {
-      paperSize: DOC_TYPE_LABELS[type].defaultSize,
-      orientation: DOC_TYPE_LABELS[type].defaultOrientation,
-      emptyRowsCount: DOC_TYPE_LABELS[type].defaultSize === 'A5' ? 2 : 4,
+      paperSize: meta?.defaultSize || 'A4',
+      orientation: meta?.defaultOrientation || 'portrait',
+      emptyRowsCount: meta?.defaultSize === 'A5' ? 2 : 4,
       signatureStyle: 'two_blocks' as const,
       showVietQR: true,
+      codePlacement: formData.defaultPrintCodePlacement || 'header',
     };
 
     const updatedConfigs = {
@@ -419,10 +421,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       },
     };
 
-    setFormData({
+    const newFormData = {
       ...formData,
       printDocConfigs: updatedConfigs,
-    });
+    };
+
+    setFormData(newFormData);
+    onSaveSettings(newFormData);
+    setSavedSuccess(true);
+    setTimeout(() => setSavedSuccess(false), 2000);
   };
 
   // Open the detailed Print Template Editor Modal for a specific form
@@ -1280,12 +1287,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   })
                   .map((type) => {
                     const meta = DOC_TYPE_LABELS[type];
-                    const cfg = formData.printDocConfigs?.[type] || {
-                      paperSize: meta.defaultSize,
-                      orientation: meta.defaultOrientation,
-                      emptyRowsCount: meta.defaultSize === 'A5' ? 2 : 4,
-                      signatureStyle: 'two_blocks' as const,
-                      showVietQR: true,
+                    const rawCfg = formData.printDocConfigs?.[type];
+                    const cfg = {
+                      paperSize: rawCfg?.paperSize || formData.defaultPrintPaperSize || meta?.defaultSize || 'A4',
+                      orientation: rawCfg?.orientation || formData.defaultPrintOrientation || meta?.defaultOrientation || 'portrait',
+                      emptyRowsCount: rawCfg?.emptyRowsCount !== undefined ? rawCfg.emptyRowsCount : (meta?.defaultSize === 'A5' ? 2 : 4),
+                      signatureStyle: rawCfg?.signatureStyle || ('two_blocks' as const),
+                      showVietQR: rawCfg?.showVietQR !== undefined ? rawCfg.showVietQR : true,
+                      codePlacement: rawCfg?.codePlacement || formData.defaultPrintCodePlacement || 'header',
+                      customTitle: rawCfg?.customTitle,
+                      customSubtitle: rawCfg?.customSubtitle,
+                      notes: rawCfg?.notes,
+                      signLeftLabel: rawCfg?.signLeftLabel,
+                      signRightLabel: rawCfg?.signRightLabel,
                     };
                     const isCustomized =
                       Boolean(cfg.customTitle) ||
@@ -1299,8 +1313,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         key={type}
                         className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 text-xs hover:border-slate-700 transition-colors"
                       >
-                        <div className="lg:w-5/12 space-y-1">
-                          <div className="flex flex-wrap items-center gap-2">
+                        <div className="lg:w-4/12 space-y-1">
+                          <div className="flex flex-wrap items-center gap-1.5">
                             <span className="font-bold text-white text-sm">
                               {cfg.customTitle ? `${meta.label} (${cfg.customTitle})` : meta.label}
                             </span>
@@ -1310,6 +1324,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                   ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                                   : cfg.paperSize === 'A4'
                                   ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                                  : cfg.paperSize === 'K58'
+                                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
                                   : 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
                               }`}
                             >
@@ -1318,10 +1334,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-800 text-slate-300 border border-slate-700">
                               {cfg.orientation === 'portrait' ? 'Dọc' : 'Ngang'}
                             </span>
+                            <span
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border ${
+                                cfg.codePlacement === 'footer'
+                                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                                  : cfg.codePlacement === 'both'
+                                  ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
+                                  : cfg.codePlacement === 'none'
+                                  ? 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+                                  : 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'
+                              }`}
+                            >
+                              {cfg.codePlacement === 'footer'
+                                ? 'Mã: Chân trang'
+                                : cfg.codePlacement === 'both'
+                                ? 'Mã: Cả 2 nơi'
+                                : cfg.codePlacement === 'none'
+                                ? 'Ẩn mã'
+                                : 'Mã: Đầu trang'}
+                            </span>
                             {isCustomized && (
                               <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center space-x-1">
                                 <Sparkles className="w-3 h-3" />
-                                <span>Đã tùy chỉnh nội dung</span>
+                                <span>Đã tùy chỉnh</span>
                               </span>
                             )}
                           </div>
@@ -1335,30 +1370,43 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                         {/* Controls and Action Buttons */}
                         <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
-                          {/* Paper Size selector */}
+                          {/* 1. Vị trí mã selector (Đặt TRƯỚC khổ giấy theo yêu cầu) */}
+                          <div>
+                            <label className="block text-[10px] text-slate-400 font-semibold mb-0.5">
+                              Vị trí mã:
+                            </label>
+                            <select
+                              value={cfg.codePlacement || 'header'}
+                              onChange={(e) => handleUpdateDocConfig(type, 'codePlacement', e.target.value as any)}
+                              className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 focus:border-blue-500 outline-none text-xs font-semibold cursor-pointer"
+                              title="Cấu hình vị trí in mã Barcode/QR riêng cho mẫu này"
+                            >
+                              <option value="header">Đầu trang (Header)</option>
+                              <option value="footer">Chân trang (Footer)</option>
+                              <option value="both">Cả 2 vị trí</option>
+                              <option value="none">Không in mã (Ẩn)</option>
+                            </select>
+                          </div>
+
+                          {/* 2. Khổ giấy selector dạng dropdown (như hướng in) */}
                           <div>
                             <label className="block text-[10px] text-slate-400 font-semibold mb-0.5">
                               Khổ giấy:
                             </label>
-                            <div className="flex items-center bg-slate-900 rounded-lg p-0.5 border border-slate-700">
-                              {(['A4', 'A5', 'K80'] as const).map((sz) => (
-                                <button
-                                  key={sz}
-                                  type="button"
-                                  onClick={() => handleUpdateDocConfig(type, 'paperSize', sz)}
-                                  className={`px-2.5 py-1 rounded text-xs font-bold transition-all cursor-pointer ${
-                                    cfg.paperSize === sz
-                                      ? 'bg-blue-600 text-white shadow'
-                                      : 'text-slate-400 hover:text-slate-200'
-                                  }`}
-                                >
-                                  {sz}
-                                </button>
-                              ))}
-                            </div>
+                            <select
+                              value={cfg.paperSize || 'A4'}
+                              onChange={(e) => handleUpdateDocConfig(type, 'paperSize', e.target.value as any)}
+                              className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 focus:border-blue-500 outline-none text-xs font-semibold cursor-pointer"
+                              title="Chọn khổ giấy in riêng biệt cho mẫu này"
+                            >
+                              <option value="A4">Khổ A4 (Chuẩn)</option>
+                              <option value="A5">Khổ A5 (Nửa A4)</option>
+                              <option value="K80">Khổ K80 (80mm)</option>
+                              <option value="K58">Khổ K58 (58mm)</option>
+                            </select>
                           </div>
 
-                          {/* Orientation selector */}
+                          {/* 3. Hướng in selector */}
                           <div>
                             <label className="block text-[10px] text-slate-400 font-semibold mb-0.5">
                               Hướng in:
@@ -1366,14 +1414,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             <select
                               value={cfg.orientation}
                               onChange={(e) => handleUpdateDocConfig(type, 'orientation', e.target.value)}
-                              className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-slate-200 focus:border-blue-500 outline-none"
+                              className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 focus:border-blue-500 outline-none text-xs font-semibold cursor-pointer"
                             >
                               <option value="portrait">Dọc</option>
                               <option value="landscape">Ngang</option>
                             </select>
                           </div>
 
-                          {/* Empty rows count */}
+                          {/* 4. Dòng kẻ selector */}
                           <div>
                             <label className="block text-[10px] text-slate-400 font-semibold mb-0.5">
                               Dòng kẻ:
@@ -1386,12 +1434,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                               onChange={(e) =>
                                 handleUpdateDocConfig(type, 'emptyRowsCount', Number(e.target.value))
                               }
-                              className="w-14 bg-slate-900 border border-slate-700 rounded-lg px-1.5 py-1 text-slate-200 text-center font-mono outline-none"
+                              className="w-14 bg-slate-900 border border-slate-700 rounded-lg px-1.5 py-1 text-slate-200 text-center font-mono outline-none text-xs font-semibold"
                             />
                           </div>
 
                           {/* Action Buttons: Edit Template & Test Print */}
-                          <div className="flex items-center space-x-2 pt-3">
+                          <div className="flex items-center space-x-2 pt-2 sm:pt-0">
                             <button
                               type="button"
                               onClick={() => handleOpenEditor(type)}

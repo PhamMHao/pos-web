@@ -15,6 +15,7 @@ import { numberToVietnameseWords } from '../../utils/numberToWords';
 import { GiaPhucLogo } from '../common/GiaPhucLogo';
 import { PrinterSelectDropdown } from '../common/PrinterSelectDropdown';
 import { SlipBarcodeQR } from '../common/SlipBarcodeQR';
+import { getEffectivePrintConfig } from '../../utils/printTemplates';
 
 interface PurchaseOrderPrintModalProps {
   isOpen: boolean;
@@ -30,9 +31,17 @@ export const PurchaseOrderPrintModal: React.FC<PurchaseOrderPrintModalProps> = (
   settings,
 }) => {
   const printableRef = useRef<HTMLDivElement>(null);
+  const effectiveConfig = getEffectivePrintConfig(settings, 'goods_receipt');
   const [codePlacement, setCodePlacement] = useState<'header' | 'footer' | 'both' | 'none'>(
-    settings?.defaultPrintCodePlacement || 'header'
+    effectiveConfig.codePlacement || settings?.defaultPrintCodePlacement || 'header'
   );
+
+  React.useEffect(() => {
+    if (isOpen) {
+      const cfg = getEffectivePrintConfig(settings, 'goods_receipt');
+      if (cfg.codePlacement) setCodePlacement(cfg.codePlacement);
+    }
+  }, [isOpen, settings]);
 
   if (!isOpen || !order) return null;
 

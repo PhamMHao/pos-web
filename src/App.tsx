@@ -1711,6 +1711,7 @@ export function App() {
                     onCancelLoadedQuote={handleCancelLoadedQuote}
                     serialRecords={serialRecords}
                     onSaveSerialRecords={setSerialRecords}
+                    onSaveSettings={handleSaveSettings}
                   />
                 )}
 
@@ -1727,6 +1728,7 @@ export function App() {
                     onSaveReturn={handleSaveReturnOrder}
                     onDeleteReturn={handleDeleteReturnOrder}
                     settings={settings}
+                    onSaveSettings={handleSaveSettings}
                   />
                 )}
 

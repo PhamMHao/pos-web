@@ -79,6 +79,7 @@ interface PosViewProps {
   onCancelLoadedQuote?: () => void;
   serialRecords?: SerialDeviceRecord[];
   onSaveSerialRecords?: (records: SerialDeviceRecord[] | ((prev: SerialDeviceRecord[]) => SerialDeviceRecord[])) => void;
+  onSaveSettings?: (updated: StoreSettings) => void;
 }
 
 export const PosView: React.FC<PosViewProps> = ({
@@ -98,6 +99,7 @@ export const PosView: React.FC<PosViewProps> = ({
   onCancelLoadedQuote,
   serialRecords = [],
   onSaveSerialRecords,
+  onSaveSettings,
 }) => {
   const {
     productCategories: masterCategories,
@@ -1503,6 +1505,7 @@ export const PosView: React.FC<PosViewProps> = ({
           initialPaperSize={posPrintPaperSize}
           settings={settings}
           onClose={() => setPrintA4Order(null)}
+          onSaveSettings={onSaveSettings}
         />
       )}
 

@@ -137,8 +137,9 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
     }
   }, [isOpen, initialDocType]);
 
-  // Dynamically load per-form configuration when docType or settings change
+  // Dynamically load per-form configuration when modal opens, docType or settings change
   useEffect(() => {
+    if (!isOpen) return;
     setCustomLogoUrl(settings?.logoUrl || '');
     const config = getEffectivePrintConfig(settings, docType);
     if (initialPaperSize) {
@@ -153,10 +154,10 @@ export const PrintInvoiceModal: React.FC<PrintInvoiceModalProps> = ({
     if (config.showBarcode !== undefined) setShowBarcode(config.showBarcode);
     if (config.showDocQr !== undefined) setShowDocQr(config.showDocQr);
     if (config.showLogo !== undefined) setShowLogo(config.showLogo);
-    if (config.codePlacement) setCodePlacement(config.codePlacement);
+    if (config.codePlacement !== undefined) setCodePlacement(config.codePlacement);
     if (!propWarehouseName && config.defaultWarehouse) setWarehouse(config.defaultWarehouse);
     if (!propCreatorName && config.defaultCreator) setCreator(config.defaultCreator);
-  }, [docType, settings, initialPaperSize, propWarehouseName, propCreatorName]);
+  }, [isOpen, docType, settings, initialPaperSize, propWarehouseName, propCreatorName]);
 
   // Save current settings as default for this docType
   const handleSaveAsDefault = () => {

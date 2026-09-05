@@ -19,6 +19,7 @@ import { GiaPhucLogo } from '../common/GiaPhucLogo';
 import { PrintInvoiceModal } from '../common/PrintInvoiceModal';
 import { PrinterSelectDropdown } from '../common/PrinterSelectDropdown';
 import { SlipBarcodeQR } from '../common/SlipBarcodeQR';
+import { getEffectivePrintConfig } from '../../utils/printTemplates';
 
 interface StockReceiptPrintModalProps {
   receipt: StockGoodsReceipt;
@@ -32,22 +33,26 @@ export const StockReceiptPrintModal: React.FC<StockReceiptPrintModalProps> = ({
   onClose,
 }) => {
   const printRef = useRef<HTMLDivElement>(null);
+  const docType = 'goods_receipt' as const;
+  const effectiveConfig = getEffectivePrintConfig(settings, docType);
+
   const [paperSize, setPaperSize] = useState<'A4' | 'A5' | 'K80' | 'K58'>(
-    (settings?.defaultPrintPaperSize as any) || 'A4'
+    (effectiveConfig.paperSize as any) || (settings?.defaultPrintPaperSize as any) || 'A4'
   );
   const [codePlacement, setCodePlacement] = useState<'header' | 'footer' | 'both' | 'none'>(
-    settings?.defaultPrintCodePlacement || 'header'
+    effectiveConfig.codePlacement || settings?.defaultPrintCodePlacement || 'header'
   );
   const [showGiaPhucModal, setShowGiaPhucModal] = useState<boolean>(false);
 
   React.useEffect(() => {
-    if (settings?.defaultPrintPaperSize) {
-      setPaperSize(settings.defaultPrintPaperSize as any);
+    const cfg = getEffectivePrintConfig(settings, docType);
+    if (cfg.paperSize) {
+      setPaperSize(cfg.paperSize as any);
     }
-    if (settings?.defaultPrintCodePlacement) {
-      setCodePlacement(settings.defaultPrintCodePlacement);
+    if (cfg.codePlacement) {
+      setCodePlacement(cfg.codePlacement);
     }
-  }, [settings]);
+  }, [settings, docType]);
 
   const handlePrint = () => {
     requestAnimationFrame(() => {

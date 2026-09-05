@@ -19,6 +19,7 @@ import { WarrantyTicket, StoreSettings, PaperSize } from '../../types';
 import { formatVND } from '../../utils/vietqr';
 import { SlipBarcodeQR } from '../common/SlipBarcodeQR';
 import { GiaPhucLogo } from '../common/GiaPhucLogo';
+import { getEffectivePrintConfig } from '../../utils/printTemplates';
 
 interface WarrantyPrintModalProps {
   isOpen: boolean;
@@ -35,12 +36,24 @@ export const WarrantyPrintModal: React.FC<WarrantyPrintModalProps> = ({
   settings,
   printMode = 'receipt',
 }) => {
+  const isHandover = printMode === 'handover' || ticket?.status === 'returned' || ticket?.status === 'ready_to_return';
+  const docType = isHandover ? ('warranty_return' as const) : ('warranty_intake' as const);
+  const effectiveConfig = getEffectivePrintConfig(settings, docType);
+
   const [paperSize, setPaperSize] = useState<PaperSize>(
-    settings?.defaultPrintPaperSize || 'A4'
+    effectiveConfig.paperSize || settings?.defaultPrintPaperSize || 'A4'
   );
   const [codePlacement, setCodePlacement] = useState<'header' | 'footer' | 'both' | 'none'>(
-    settings?.defaultPrintCodePlacement || 'header'
+    effectiveConfig.codePlacement || settings?.defaultPrintCodePlacement || 'header'
   );
+
+  React.useEffect(() => {
+    if (isOpen) {
+      const cfg = getEffectivePrintConfig(settings, docType);
+      if (cfg.paperSize) setPaperSize(cfg.paperSize);
+      if (cfg.codePlacement) setCodePlacement(cfg.codePlacement);
+    }
+  }, [isOpen, settings, docType]);
 
   if (!isOpen || !ticket) return null;
 
@@ -49,8 +62,6 @@ export const WarrantyPrintModal: React.FC<WarrantyPrintModalProps> = ({
       window.print();
     });
   };
-
-  const isHandover = printMode === 'handover' || ticket.status === 'returned' || ticket.status === 'ready_to_return';
 
   return (
     <div
