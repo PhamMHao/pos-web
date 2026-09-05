@@ -835,6 +835,16 @@ export function App() {
     return () => window.removeEventListener('focus', handleFocus);
   }, []);
 
+  // Tự động đồng bộ ngầm định kỳ mỗi 15 giây để cập nhật dữ liệu từ các máy khác
+  useEffect(() => {
+    const pollInterval = setInterval(() => {
+      if (!document.hidden) {
+        fetchFreshDataFromDb({ silent: true });
+      }
+    }, 15000);
+    return () => clearInterval(pollInterval);
+  }, []);
+
   const handleToggleTheme = () => {
     const nextTheme: 'dark' | 'light' = isLightTheme ? 'dark' : 'light';
     const updated: StoreSettings = { ...settings, theme: nextTheme };
@@ -1783,7 +1793,7 @@ export function App() {
                     onSaveQuote={handleSaveQuote}
                     onConvertToOrder={handleConvertQuoteToOrder}
                     onOpenDocOcrScanner={(mode) => handleOpenDocOcrScanner(mode || 'customer_quote')}
-                    onNavigateTab={setActiveTab}
+                    onNavigateTab={(tab: any) => setActiveTab(tab)}
                   />
                 )}
 
@@ -1792,7 +1802,7 @@ export function App() {
                     products={products}
                     customers={customers}
                     employees={employees}
-                    onNavigateTab={setActiveTab}
+                    onNavigateTab={(tab: any) => setActiveTab(tab)}
                     onRefreshGlobalData={fetchFreshDataFromDb}
                   />
                 )}

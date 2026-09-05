@@ -56,6 +56,19 @@ export const CustomerContractsView: React.FC<CustomerContractsViewProps> = ({
 
   useEffect(() => {
     fetchContracts();
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        contractsApi
+          .getContracts()
+          .then((res) => {
+            if (res && res.data) {
+              setContracts(res.data);
+            }
+          })
+          .catch(() => {});
+      }
+    }, 15000);
+    return () => clearInterval(interval);
   }, []);
 
   // Filtered contracts

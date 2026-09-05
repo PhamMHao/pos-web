@@ -148,6 +148,22 @@ export const ProjectsManagerView: React.FC<ProjectsManagerViewProps> = ({
 
   useEffect(() => {
     fetchData();
+    const pollInterval = setInterval(() => {
+      if (!document.hidden) {
+        Promise.all([
+          projectsApi.getProjects(),
+          projectsApi.getTasks(),
+          projectsApi.getMaterialTickets(),
+        ])
+          .then(([projsData, tasksData, ticketsData]) => {
+            setProjects(projsData);
+            setTasks(tasksData);
+            setMaterialTickets(ticketsData);
+          })
+          .catch(() => {});
+      }
+    }, 15000);
+    return () => clearInterval(pollInterval);
   }, []);
 
   // Toggle Sub-step in task

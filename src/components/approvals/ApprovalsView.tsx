@@ -89,6 +89,30 @@ export const ApprovalsView: React.FC = () => {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // Tự động đồng bộ ngầm quy trình phê duyệt từ các máy khác mỗi 15 giây
+  useEffect(() => {
+    const pollInterval = setInterval(() => {
+      if (!document.hidden) {
+        Promise.all([
+          approvalsApi.getProcesses({
+            moduleType: selectedModule !== 'all' ? selectedModule : undefined,
+            status: selectedStatus !== 'all' ? selectedStatus : undefined,
+            search: searchQuery || undefined,
+          }),
+          approvalsApi.getTemplates(),
+          approvalsApi.getAnalytics(),
+        ])
+          .then(([procData, tplData, anaData]) => {
+            setProcesses(procData);
+            setTemplates(tplData);
+            setAnalytics(anaData);
+          })
+          .catch(() => {});
+      }
+    }, 15000);
+    return () => clearInterval(pollInterval);
+  }, [selectedModule, selectedStatus, searchQuery]);
+
   // Filter by "onlyMyTurn" locally
   const displayedProcesses = processes.filter((p) => {
     if (!onlyMyTurn) return true;
