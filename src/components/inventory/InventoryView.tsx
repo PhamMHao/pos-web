@@ -81,6 +81,7 @@ import { CreateStockExchangeModal } from './CreateStockExchangeModal';
 import { CreateStockReturnModal } from './CreateStockReturnModal';
 import { ReturnExchangePolicyModal } from './ReturnExchangePolicyModal';
 import { PriceQuote, Supplier, PurchaseOrder, StockGoodsIssue } from '../../types';
+import { InventoryHorizontalScrollToolbar } from './controls/InventoryHorizontalScrollToolbar';
 
 const LIFECYCLE_STAGE_BADGES: Record<string, { label: string; badge: string }> = {
   new_inbound: { label: 'Nhập Mới', badge: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
@@ -165,6 +166,14 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   } = useMasterData();
 
   const [activeTab, setActiveTab] = useState<'catalog' | 'receipts' | 'outbound' | 'returns_exchanges' | 'serial_devices' | 'logs'>('catalog');
+
+  // Dedicated scroll container refs for horizontal scrolling
+  const catalogScrollRef = useRef<HTMLDivElement>(null);
+  const receiptsScrollRef = useRef<HTMLDivElement>(null);
+  const outboundScrollRef = useRef<HTMLDivElement>(null);
+  const serialsScrollRef = useRef<HTMLDivElement>(null);
+  const logsScrollRef = useRef<HTMLDivElement>(null);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [warehouseFilter, setWarehouseFilter] = useState<string>('all');
@@ -1408,38 +1417,45 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 
       {/* Catalog Table */}
       {activeTab === 'catalog' && (
-        <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1400px] text-left text-xs">
-              <thead>
-                <tr className="bg-slate-950/60 text-slate-400 border-b border-slate-800 uppercase tracking-wider font-semibold text-[11px]">
-                  <th className="py-3.5 px-4 min-w-[280px]">Sản Phẩm</th>
-                  <th className="py-3.5 px-4 min-w-[160px] whitespace-nowrap">Danh Mục</th>
-                  <th className="py-3.5 px-4 min-w-[220px] whitespace-nowrap">Kho & Vị Trí Kệ</th>
-                  <th className="py-3.5 px-4 min-w-[160px] whitespace-nowrap">Dòng Đời & Lô/HSD</th>
-                  <th className="py-3.5 px-4 min-w-[120px] whitespace-nowrap">ĐVT</th>
-                  <th className="py-3.5 px-4 min-w-[130px] whitespace-nowrap text-right">Giá Vốn</th>
-                  <th className="py-3.5 px-4 min-w-[140px] whitespace-nowrap text-right">Giá Bán</th>
-                  <th className="py-3.5 px-4 min-w-[100px] whitespace-nowrap text-center">Tồn Kho</th>
-                  <th className="py-3.5 px-4 min-w-[230px] whitespace-nowrap text-right">Thao Tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800">
-                {filteredProducts.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} className="py-12 text-center text-slate-500">
-                      Không tìm thấy sản phẩm nào phù hợp
-                    </td>
-                  </tr>
-                ) : (
-                  filteredProducts.map((p) => {
-                    const isLow = p.stock <= p.minStock && p.stock > 0;
-                    const isOut = p.stock <= 0;
+        <div className="space-y-2.5">
+          {/* Top Horizontal Scroll Bar & Navigation */}
+          <InventoryHorizontalScrollToolbar containerRef={catalogScrollRef} activeTab="catalog" />
 
-                    return (
-                      <tr key={p.id} className="hover:bg-slate-850/60 transition-colors">
-                        {/* Product info & thumb */}
-                        <td className="py-3 px-4 min-w-[280px]">
+          <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
+            <div
+              ref={catalogScrollRef}
+              className="table-scroll-container overflow-auto max-h-[calc(100vh-270px)] min-h-[420px] relative"
+            >
+              <table className="w-full min-w-[1400px] text-left text-xs border-collapse">
+                <thead className="sticky top-0 z-20 bg-slate-950/95 backdrop-blur-md shadow-md border-b border-slate-800">
+                  <tr className="text-slate-400 uppercase tracking-wider font-semibold text-[11px]">
+                    <th className="py-3.5 px-4 min-w-[280px] sticky left-0 z-30 bg-slate-950 shadow-[2px_0_6px_rgba(0,0,0,0.5)]">Sản Phẩm</th>
+                    <th className="py-3.5 px-4 min-w-[160px] whitespace-nowrap">Danh Mục</th>
+                    <th className="py-3.5 px-4 min-w-[220px] whitespace-nowrap">Kho & Vị Trí Kệ</th>
+                    <th className="py-3.5 px-4 min-w-[160px] whitespace-nowrap">Dòng Đời & Lô/HSD</th>
+                    <th className="py-3.5 px-4 min-w-[120px] whitespace-nowrap">ĐVT</th>
+                    <th className="py-3.5 px-4 min-w-[130px] whitespace-nowrap text-right">Giá Vốn</th>
+                    <th className="py-3.5 px-4 min-w-[140px] whitespace-nowrap text-right">Giá Bán</th>
+                    <th className="py-3.5 px-4 min-w-[100px] whitespace-nowrap text-center">Tồn Kho</th>
+                    <th className="py-3.5 px-4 min-w-[230px] whitespace-nowrap text-right">Thao Tác</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {filteredProducts.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="py-12 text-center text-slate-500">
+                        Không tìm thấy sản phẩm nào phù hợp
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredProducts.map((p) => {
+                      const isLow = p.stock <= p.minStock && p.stock > 0;
+                      const isOut = p.stock <= 0;
+
+                      return (
+                        <tr key={p.id} className="hover:bg-slate-850/60 transition-colors group">
+                          {/* Product info & thumb - Sticky left column */}
+                          <td className="py-3 px-4 min-w-[280px] sticky left-0 z-10 bg-slate-900 group-hover:bg-slate-850 shadow-[2px_0_6px_rgba(0,0,0,0.5)] transition-colors">
                           <div className="flex items-center space-x-3">
                             <img
                               src={p.image}
@@ -1640,45 +1656,52 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             </table>
           </div>
         </div>
+      </div>
       )}
 
       {/* Inward Goods Receipts Tab */}
       {activeTab === 'receipts' && (
-        <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1150px] text-left text-xs">
-              <thead>
-                <tr className="bg-slate-950/60 text-slate-400 border-b border-slate-800 uppercase tracking-wider font-semibold">
-                  <th className="py-3.5 px-4 min-w-[140px] whitespace-nowrap">Mã Phiếu Nhập</th>
-                  <th className="py-3.5 px-4 min-w-[130px] whitespace-nowrap">Ngày Nhập</th>
-                  <th className="py-3.5 px-4 min-w-[180px] whitespace-nowrap">Nhà Cung Cấp / Đối Tác</th>
-                  <th className="py-3.5 px-4 min-w-[150px] whitespace-nowrap">Nguồn Chứng Từ</th>
-                  <th className="py-3.5 px-4 min-w-[200px] whitespace-nowrap">Mặt Hàng & Serial Nạp</th>
-                  <th className="py-3.5 px-4 min-w-[130px] whitespace-nowrap text-right">Tổng Tiền Hàng</th>
-                  <th className="py-3.5 px-4 min-w-[120px] whitespace-nowrap text-center">Thanh Toán</th>
-                  <th className="py-3.5 px-4 min-w-[120px] whitespace-nowrap text-right">Thao Tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800">
-                {filteredReceipts.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="py-12 text-center text-slate-500">
-                      <div className="flex flex-col items-center justify-center space-y-2">
-                        <FileText className="w-8 h-8 text-slate-600" />
-                        <p className="text-sm font-semibold">Chưa có phiếu nhập kho nào</p>
-                        <p className="text-xs text-slate-500">
-                          Nhấn nút "+ Lập Phiếu Nhập Kho" phía trên để tạo phiếu nhập từ Đơn Đặt Hàng (PO), Báo Giá, HĐĐT hoặc thủ công.
-                        </p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  filteredReceipts.map((rc) => {
-                    const totalQty = rc.totalQuantity || (rc.items ? rc.items.reduce((s, i) => s + i.quantity, 0) : 0);
+        <div className="space-y-2.5">
+          <InventoryHorizontalScrollToolbar containerRef={receiptsScrollRef} activeTab="receipts" />
 
-                    return (
-                      <tr key={rc.id} className="hover:bg-slate-850/60 transition-colors">
-                        <td className="py-3 px-4">
+          <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
+            <div
+              ref={receiptsScrollRef}
+              className="table-scroll-container overflow-auto max-h-[calc(100vh-270px)] min-h-[420px] relative"
+            >
+              <table className="w-full min-w-[1150px] text-left text-xs border-collapse">
+                <thead className="sticky top-0 z-20 bg-slate-950/95 backdrop-blur-md shadow-md border-b border-slate-800">
+                  <tr className="text-slate-400 uppercase tracking-wider font-semibold">
+                    <th className="py-3.5 px-4 min-w-[140px] whitespace-nowrap sticky left-0 z-30 bg-slate-950 shadow-[2px_0_6px_rgba(0,0,0,0.5)]">Mã Phiếu Nhập</th>
+                    <th className="py-3.5 px-4 min-w-[130px] whitespace-nowrap">Ngày Nhập</th>
+                    <th className="py-3.5 px-4 min-w-[180px] whitespace-nowrap">Nhà Cung Cấp / Đối Tác</th>
+                    <th className="py-3.5 px-4 min-w-[150px] whitespace-nowrap">Nguồn Chứng Từ</th>
+                    <th className="py-3.5 px-4 min-w-[200px] whitespace-nowrap">Mặt Hàng & Serial Nạp</th>
+                    <th className="py-3.5 px-4 min-w-[130px] whitespace-nowrap text-right">Tổng Tiền Hàng</th>
+                    <th className="py-3.5 px-4 min-w-[120px] whitespace-nowrap text-center">Thanh Toán</th>
+                    <th className="py-3.5 px-4 min-w-[120px] whitespace-nowrap text-right">Thao Tác</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {filteredReceipts.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-12 text-center text-slate-500">
+                        <div className="flex flex-col items-center justify-center space-y-2">
+                          <FileText className="w-8 h-8 text-slate-600" />
+                          <p className="text-sm font-semibold">Chưa có phiếu nhập kho nào</p>
+                          <p className="text-xs text-slate-500">
+                            Nhấn nút "+ Lập Phiếu Nhập Kho" phía trên để tạo phiếu nhập từ Đơn Đặt Hàng (PO), Báo Giá, HĐĐT hoặc thủ công.
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredReceipts.map((rc) => {
+                      const totalQty = rc.totalQuantity || (rc.items ? rc.items.reduce((s, i) => s + i.quantity, 0) : 0);
+
+                      return (
+                        <tr key={rc.id} className="hover:bg-slate-850/60 transition-colors group">
+                          <td className="py-3 px-4 min-w-[140px] sticky left-0 z-10 bg-slate-900 group-hover:bg-slate-850 shadow-[2px_0_6px_rgba(0,0,0,0.5)] transition-colors">
                           <div className="font-mono font-bold text-emerald-400">{rc.code}</div>
                           <span className="text-[10px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700 mt-0.5 inline-block">
                             {rc.warehouseName || 'Kho Chính'}
@@ -1787,49 +1810,56 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             </table>
           </div>
         </div>
+      </div>
       )}
 
       {/* Outbound Orders Dispatch Tab */}
       {activeTab === 'outbound' && (
-        <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1150px] text-left text-xs">
-              <thead>
-                <tr className="bg-slate-950/60 text-slate-400 border-b border-slate-800 uppercase tracking-wider font-semibold">
-                  <th className="py-3.5 px-4 min-w-[140px] whitespace-nowrap">Mã Đơn Hàng</th>
-                  <th className="py-3.5 px-4 min-w-[130px] whitespace-nowrap">Thời Gian</th>
-                  <th className="py-3.5 px-4 min-w-[200px] whitespace-nowrap">Khách Hàng & Nơi Giao</th>
-                  <th className="py-3.5 px-4 min-w-[220px] whitespace-nowrap">Sản Phẩm & Tiến Độ Serial</th>
-                  <th className="py-3.5 px-4 min-w-[130px] whitespace-nowrap text-right">Tổng Tiền</th>
-                  <th className="py-3.5 px-4 min-w-[140px] whitespace-nowrap text-center">Trạng Thái Xuất Kho</th>
-                  <th className="py-3.5 px-4 min-w-[140px] whitespace-nowrap text-right">Thao Tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800">
-                {filteredOutboundOrders.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="py-12 text-center text-slate-500">
-                      <div className="flex flex-col items-center justify-center space-y-2">
-                        <Boxes className="w-8 h-8 text-slate-600" />
-                        <p className="text-sm font-semibold">Không tìm thấy đơn hàng cần xuất kho</p>
-                        <p className="text-xs text-slate-500">
-                          Các đơn hàng tạo từ POS, Báo Giá hoặc Bán Hàng sẽ hiển thị tại đây để quét Serial và xuất kho.
-                        </p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  filteredOutboundOrders.map((ord) => {
-                    const isDispatched = ord.outboundStatus === 'dispatched';
-                    const totalQty = ord.items.reduce((s, i) => s + i.quantity, 0);
-                    const totalAssignedSerials = ord.items.reduce(
-                      (s, i) => s + (i.serials ? i.serials.length : 0),
-                      0
-                    );
+        <div className="space-y-2.5">
+          <InventoryHorizontalScrollToolbar containerRef={outboundScrollRef} activeTab="outbound" />
 
-                    return (
-                      <tr key={ord.id} className="hover:bg-slate-850/60 transition-colors">
-                        <td className="py-3 px-4">
+          <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
+            <div
+              ref={outboundScrollRef}
+              className="table-scroll-container overflow-auto max-h-[calc(100vh-270px)] min-h-[420px] relative"
+            >
+              <table className="w-full min-w-[1150px] text-left text-xs border-collapse">
+                <thead className="sticky top-0 z-20 bg-slate-950/95 backdrop-blur-md shadow-md border-b border-slate-800">
+                  <tr className="text-slate-400 uppercase tracking-wider font-semibold">
+                    <th className="py-3.5 px-4 min-w-[140px] whitespace-nowrap sticky left-0 z-30 bg-slate-950 shadow-[2px_0_6px_rgba(0,0,0,0.5)]">Mã Đơn Hàng</th>
+                    <th className="py-3.5 px-4 min-w-[130px] whitespace-nowrap">Thời Gian</th>
+                    <th className="py-3.5 px-4 min-w-[200px] whitespace-nowrap">Khách Hàng & Nơi Giao</th>
+                    <th className="py-3.5 px-4 min-w-[220px] whitespace-nowrap">Sản Phẩm & Tiến Độ Serial</th>
+                    <th className="py-3.5 px-4 min-w-[130px] whitespace-nowrap text-right">Tổng Tiền</th>
+                    <th className="py-3.5 px-4 min-w-[140px] whitespace-nowrap text-center">Trạng Thái Xuất Kho</th>
+                    <th className="py-3.5 px-4 min-w-[140px] whitespace-nowrap text-right">Thao Tác</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {filteredOutboundOrders.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-12 text-center text-slate-500">
+                        <div className="flex flex-col items-center justify-center space-y-2">
+                          <Boxes className="w-8 h-8 text-slate-600" />
+                          <p className="text-sm font-semibold">Không tìm thấy đơn hàng cần xuất kho</p>
+                          <p className="text-xs text-slate-500">
+                            Các đơn hàng tạo từ POS, Báo Giá hoặc Bán Hàng sẽ hiển thị tại đây để quét Serial và xuất kho.
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredOutboundOrders.map((ord) => {
+                      const isDispatched = ord.outboundStatus === 'dispatched';
+                      const totalQty = ord.items.reduce((s, i) => s + i.quantity, 0);
+                      const totalAssignedSerials = ord.items.reduce(
+                        (s, i) => s + (i.serials ? i.serials.length : 0),
+                        0
+                      );
+
+                      return (
+                        <tr key={ord.id} className="hover:bg-slate-850/60 transition-colors group">
+                          <td className="py-3 px-4 min-w-[140px] sticky left-0 z-10 bg-slate-900 group-hover:bg-slate-850 shadow-[2px_0_6px_rgba(0,0,0,0.5)] transition-colors">
                           <div className="font-mono font-bold text-indigo-400">{ord.code}</div>
                           <span className="text-[10px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700 mt-0.5 inline-block">
                             {ord.channel || 'Tại quầy (POS)'}
@@ -1934,43 +1964,50 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             </table>
           </div>
         </div>
+      </div>
       )}
 
       {/* Serial Devices Management Tab */}
       {activeTab === 'serial_devices' && (
-        <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1200px] text-left text-xs">
-              <thead>
-                <tr className="bg-slate-950/60 text-slate-400 border-b border-slate-800 uppercase tracking-wider font-semibold">
-                  <th className="py-3.5 px-4 min-w-[150px] whitespace-nowrap">Số Serial / IMEI</th>
-                  <th className="py-3.5 px-4 min-w-[200px] whitespace-nowrap">Tên Thiết Bị & SKU</th>
-                  <th className="py-3.5 px-4 min-w-[180px] whitespace-nowrap">Hãng SX, Màu & Quy Cách</th>
-                  <th className="py-3.5 px-4 min-w-[130px] whitespace-nowrap text-center">Trạng Thái Kho</th>
-                  <th className="py-3.5 px-4 min-w-[180px] whitespace-nowrap">Vị Trí Kệ / Đơn Hàng Bán</th>
-                  <th className="py-3.5 px-4 min-w-[140px] whitespace-nowrap">Phiếu Nhập Kho</th>
-                  <th className="py-3.5 px-4 min-w-[140px] whitespace-nowrap">Thời Hạn Bảo Hành</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800">
-                {filteredSerials.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="py-12 text-center text-slate-500">
-                      <div className="flex flex-col items-center justify-center space-y-2">
-                        <Barcode className="w-8 h-8 text-slate-600" />
-                        <p className="text-sm font-semibold">Không tìm thấy mã Serial / IMEI nào</p>
-                        <p className="text-xs text-slate-500">
-                          Khi lập Phiếu Nhập Kho hoặc Quét Barcode, các thiết bị kèm Serial sẽ tự động được lưu và theo dõi tại đây.
-                        </p>
-                      </div>
-                    </td>
+        <div className="space-y-2.5">
+          <InventoryHorizontalScrollToolbar containerRef={serialsScrollRef} activeTab="serial_devices" />
+
+          <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
+            <div
+              ref={serialsScrollRef}
+              className="table-scroll-container overflow-auto max-h-[calc(100vh-270px)] min-h-[420px] relative"
+            >
+              <table className="w-full min-w-[1200px] text-left text-xs border-collapse">
+                <thead className="sticky top-0 z-20 bg-slate-950/95 backdrop-blur-md shadow-md border-b border-slate-800">
+                  <tr className="text-slate-400 uppercase tracking-wider font-semibold">
+                    <th className="py-3.5 px-4 min-w-[150px] whitespace-nowrap sticky left-0 z-30 bg-slate-950 shadow-[2px_0_6px_rgba(0,0,0,0.5)]">Số Serial / IMEI</th>
+                    <th className="py-3.5 px-4 min-w-[200px] whitespace-nowrap">Tên Thiết Bị & SKU</th>
+                    <th className="py-3.5 px-4 min-w-[180px] whitespace-nowrap">Hãng SX, Màu & Quy Cách</th>
+                    <th className="py-3.5 px-4 min-w-[130px] whitespace-nowrap text-center">Trạng Thái Kho</th>
+                    <th className="py-3.5 px-4 min-w-[180px] whitespace-nowrap">Vị Trí Kệ / Đơn Hàng Bán</th>
+                    <th className="py-3.5 px-4 min-w-[140px] whitespace-nowrap">Phiếu Nhập Kho</th>
+                    <th className="py-3.5 px-4 min-w-[140px] whitespace-nowrap">Thời Hạn Bảo Hành</th>
                   </tr>
-                ) : (
-                  filteredSerials.map((s) => {
-                    const status = s.status || 'in_stock';
-                    return (
-                      <tr key={s.id} className="hover:bg-slate-850/60 transition-colors">
-                        <td className="py-3 px-4">
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {filteredSerials.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-12 text-center text-slate-500">
+                        <div className="flex flex-col items-center justify-center space-y-2">
+                          <Barcode className="w-8 h-8 text-slate-600" />
+                          <p className="text-sm font-semibold">Không tìm thấy mã Serial / IMEI nào</p>
+                          <p className="text-xs text-slate-500">
+                            Khi lập Phiếu Nhập Kho hoặc Quét Barcode, các thiết bị kèm Serial sẽ tự động được lưu và theo dõi tại đây.
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredSerials.map((s) => {
+                      const status = s.status || 'in_stock';
+                      return (
+                        <tr key={s.id} className="hover:bg-slate-850/60 transition-colors group">
+                          <td className="py-3 px-4 min-w-[150px] sticky left-0 z-10 bg-slate-900 group-hover:bg-slate-850 shadow-[2px_0_6px_rgba(0,0,0,0.5)] transition-colors">
                           <div className="font-mono font-bold text-sm text-sky-400 flex items-center gap-1.5">
                             <Barcode className="w-4 h-4 text-sky-500" />
                             <span>{s.serialNumber}</span>
@@ -2071,6 +2108,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             </table>
           </div>
         </div>
+      </div>
       )}
 
       {/* Returns & Exchanges Tab */}
@@ -2080,34 +2118,40 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 
       {/* Inventory Logs Tab */}
       {activeTab === 'logs' && (
-        <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1050px] text-left text-xs">
-              <thead>
-                <tr className="bg-slate-950/60 text-slate-400 border-b border-slate-800 uppercase tracking-wider font-semibold">
-                  <th className="py-3.5 px-4 min-w-[140px] whitespace-nowrap">Thời Gian</th>
-                  <th className="py-3.5 px-4 min-w-[200px] whitespace-nowrap">Sản Phẩm</th>
-                  <th className="py-3.5 px-4 min-w-[130px] whitespace-nowrap">Loại Nghiệp Vụ</th>
-                  <th className="py-3.5 px-4 min-w-[110px] whitespace-nowrap text-center">Thay Đổi</th>
-                  <th className="py-3.5 px-4 min-w-[120px] whitespace-nowrap text-center">Tồn Trước/Sau</th>
-                  <th className="py-3.5 px-4 min-w-[200px] whitespace-nowrap">Lý Do / Diễn Giải</th>
-                  <th className="py-3.5 px-4 min-w-[140px] whitespace-nowrap">Người Thực Hiện</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800">
-                {inventoryLogs.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="py-10 text-center text-slate-500">
-                      Chưa có nhật ký nhập xuất kho
-                    </td>
+        <div className="space-y-2.5">
+          <InventoryHorizontalScrollToolbar containerRef={logsScrollRef} activeTab="logs" />
+
+          <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
+            <div
+              ref={logsScrollRef}
+              className="table-scroll-container overflow-auto max-h-[calc(100vh-270px)] min-h-[420px] relative"
+            >
+              <table className="w-full min-w-[1050px] text-left text-xs border-collapse">
+                <thead className="sticky top-0 z-20 bg-slate-950/95 backdrop-blur-md shadow-md border-b border-slate-800">
+                  <tr className="text-slate-400 uppercase tracking-wider font-semibold">
+                    <th className="py-3.5 px-4 min-w-[140px] whitespace-nowrap sticky left-0 z-30 bg-slate-950 shadow-[2px_0_6px_rgba(0,0,0,0.5)]">Thời Gian</th>
+                    <th className="py-3.5 px-4 min-w-[200px] whitespace-nowrap">Sản Phẩm</th>
+                    <th className="py-3.5 px-4 min-w-[130px] whitespace-nowrap">Loại Nghiệp Vụ</th>
+                    <th className="py-3.5 px-4 min-w-[110px] whitespace-nowrap text-center">Thay Đổi</th>
+                    <th className="py-3.5 px-4 min-w-[120px] whitespace-nowrap text-center">Tồn Trước/Sau</th>
+                    <th className="py-3.5 px-4 min-w-[200px] whitespace-nowrap">Lý Do / Diễn Giải</th>
+                    <th className="py-3.5 px-4 min-w-[140px] whitespace-nowrap">Người Thực Hiện</th>
                   </tr>
-                ) : (
-                  inventoryLogs.map((log) => (
-                    <tr key={log.id} className="hover:bg-slate-850/60 transition-colors">
-                      <td className="py-3 px-4 text-slate-400">
-                        {new Date(log.timestamp).toLocaleString('vi-VN')}
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {inventoryLogs.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-10 text-center text-slate-500">
+                        Chưa có nhật ký nhập xuất kho
                       </td>
-                      <td className="py-3 px-4">
+                    </tr>
+                  ) : (
+                    inventoryLogs.map((log) => (
+                      <tr key={log.id} className="hover:bg-slate-850/60 transition-colors group">
+                        <td className="py-3 px-4 min-w-[140px] sticky left-0 z-10 bg-slate-900 group-hover:bg-slate-850 shadow-[2px_0_6px_rgba(0,0,0,0.5)] transition-colors text-slate-400">
+                          {new Date(log.timestamp).toLocaleString('vi-VN')}
+                        </td>
+                        <td className="py-3 px-4">
                         <div className="font-semibold text-slate-200">
                           {log.productName}
                         </div>
@@ -2158,6 +2202,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             </table>
           </div>
         </div>
+      </div>
       )}
 
       {/* Add / Edit Product Modal */}
@@ -2245,7 +2290,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                     <label className="text-slate-300 font-semibold text-xs">Danh mục (Nhóm hàng & VAT):</label>
                     <button
                       type="button"
-                      onClick={() => setQuickAddType('category')}
+                      onClick={() => setQuickAddType('categories')}
                       className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-700/50 px-2 py-0.5 rounded-lg flex items-center space-x-1 cursor-pointer transition shadow-xs"
                       title="Thêm nhóm ngành hàng & thuế VAT mới vào Dữ liệu cơ bản"
                     >
@@ -2287,7 +2332,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                     <label className="text-slate-300 font-semibold text-xs">Đơn vị tính (ĐVT):</label>
                     <button
                       type="button"
-                      onClick={() => setQuickAddType('uom')}
+                      onClick={() => setQuickAddType('uoms')}
                       className="text-[10px] font-bold text-cyan-400 hover:text-cyan-300 bg-cyan-950/60 hover:bg-cyan-900 border border-cyan-700/50 px-2 py-0.5 rounded-lg flex items-center space-x-1 cursor-pointer transition shadow-xs"
                       title="Mở cấu hình thêm ĐVT và tỷ lệ quy đổi"
                     >
@@ -2313,7 +2358,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                     <label className="text-slate-300 font-semibold text-xs">Màu sắc sản phẩm:</label>
                     <button
                       type="button"
-                      onClick={() => setQuickAddType('color')}
+                      onClick={() => setQuickAddType('colors')}
                       className="text-[10px] font-bold text-pink-400 hover:text-pink-300 bg-pink-950/60 hover:bg-pink-900 border border-pink-700/50 px-2 py-0.5 rounded-lg flex items-center space-x-1 cursor-pointer transition shadow-xs"
                       title="Thêm màu sắc mới vào Dữ liệu cơ bản"
                     >
@@ -2462,7 +2507,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                     <label className="text-slate-300 font-semibold text-xs">Kho hàng lưu trữ:</label>
                     <button
                       type="button"
-                      onClick={() => setQuickAddType('warehouse')}
+                      onClick={() => setQuickAddType('warehouses')}
                       className="text-[10px] font-bold text-amber-400 hover:text-amber-300 bg-amber-950/60 hover:bg-amber-900 border border-amber-700/50 px-2 py-0.5 rounded-lg flex items-center space-x-1 cursor-pointer transition shadow-xs"
                       title="Thêm kho lưu trữ mới vào Database"
                     >
@@ -2495,7 +2540,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                     <label className="text-slate-300 font-semibold text-xs">Vị trí kệ / dãy / ô:</label>
                     <button
                       type="button"
-                      onClick={() => setQuickAddType('location')}
+                      onClick={() => setQuickAddType('locations')}
                       className="text-[10px] font-bold text-sky-400 hover:text-sky-300 bg-sky-950/60 hover:bg-sky-900 border border-sky-700/50 px-2 py-0.5 rounded-lg flex items-center space-x-1 cursor-pointer transition shadow-xs"
                       title="Mở thêm vị trí kệ chuẩn hóa vào Database"
                     >
